@@ -1,0 +1,90 @@
+@layer components {
+  /* Shared tap target for icon-only buttons/links (TopBar, UserMenu,
+   * Notes list, Editor). p-2 instead of p-1 roughly doubles the hit
+   * area around each icon without changing its visual size. */
+  .icon-btn {
+    @apply rounded-md p-2 transition-colors hover:bg-hover-bg;
+  }
+
+  .btn {
+    @apply my-1.5 cursor-pointer appearance-none rounded-md px-3 py-[7px]
+         font-sans text-base font-semibold
+         transition-colors transition-shadow duration-150
+         disabled:cursor-not-allowed disabled:opacity-40
+         shadow-card
+         border border-border bg-field text-text
+         enabled:hover:bg-hover-bg
+         enabled:active:bg-active-bg enabled:active:border-active-border;
+  }
+
+  /* ProseKit ships without a UI, so the toolbar and editable area are
+   * styled here instead of a vendor/ override file. ProseKit's own
+   * prosekit/basic/style.css (imported in Editor.tsx) handles the
+   * inner typography and targets the "ProseMirror" class, which is why
+   * that class is applied directly to notes-editor-content below. */
+  .notes-editor {
+    @apply rounded-md border border-border bg-field;
+  }
+
+  .notes-toolbar {
+    @apply flex flex-wrap items-center gap-0.5 rounded-t-md border-b border-border bg-surface p-1.5;
+  }
+
+  .notes-toolbar-group {
+    @apply flex items-center gap-0.5;
+  }
+
+  /* A thin vertical rule between toolbar groups (history / marks / block
+   * type / lists), so related buttons read as one cluster. */
+  .notes-toolbar-divider {
+    @apply mx-1 h-5 w-px bg-border;
+  }
+
+  .notes-toolbar button {
+    @apply flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm
+         text-text transition-colors hover:bg-hover-bg
+         disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent;
+  }
+
+  .notes-toolbar button.is-active {
+    @apply bg-active-bg text-text;
+  }
+
+  .notes-editor-content {
+    @apply p-3 pb-10 text-text outline-none;
+  }
+
+  /* prosekit/basic/typography.css is tuned for a tight, block-based
+   * editing UI (e.g. paragraphs get 1px of margin), not for comfortable
+   * reading/writing. These selectors repeat both classes already present
+   * on the editor's root element (see notes-editor-content above) purely
+   * to out-specificity that stylesheet, regardless of which file happens
+   * to load first. */
+  .notes-editor-content.ProseMirror p {
+    margin: 0 0 0.75em;
+    line-height: 1.7;
+  }
+
+  .notes-editor-content.ProseMirror h1,
+  .notes-editor-content.ProseMirror h2,
+  .notes-editor-content.ProseMirror h3,
+  .notes-editor-content.ProseMirror h4,
+  .notes-editor-content.ProseMirror h5,
+  .notes-editor-content.ProseMirror h6 {
+    margin-bottom: 0.5em;
+  }
+
+  .notes-editor-content.ProseMirror blockquote {
+    margin: 0.75em 0;
+  }
+
+  /* Cell for the generic Heatmap component (see
+   * components/common/Heatmap.tsx). Background color is set inline
+   * per-cell by the caller, not here, so it always applies regardless
+   * of Tailwind's cascade layer ordering. No border, just a flat fill,
+   * matching GitHub's own contribution graph. Sized to match GitHub's
+   * own cells (~10px). */
+  .heat-cell {
+    @apply h-3 w-3 shrink-0 cursor-pointer rounded-[2px] transition-colors;
+  }
+}

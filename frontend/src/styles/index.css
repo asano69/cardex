@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* Import order matters: theme.css must come right after tailwindcss so
+ * its @theme block extends Tailwind's defaults before anything else
+ * consumes the resulting var(--color-*) tokens. */
+@import "./theme.css";
+@import "./base.css";
+@import "./components.css";

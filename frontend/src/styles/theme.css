@@ -1,0 +1,67 @@
+/* Semantic color tokens live in @theme so Tailwind generates matching
+ * utilities (bg-bg, text-text, border-border, ...). Each token uses
+ * light-dark(), so the light/dark values sit side by side instead of
+ * being duplicated in a separate @media block. Which value applies
+ * follows the `color-scheme` of the element: it defaults to the OS
+ * preference (see the <meta name="color-scheme"> tag in index.html) and
+ * can be pinned explicitly by toggling the .light/.dark class on <html>
+ * (see the :root.light / :root.dark rules below). */
+@theme {
+  --font-sans: system-ui, "Inter", -apple-system, sans-serif;
+  --font-serif: "TeX Gyre Termes", "Nimbus Roman No9 L", Georgia, serif;
+
+  --font-display: "Fraunces", "TeX Gyre Termes", Georgia, serif;
+
+  --color-bg: light-dark(#ffffff, #1e1f20);
+  --color-text: light-dark(#000000, #e0e0e0);
+  --color-panel: light-dark(#f8f8f8, #252525);
+  --color-surface: light-dark(#fcfcfc, #1e1e1e);
+  --color-card: light-dark(#f8f8f8, #2a2a2a);
+  --color-field: light-dark(#ffffff, #333333);
+  --color-border: light-dark(#d0d7de, #46494f);
+  --color-hover-bg: light-dark(#f0f0f0, #3a3a3a);
+  --color-hover-border: light-dark(#777777, #666666);
+  --color-active-bg: light-dark(#e4e4e4, #444444);
+  --color-active-border: light-dark(#666666, #777777);
+  /* Shared background for the app's outer nav (TopBar, Sidebar).
+   * A dedicated role token, not a literal color name, so it stays
+   * correct if the actual color is swapped in either light or dark. */
+  --color-nav: light-dark(#f6f7fa, #1a1b1e);
+
+  /* Focus heatmap cell colors (see components/focus/FocusHeatmap.tsx).
+   * --color-heat-empty is the "no tasks created" background, matching
+   * GitHub's own neutral (not transparent) empty-cell color. 0% is
+   * red; 33/50/66/100% form a blue gradient that gets darker (more
+   * saturated) as the rate rises. Dark mode uses brighter stops for
+   * the higher rates instead of literally darker ones, since a
+   * near-black blue would disappear against a dark background. */
+  --color-heat-empty: light-dark(#ebedf0, #2a313c);
+  --color-heat-0: light-dark(#cc0000, #7f1d1d);
+  --color-heat-33: light-dark(#aceebb, #1b4721);
+  --color-heat-50: light-dark(#4ac26b, #2b6a30);
+  --color-heat-66: light-dark(#2da44e, #46954a);
+  --color-heat-100: light-dark(#116329, #6bc46d);
+
+  /* Reusable box-shadow presets, modeled on GitHub Primer's shadow
+   * scale: low-opacity black, tight offsets/blur. The border color
+   * (--color-border) is what actually defines the edge; these shadows
+   * only add a slight sense of elevation, instead of the previous
+   * solid-gray/large-blur combo that read as a glowing halo in light
+   * mode. Dark mode gets a stronger, more opaque shadow since there's
+   * no light backdrop to contrast against. */
+  --shadow-card: 0 1px 0 light-dark(rgba(31, 35, 40, 0.04), rgba(0, 0, 0, 0.3));
+  --shadow-popover:
+    0 1px 3px light-dark(rgba(31, 35, 40, 0.12), rgba(0, 0, 0, 0.4)),
+    0 8px 24px light-dark(rgba(66, 74, 83, 0.12), rgba(0, 0, 0, 0.4));
+}
+
+/* An explicit user choice overrides the OS preference by pinning
+ * color-scheme on <html>. With neither class present, color-scheme
+ * falls back to the <meta name="color-scheme"> tag in index.html,
+ * which follows the OS setting. */
+:root.light {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}

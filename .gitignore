@@ -1,0 +1,11 @@
+*.db
+/myapp
+
+/data/
+
+pb_data/
+node_modules/
+dist/
+tmp/
+
+
