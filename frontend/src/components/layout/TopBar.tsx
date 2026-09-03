@@ -34,7 +34,7 @@ export default function TopBar(props: TopBarProps) {
           </Show>
           {/* Version hidden on mobile: there isn't room for it next to
               the hamburger toggle and title. */}
-          <Logo showTitle linkable showVersion={!props.isMobile} />
+          <Logo showTitle linkable showVersion={!props.isMobile}  />
         </div>
 
         <nav class="flex items-center gap-1">
