@@ -6,17 +6,17 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/spf13/cobra"
 
-	"github.com/asano69/myapp/internal/config"
-	"github.com/asano69/myapp/internal/serve"
+	"github.com/asano69/cardex/internal/config"
+	"github.com/asano69/cardex/internal/serve"
 )
 
-// serveCmd defines the "myapp serve" cobra command. RunE stays a thin
+// serveCmd defines the "cardex serve" cobra command. RunE stays a thin
 // wrapper: load config, then delegate to internal/serve for the actual
 // server implementation.
 //
 // --host/--port are optional overrides on top of config.Load()'s env-based
 // config. cmd.Flags().Changed is checked so an unset flag never clobbers a
-// value that came from MYAPP_SERVER_HOST/MYAPP_SERVER_PORT.
+// value that came from CARDEX_SERVER_HOST/CARDEX_SERVER_PORT.
 func serveCmd(app *pocketbase.PocketBase) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
@@ -45,8 +45,8 @@ func serveCmd(app *pocketbase.PocketBase) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("host", "", "Server host, overrides MYAPP_SERVER_HOST")
-	cmd.Flags().Int("port", 0, "Server port, overrides MYAPP_SERVER_PORT")
+	cmd.Flags().String("host", "", "Server host, overrides CARDEX_SERVER_HOST")
+	cmd.Flags().Int("port", 0, "Server port, overrides CARDEX_SERVER_PORT")
 
 	return cmd
 }

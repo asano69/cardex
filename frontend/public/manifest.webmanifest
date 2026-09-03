@@ -1,6 +1,6 @@
 {
-  "name": "MyApp",
-  "short_name": "MyApp",
+  "name": "Cardex",
+  "short_name": "Cardex",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1e1f20",

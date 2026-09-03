@@ -15,10 +15,10 @@ fi
 # Throwaway credential meant to be rotated via the UI right after first login.
 ADMIN_EMAIL="${INITIAL_ADMIN_EMAIL:-admin@mail.internal}"
 ADMIN_PASSWORD="${INITIAL_ADMIN_PASSWORD:-password}"
-DATA_DIR="${MYAPP_DATA_DIR:-pb_data}"
+DATA_DIR="${CARDEX_DATA_DIR:-pb_data}"
 
 if [ ! -f "$DATA_DIR/data.db" ]; then
-  su-exec myapp:myapp myapp superuser create "$ADMIN_EMAIL" "$ADMIN_PASSWORD"
+  su-exec cardex:cardex cardex superuser create "$ADMIN_EMAIL" "$ADMIN_PASSWORD"
 fi
 
-exec su-exec myapp:myapp "$@"
+exec su-exec cardex:cardex "$@"

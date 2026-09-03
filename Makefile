@@ -1,9 +1,9 @@
 .PHONY: lint
 
-include myapp.env
+include cardex.env
 export
 
-BINARY := myapp
+BINARY := cardex
 
 # Ports used by the dev servers (frontend, backend, and PocketBase-style API)
 PORTS := 3000 3001
@@ -15,12 +15,12 @@ all: # (*) Build frontend assets and start the server
 
 
 init:
-	fastmod --hidden myapp $(notdir $(CURDIR)) --glob '!Makefile'
+	fastmod --hidden cardex $(notdir $(CURDIR)) --glob '!Makefile'
 	fastmod --hidden MYAPP $(shell echo '$(notdir $(CURDIR))' | tr '[:lower:]' '[:upper:]') --glob '!Makefile'
-	find . -depth \( -type f -o -type d \) -name '*myapp*' | while read -r f; do \
-		mv -- "$$f" "$$(dirname "$$f")/$$(basename "$$f" | sed 's/myapp/$(notdir $(CURDIR))/g')"; \
+	find . -depth \( -type f -o -type d \) -name '*cardex*' | while read -r f; do \
+		mv -- "$$f" "$$(dirname "$$f")/$$(basename "$$f" | sed 's/cardex/$(notdir $(CURDIR))/g')"; \
 	done
-	fastmod myapp $(notdir $(CURDIR))
+	fastmod cardex $(notdir $(CURDIR))
 
 
 
@@ -34,11 +34,11 @@ build-frontend: frontend-deps
 
 .PHONY: build
 build: build-frontend
-	go build -ldflags="-X github.com/asano69/myapp/internal/version.Version=$(VERSION)" -o $(BINARY) ./cmd/$(BINARY)
+	go build -ldflags="-X github.com/asano69/cardex/internal/version.Version=$(VERSION)" -o $(BINARY) ./cmd/$(BINARY)
 
 .PHONY: server
 server: 
-	#./myapp migrate up --dir=pb_data
+	#./cardex migrate up --dir=pb_data
 	./$(BINARY) superuser upsert admin@mail.internal password --dir=pb_data
 	./$(BINARY) serve --dev
 
@@ -78,5 +78,5 @@ format:
 # 本番では、後方互換性のために残しておいたほうが良いかも。
 migrate-collections:
 	ls -1 migrations/*.go | sort | head -n -1 | xargs rm -f
-	yes | go run ./cmd/myapp migrate collections
+	yes | go run ./cmd/cardex migrate collections
 	ls -1 migrations/*.go | sort | head -n -1 | xargs rm -f

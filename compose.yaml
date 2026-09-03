@@ -1,21 +1,21 @@
 services:
-  myapp:
-    image: ghcr.io/asano69/myapp:latest
-    container_name: myapp
+  cardex:
+    image: ghcr.io/asano69/cardex:latest
+    container_name: cardex
     restart: unless-stopped
     ports:
       - "3000:3000"
     env_file:
-      - myapp.env
+      - cardex.env
     volumes:
-      - ./data:/myapp/pb_data
+      - ./data:/cardex/pb_data
         #- /etc/ssl/certs/root_ca.crt:/certs/root_ca.crt:ro # optional
     environment:
       - TZ=Etc/UTC
       #
-      - MYAPP_SERVER_HOST=0.0.0.0
-      - MYAPP_SERVER_PORT=3000
-      - MYAPP_DATA_DIR=pb_data
+      - CARDEX_SERVER_HOST=0.0.0.0
+      - CARDEX_SERVER_PORT=3000
+      - CARDEX_DATA_DIR=pb_data
       #
       #- INITIAL_ADMIN_EMAIL=admin@mail.internal # default
       #- INITIAL_ADMIN_PASSWORD=password # default

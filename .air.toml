@@ -6,9 +6,9 @@ testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-args_bin = ["serve", "--dir=${MYAPP_DATA_DIR}", "--dev"]
+args_bin = ["serve", "--dir=${CARDEX_DATA_DIR}", "--dev"]
 bin = "./tmp/main"
-cmd = "go build -o ./tmp/main ./cmd/myapp"
+cmd = "go build -o ./tmp/main ./cmd/cardex"
 clean_on_exit = true
 delay = 1000
 entrypoint = ["./tmp/main"]

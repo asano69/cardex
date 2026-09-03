@@ -1,4 +1,4 @@
-// Package config loads the configuration for myapp serve from
+// Package config loads the configuration for cardex serve from
 // environment variables.
 package config
 
@@ -23,17 +23,17 @@ type Config struct {
 //
 // Recognised variables:
 //
-//	MYAPP_SERVER_HOST         default "0.0.0.0"
-//	MYAPP_SERVER_PORT         default 3000
+//	CARDEX_SERVER_HOST         default "0.0.0.0"
+//	CARDEX_SERVER_PORT         default 3000
 func Load() (*Config, error) {
-	port, err := envInt("MYAPP_SERVER_PORT", 3000)
+	port, err := envInt("CARDEX_SERVER_PORT", 3000)
 	if err != nil {
 		return nil, err
 	}
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Host: envString("MYAPP_SERVER_HOST", "0.0.0.0"),
+			Host: envString("CARDEX_SERVER_HOST", "0.0.0.0"),
 			Port: port,
 		},
 	}

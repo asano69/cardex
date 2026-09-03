@@ -3,14 +3,14 @@ package serve
 import (
 	"net/http"
 
-	"github.com/asano69/myapp/internal/static"
-	"github.com/asano69/myapp/internal/version"
+	"github.com/asano69/cardex/internal/static"
+	"github.com/asano69/cardex/internal/version"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
-// registerRoutes wires up every HTTP route served by myapp. It is passed
+// registerRoutes wires up every HTTP route served by cardex. It is passed
 // to app.OnServe().BindFunc in serve.go, keeping all route/handler
 // definitions in this file while serve.go stays focused on server setup
 // and startup.
