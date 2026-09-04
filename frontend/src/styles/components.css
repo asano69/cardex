@@ -17,40 +17,27 @@
          enabled:active:bg-active-bg enabled:active:border-active-border;
   }
 
-  /* ProseKit ships without a UI, so the toolbar and editable area are
-   * styled here instead of a vendor/ override file. ProseKit's own
-   * prosekit/basic/style.css (imported in Editor.tsx) handles the
-   * inner typography and targets the "ProseMirror" class, which is why
-   * that class is applied directly to notes-editor-content below. */
-  .notes-editor {
-    @apply bg-field shadow-md;
-  }
-
-  .notes-editor-content {
-    @apply p-3 pb-10 text-text outline-none;
-  }
-
-  /* prosekit/basic/typography.css is tuned for a tight, block-based
-   * editing UI (e.g. paragraphs get 1px of margin), not for comfortable
-   * reading/writing. These selectors repeat both classes already present
-   * on the editor's root element (see notes-editor-content above) purely
-   * to out-specificity that stylesheet, regardless of which file happens
-   * to load first. */
-  .notes-editor-content.ProseMirror p {
+  /* ProseKit ships without a UI. Layout/background for the editor box
+   * (bg-field, padding, etc.) live as Tailwind utilities directly on
+   * NoteEditor's JSX; only the typography overrides below need plain
+   * CSS, since they must out-specificity prosekit/basic/typography.css
+   * regardless of which file happens to load first, which Tailwind's
+   * @apply can't express. */
+  .ProseMirror p {
     margin: 0 0 0.75em;
     line-height: 1.7;
   }
 
-  .notes-editor-content.ProseMirror h1,
-  .notes-editor-content.ProseMirror h2,
-  .notes-editor-content.ProseMirror h3,
-  .notes-editor-content.ProseMirror h4,
-  .notes-editor-content.ProseMirror h5,
-  .notes-editor-content.ProseMirror h6 {
+  .ProseMirror h1,
+  .ProseMirror h2,
+  .ProseMirror h3,
+  .ProseMirror h4,
+  .ProseMirror h5,
+  .ProseMirror h6 {
     margin-bottom: 0.5em;
   }
 
-  .notes-editor-content.ProseMirror blockquote {
+  .ProseMirror blockquote {
     margin: 0.75em 0;
   }
 
