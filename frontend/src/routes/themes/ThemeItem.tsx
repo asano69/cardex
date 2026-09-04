@@ -1,15 +1,18 @@
 import { createSignal, Show } from "solid-js";
-import { TextField } from "@kobalte/core/text-field";
+import { A } from "@solidjs/router";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import {
   CircleCheckBig,
   Circle,
   Trash2,
   GripVertical,
+  Pencil,
+  FolderOpen,
 } from "../../lib/icons";
 
 import pb from "../../lib/pb";
 import { playCompletionSound } from "../../lib/completionSound";
+import PromptDialog from "../../components/dialogs/PromptDialog";
 import type { ThemeRecord } from "./ThemeForm";
 
 export interface ThemeItemProps {
@@ -30,13 +33,14 @@ export interface ThemeItemProps {
 }
 
 // A single row in the Themes list: a drag handle, a done/not-done
-// toggle, an inline-editable title (click to rename), and a delete
-// button. Owns its own PocketBase calls and reports the result back to
-// the page (see onChanged/onDeleted), so the page only has to keep its
-// theme list in sync rather than know about individual mutations.
+// toggle, a title, and edit/open/delete buttons. Renaming happens via
+// PromptDialog (not inline) so a click on the row never accidentally
+// starts an edit. Owns its own PocketBase calls and reports the result
+// back to the page (see onChanged/onDeleted), so the page only has to
+// keep its theme list in sync rather than know about individual
+// mutations.
 export default function ThemeItem(props: ThemeItemProps) {
-  const [editing, setEditing] = createSignal(false);
-  const [editValue, setEditValue] = createSignal("");
+  const [editOpen, setEditOpen] = createSignal(false);
   const [error, setError] = createSignal("");
 
   const toggleDone = async () => {
@@ -65,27 +69,11 @@ export default function ThemeItem(props: ThemeItemProps) {
     }
   };
 
-  const startEdit = () => {
-    setEditValue(props.theme.title);
-    setEditing(true);
-  };
-
-  const cancelEdit = () => setEditing(false);
-
-  // Commits the edited title, or just closes the editor if the value is
-  // empty or unchanged (no round-trip needed in that case).
-  const commitEdit = async () => {
-    const newTitle = editValue().trim();
-    setEditing(false);
-    if (!newTitle || newTitle === props.theme.title) return;
-    try {
-      const record = await pb
-        .collection("themes")
-        .update<ThemeRecord>(props.theme.id, { title: newTitle });
-      props.onChanged(record);
-    } catch {
-      setError("Failed to update the theme.");
-    }
+  const handleEditSubmit = async (title: string) => {
+    const record = await pb
+      .collection("themes")
+      .update<ThemeRecord>(props.theme.id, { title });
+    props.onChanged(record);
   };
 
   return (
@@ -127,37 +115,25 @@ export default function ThemeItem(props: ThemeItemProps) {
           </Show>
         </ToggleButton>
 
-        {/* Click a theme's title to rename it inline, instead of a
-            separate edit button/dialog. */}
-        <Show
-          when={editing()}
-          fallback={
-            <span
-              class="flex-1 cursor-text border border-transparent py-2"
-              onClick={startEdit}
-            >
-              {props.theme.title}
-            </span>
-          }
+        <span class="flex-1 py-2">{props.theme.title}</span>
+        <A
+          href={`/themes/${props.theme.id}`}
+          aria-label="Open theme"
+          class="icon-btn"
         >
-          <TextField value={editValue()} onChange={setEditValue} class="flex-1">
-            <TextField.Input
-              autofocus
-              onBlur={commitEdit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitEdit();
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  cancelEdit();
-                }
-              }}
-              class="w-full rounded-md border border-transparent bg-transparent py-2 text-text"
-            />
-          </TextField>
-        </Show>
+          <FolderOpen size={18} />
+        </A>
 
+        <button
+          type="button"
+          aria-label="Edit theme"
+          class="icon-btn"
+          onClick={() => setEditOpen(true)}
+        >
+          <Pencil size={18} />
+        </button>
+
+        {/* Opens the theme's own page, which will list its cards. */}
         <button
           type="button"
           aria-label="Delete theme"
@@ -168,6 +144,16 @@ export default function ThemeItem(props: ThemeItemProps) {
         </button>
       </div>
       {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
+
+      <PromptDialog
+        open={editOpen()}
+        onOpenChange={setEditOpen}
+        title="Edit theme"
+        label="Title"
+        initialValue={props.theme.title}
+        onSubmit={handleEditSubmit}
+        errorMessage="Failed to update the theme."
+      />
     </div>
   );
 }

@@ -45,6 +45,7 @@ server:
 # --------------
 .PHONY: clean
 	rm -fr ./tmp/ # air
+	rm -fr frontend/node_modules/.vite
 
 # port: 3001
 .PHONY: dev-front

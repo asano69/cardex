@@ -4,6 +4,7 @@ import { Router, Route, Navigate } from "@solidjs/router";
 import AppShell from "../components/layout/AppShell";
 
 import Themes from "../routes/themes";
+import ThemeDetail from "../routes/themes/ThemeDetail";
 import Diary from "../routes/diary";
 
 // All top-level routes in one place, so adding or removing a page never
@@ -20,6 +21,7 @@ export default function AppRouter() {
       <Route path="/" component={() => <Navigate href="/themes" />} />
 
       <Route path="/themes" component={Themes} />
+      <Route path="/themes/:id" component={ThemeDetail} />
       <Route path="/diary" component={Diary} />
     </Router>
   );

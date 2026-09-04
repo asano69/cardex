@@ -26,8 +26,18 @@ export interface HeatmapProps {
 const DEFAULT_WEEKS = 52;
 
 const DEFAULT_MONTH_ABBREVIATIONS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 // Only every other row is labeled (Mon/Wed/Fri), matching GitHub's own
@@ -121,7 +131,8 @@ export default function Heatmap(props: HeatmapProps) {
                     <div
                       class="heat-cell"
                       style={{
-                        "background-color": props.colors[props.getCategory(date)],
+                        "background-color":
+                          props.colors[props.getCategory(date)],
                       }}
                       title={props.getTooltip?.(date)}
                       onMouseEnter={() => props.onSelect?.(date)}
