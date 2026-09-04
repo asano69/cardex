@@ -15,7 +15,7 @@ interface NavItem {
 // data so each entry is just a {href, label, icon} tuple instead of
 // duplicating the same <A> markup per page.
 const NAV_ITEMS: NavItem[] = [
-  { href: "/focus", label: "Issues", icon: Focus },
+  { href: "/focus", label: "Themes", icon: Focus },
   { href: "/diary", label: "Diary", icon: Notebook },
 ];
 
