@@ -88,12 +88,12 @@
     @apply h-3 w-3 shrink-0 cursor-pointer rounded-[2px] transition-colors;
   }
 
-  /* Scrapbox/Cosense-style page card, used for the card grid on
-   * ThemeDetail (see routes/themes/CardItem.tsx). Mirrors Scrapbox's
-   * project page grid: a colored title followed by an outline-style
-   * body with a left guide line instead of plain paragraphs. */
+  /* Scrapbox-style grid card, ported from the obsidian-scrapbox-flavored
+   * plugin's Card.svelte (packages/grid-view/src/view/Card.svelte): a
+   * square tile with a thick colored top border, used for the card
+   * grid on ThemeDetail (see routes/themes/CardItem.tsx). */
   .scrapbox-card {
-    @apply flex h-48 flex-col overflow-hidden rounded-md border border-border bg-card p-3 shadow-card transition-colors hover:border-hover-border;
+    @apply flex aspect-square flex-col overflow-hidden rounded-md border-t-[15px] border-border bg-card p-3 shadow-card transition-colors hover:bg-hover-bg;
   }
 
   .scrapbox-card-title {
@@ -101,7 +101,7 @@
   }
 
   .scrapbox-card-body {
-    @apply flex-1 overflow-hidden border-l-2 border-border pl-2 text-sm text-text;
+    @apply flex-1 overflow-hidden text-sm text-text;
   }
 
   .scrapbox-card-line {
@@ -109,6 +109,6 @@
   }
 
   .scrapbox-card-tag {
-    @apply mt-1 self-start rounded-sm bg-hover-bg px-1.5 py-0.5 text-xs text-[#5484e7];
+    @apply mt-auto self-start rounded-sm bg-hover-bg px-1.5 py-0.5 text-xs text-[#5484e7];
   }
 }
