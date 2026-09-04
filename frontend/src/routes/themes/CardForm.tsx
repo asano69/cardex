@@ -1,9 +1,9 @@
 import { createResource, createSignal, Show } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
-import { TextField } from "@kobalte/core/text-field";
+import type { createEditor } from "prosekit/core";
 
 import pb from "../../lib/pb";
-import SaveButton from "../../components/SaveButton";
+import TextEditor from "../../components/editor/TextEditor";
 import Loading from "../../components/Loading";
 
 // Matches the PocketBase "cards" collection schema.
@@ -19,6 +19,36 @@ export interface CardRecord {
 
 async function fetchCard(id: string): Promise<CardRecord> {
   return await pb.collection("cards").getOne<CardRecord>(id);
+}
+
+// Builds a ProseKit doc where each line becomes its own paragraph, so
+// the editor's first line naturally maps to the card's title (see
+// docToLines below for the inverse split used on save). At least one
+// paragraph is always included, since ProseKit's basic schema requires
+// a non-empty doc.
+function linesToDocJSON(lines: string[]) {
+  const paragraphs = lines.length > 0 ? lines : [""];
+  return {
+    type: "doc",
+    content: paragraphs.map((line) => ({
+      type: "paragraph",
+      ...(line ? { content: [{ type: "text", text: line }] } : {}),
+    })),
+  };
+}
+
+// Inverse of linesToDocJSON: reads the editor's doc JSON back out as one
+// string per top-level block. Used on save to split the first line off
+// as the title and join the rest back into the content field.
+function docToLines(doc: any): string[] {
+  const nodes: any[] = doc?.content ?? [];
+  return nodes.map(textOf);
+}
+
+function textOf(node: any): string {
+  if (node.type === "text") return node.text ?? "";
+  const children: any[] = node.content ?? [];
+  return children.map(textOf).join("");
 }
 
 // Add/edit page for a single card, reached from ThemeDetail's "add card"
@@ -46,29 +76,42 @@ interface CardFieldsProps {
   card?: CardRecord;
 }
 
-// Split out from CardForm so a fresh set of signals is created once the
+// Split out from CardForm so a fresh editor is created once the
 // existing card (if any) has finished loading -- the same pattern Diary
 // uses for its own form (see routes/diary/index.tsx's DiaryForm).
 function CardFields(props: CardFieldsProps) {
   const navigate = useNavigate();
 
-  const [title, setTitle] = createSignal(props.card?.title ?? "");
-  const [content, setContent] = createSignal(props.card?.content ?? "");
+  // eslint-disable-next-line solid/reactivity
   const [kind, setKind] = createSignal<CardRecord["kind"]>(
     props.card?.kind ?? "idea",
   );
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal("");
 
+  // The title is line 1, the content is every line after it -- the
+  // same split Scrapbox uses for its own pages, so the editor reads as
+  // one continuous note instead of two separate fields.
+  // eslint-disable-next-line solid/reactivity
+  const initialContent = linesToDocJSON([
+    props.card?.title ?? "",
+    ...(props.card?.content ? props.card.content.split("\n") : []),
+  ]);
+
+  // Set by TextEditor's onReady once its ProseKit editor is created, so
+  // handleSave can read the current content via editor.getDocJSON().
+  let editor: ReturnType<typeof createEditor>;
+
   const handleSave = async (e: SubmitEvent) => {
     e.preventDefault();
-    if (!title().trim() || !content().trim()) return;
+    const [title, ...rest] = docToLines(editor.getDocJSON());
+    if (!title?.trim()) return;
     setError("");
     setSaving(true);
     try {
       const data = {
-        title: title().trim(),
-        content: content().trim(),
+        title: title.trim(),
+        content: rest.join("\n").trim(),
         theme: props.themeId,
         kind: kind(),
       };
@@ -91,22 +134,6 @@ function CardFields(props: CardFieldsProps) {
       onSubmit={handleSave}
       class="flex min-h-0 flex-1 w-full flex-col gap-4 mb-20"
     >
-      <h1 class="font-sans text-4xl">
-        {props.cardId ? "Edit card" : "Add card"}
-      </h1>
-
-      <TextField
-        value={title()}
-        onChange={setTitle}
-        class="flex flex-col gap-1"
-      >
-        <TextField.Label class="text-sm text-text">Title</TextField.Label>
-        <TextField.Input
-          autofocus
-          class="w-full rounded-md border border-border bg-field px-3 py-2 text-text"
-        />
-      </TextField>
-
       <div role="radiogroup" aria-label="Kind" class="flex gap-4">
         <label class="flex items-center gap-1.5">
           <input
@@ -130,20 +157,14 @@ function CardFields(props: CardFieldsProps) {
         </label>
       </div>
 
-      <TextField
-        value={content()}
-        onChange={setContent}
-        class="flex flex-1 flex-col gap-1"
-      >
-        <TextField.TextArea class="min-h-0 flex-1 resize-none rounded-md border border-border bg-field p-3 text-text" />
-      </TextField>
-
-      {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
-      <SaveButton
+      <TextEditor
+        initialContent={initialContent}
         saving={saving()}
         justSaved={false}
-        dirty={title().trim() !== "" && content().trim() !== ""}
+        onReady={(readyEditor) => (editor = readyEditor)}
       />
+
+      {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
     </form>
   );
 }
