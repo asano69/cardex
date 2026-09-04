@@ -1,21 +1,21 @@
 import { For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 
-import { Cone as Focus, Notebook } from "../../lib/icons";
+import { Notebook } from "../../lib/icons";
 
 import { useVersion } from "../../lib/version";
 
 interface NavItem {
   href: string;
   label: string;
-  icon: typeof Focus;
+  icon: typeof Notebook;
 }
 
 // Static top-level nav items, in the order they're shown. Kept as plain
 // data so each entry is just a {href, label, icon} tuple instead of
-// duplicating the same <A> markup per page.
+// duplicating the same <A> markup per page. Themes now lives in
+// TopBar next to the logo instead of here (see TopBar.tsx).
 const NAV_ITEMS: NavItem[] = [
-  { href: "/focus", label: "Themes", icon: Focus },
   { href: "/diary", label: "Diary", icon: Notebook },
 ];
 

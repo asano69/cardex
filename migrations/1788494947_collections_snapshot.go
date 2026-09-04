@@ -1101,6 +1101,29 @@ func init() {
 						"type": "relation"
 					},
 					{
+						"help": "",
+						"hidden": false,
+						"id": "bool271442091",
+						"name": "done",
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "bool"
+					},
+					{
+						"help": "",
+						"hidden": false,
+						"id": "number3619293394",
+						"max": null,
+						"min": null,
+						"name": "ppsition",
+						"onlyInt": false,
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "number"
+					},
+					{
 						"hidden": false,
 						"id": "autodate2990389176",
 						"name": "created",

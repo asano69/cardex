@@ -3,7 +3,7 @@ import { Router, Route, Navigate } from "@solidjs/router";
 
 import AppShell from "../components/layout/AppShell";
 
-import Focus from "../routes/focus";
+import Themes from "../routes/themes";
 import Diary from "../routes/diary";
 
 // All top-level routes in one place, so adding or removing a page never
@@ -15,11 +15,11 @@ import Diary from "../routes/diary";
 export default function AppRouter() {
   return (
     <Router root={AppShell}>
-      {/* Diary is the app's primary page, so "/" redirects straight to
+      {/* Themes is the app's primary page, so "/" redirects straight to
           it instead of rendering a separate placeholder home page. */}
-      <Route path="/" component={() => <Navigate href="/focus" />} />
+      <Route path="/" component={() => <Navigate href="/themes" />} />
 
-      <Route path="/focus" component={Focus} />
+      <Route path="/themes" component={Themes} />
       <Route path="/diary" component={Diary} />
     </Router>
   );

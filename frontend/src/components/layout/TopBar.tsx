@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
-import { Menu, X } from "../../lib/icons";
+import { A } from "@solidjs/router";
+import { Menu, X, Network } from "../../lib/icons";
 import Logo from "../Logo";
 
 import ThemeToggle from "./ThemeToggle";
@@ -35,6 +36,17 @@ export default function TopBar(props: TopBarProps) {
           {/* Version hidden on mobile: there isn't room for it next to
               the hamburger toggle and title. */}
           <Logo showTitle linkable showVersion={!props.isMobile}  />
+          {/* Themes is the app's only top-level nav item now that
+              Sidebar holds just Diary, so it lives here next to the
+              logo instead of behind the sidebar toggle. */}
+          <A
+            href="/themes"
+            activeClass="bg-active-bg"
+            class="icon-btn"
+            aria-label="Themes"
+          >
+            <Network size={22} />
+          </A>
         </div>
 
         <nav class="flex items-center gap-1">
