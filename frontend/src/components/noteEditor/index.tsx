@@ -5,8 +5,12 @@ import { defineBasicExtension } from "prosekit/basic";
 import { createEditor } from "prosekit/core";
 import { ProseKit, useEditorDerivedValue } from "prosekit/solid";
 
-import SaveButton from "../SaveButton";
 import { docToLines, linesToDocJSON } from "./docLines";
+
+// How long to wait after the last edit before autosaving. AutoSave's
+// flush (wired to onFocusOut below) saves immediately instead of
+// waiting for this timeout whenever a field loses focus.
+const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 export interface NoteEditorProps {
   initialTitle?: string;
@@ -14,13 +18,14 @@ export interface NoteEditorProps {
   // "content" field (see docLines.ts for the ProseKit doc conversion).
   initialContent?: string;
   onSave: (data: { title: string; content: string }) => Promise<void>;
-  errorMessage?: string;
 }
 
 // Title input + ProseKit rich-text body, combined into a single
 // self-contained editor: it owns ProseKit setup, doc<->lines
-// conversion, and its own save button with dirty-tracking. Callers
-// only need to supply the initial values and an onSave handler.
+// conversion, and autosaving. There is no manual save button -- every
+// edit is saved automatically (debounced while typing, or immediately
+// once a field loses focus), so callers only need to supply the
+// initial values and an onSave handler.
 export default function NoteEditor(props: NoteEditorProps) {
   // Read once on mount: callers remount NoteEditor (e.g. via <Show>)
   // whenever the initial values actually change, so nothing here needs
@@ -37,10 +42,6 @@ export default function NoteEditor(props: NoteEditorProps) {
     ),
   });
 
-  const [saving, setSaving] = createSignal(false);
-  const [justSaved, setJustSaved] = createSignal(false);
-  const [error, setError] = createSignal("");
-
   // Solid doesn't auto-unmount ref callbacks the way React's new
   // ref-cleanup convention does, so the returned unmount function is
   // wired to onCleanup explicitly here.
@@ -51,30 +52,21 @@ export default function NoteEditor(props: NoteEditorProps) {
     });
   };
 
-  const handleSave = async (e: SubmitEvent) => {
-    e.preventDefault();
-    if (!title().trim()) return;
-    setError("");
-    setSaving(true);
-    setJustSaved(false);
-    try {
-      await props.onSave({
-        title: title().trim(),
-        content: docToLines(editor.getDocJSON()).join("\n").trim(),
-      });
-      setJustSaved(true);
-    } catch {
-      setError(props.errorMessage ?? "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Set by AutoSave once it mounts, so a blur anywhere in this
+  // component can flush the same debounced save AutoSave schedules on
+  // every edit. AutoSave has to live inside <ProseKit> below (it reads
+  // the editor's doc via useEditorDerivedValue), so a plain closure
+  // variable is enough to share it -- nothing here needs to react to it.
+  let flush: (() => void) | undefined;
 
   return (
     <ProseKit editor={editor}>
-      <form
-        onSubmit={handleSave}
+      {/* focusout bubbles (unlike blur), so this one listener covers
+          both the title input and the editor body below: losing focus
+          on either one flushes any pending autosave immediately. */}
+      <div
         class="m-6 flex min-h-0 w-full flex-1 flex-col gap-4"
+        onFocusOut={() => flush?.()}
       >
         <div class="flex flex-1 flex-col bg-field shadow-md">
           <input
@@ -82,7 +74,6 @@ export default function NoteEditor(props: NoteEditorProps) {
             placeholder="Title"
             value={title()}
             onInput={(e) => setTitle(e.currentTarget.value)}
-            required
             autofocus
             class="w-full bg-transparent px-3 pt-3 pb-2 text-2xl outline-none"
           />
@@ -92,65 +83,90 @@ export default function NoteEditor(props: NoteEditorProps) {
           />
         </div>
 
-        <SaveArea
+        <AutoSave
           initialTitle={initialTitle}
           title={title}
-          saving={saving}
-          justSaved={justSaved}
+          onSave={props.onSave}
+          registerFlush={(fn) => (flush = fn)}
         />
-
-        {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
-      </form>
+      </div>
     </ProseKit>
   );
 }
 
-interface SaveAreaProps {
+interface AutoSaveProps {
   initialTitle: string;
   title: () => string;
-  saving: () => boolean;
-  justSaved: () => boolean;
+  onSave: (data: { title: string; content: string }) => Promise<void>;
+  registerFlush: (flush: () => void) => void;
 }
 
-// Dirty-tracking submit button, split out from NoteEditor because
-// useEditorDerivedValue must run inside <ProseKit editor={...}>, which
-// isn't available yet in NoteEditor's own render body. Tracks both the
-// doc JSON and the title against their values at mount (or at the last
-// successful save), so the button only lights up once there's
-// something new to save.
-function SaveArea(props: SaveAreaProps) {
+// Watches the title (passed down as an accessor) and the editor's own
+// doc, and saves whenever either one changes: debounced while the
+// person keeps typing (see AUTOSAVE_DEBOUNCE_MS), or immediately once
+// NoteEditor's onFocusOut calls the flush function registered below.
+// A save is skipped entirely while the title is empty, which is what
+// keeps a brand-new card from being created until it actually has a
+// title -- once it does, every further edit (title or content) saves
+// normally. Renders nothing; it only exists to run inside <ProseKit>,
+// which useEditorDerivedValue requires.
+function AutoSave(props: AutoSaveProps) {
   const docJSON = useEditorDerivedValue((editor) => editor.getDocJSON());
-  const [docDirty, setDocDirty] = createSignal(false);
-  let baseline: string | undefined;
 
-  createEffect(() => {
-    const current = JSON.stringify(docJSON());
-    // First run just records the starting point; nothing to compare
-    // against yet.
-    if (baseline === undefined) {
-      baseline = current;
+  let baselineTitle = props.initialTitle;
+  let baselineContent = JSON.stringify(docJSON());
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let saving = false;
+  // Whether another save is needed once the in-flight one finishes, so
+  // edits made while saving aren't dropped.
+  let pending = false;
+
+  const isDirty = () =>
+    props.title().trim() !== baselineTitle ||
+    JSON.stringify(docJSON()) !== baselineContent;
+
+  const save = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    const title = props.title().trim();
+    if (!title || !isDirty()) return;
+    if (saving) {
+      pending = true;
       return;
     }
-    setDocDirty(current !== baseline);
-  });
-
-  // Once a save completes, the just-saved content becomes the new
-  // baseline, so the button grays out again until the next edit.
-  createEffect(() => {
-    if (props.justSaved()) {
-      baseline = JSON.stringify(docJSON());
-      setDocDirty(false);
+    saving = true;
+    const content = docToLines(docJSON()).join("\n").trim();
+    try {
+      await props.onSave({ title, content });
+      baselineTitle = title;
+      baselineContent = JSON.stringify(docJSON());
+    } catch (err) {
+      console.error("[noteEditor] autosave failed:", err);
+    } finally {
+      saving = false;
+      if (pending) {
+        pending = false;
+        save();
+      }
     }
+  };
+
+  createEffect(() => {
+    // Track both signals so any title or content edit reschedules the
+    // debounce timer below.
+    props.title();
+    docJSON();
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(save, AUTOSAVE_DEBOUNCE_MS);
   });
 
-  const dirty = () =>
-    docDirty() || props.title().trim() !== props.initialTitle;
+  onCleanup(() => {
+    if (timer) clearTimeout(timer);
+  });
 
-  return (
-    <SaveButton
-      saving={props.saving()}
-      justSaved={props.justSaved()}
-      dirty={dirty()}
-    />
-  );
+  props.registerFlush(save);
+
+  return null;
 }

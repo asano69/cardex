@@ -1,4 +1,4 @@
-import { createResource, Show } from "solid-js";
+import { createResource, createSignal, Show } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 
 import pb from "../../lib/pb";
@@ -22,21 +22,31 @@ async function fetchCard(id: string): Promise<CardRecord> {
 // Add/edit page for a single card, reached from ThemeDetail's "add card"
 // button (create, at /themes/:id/cards/new) or by clicking a card
 // (edit, at /themes/:id/cards/:cardId). Both modes share the same
-// NoteEditor; params.cardId being present is what selects edit mode.
+// NoteEditor, which autosaves on every edit; params.cardId being
+// present is what selects edit mode initially.
 export default function CardForm() {
   const params = useParams();
   const navigate = useNavigate();
   const [existing] = createResource(() => params.cardId, fetchCard);
 
+  // Tracks the record once it exists, so a brand-new card (no
+  // params.cardId) switches from create to update after its first
+  // autosave, without needing a page reload in between.
+  const [recordId, setRecordId] = createSignal(params.cardId);
+
   const handleSave = async (data: { title: string; content: string }) => {
-    if (params.cardId) {
-      await pb.collection("cards").update<CardRecord>(params.cardId, data);
-    } else {
-      await pb
-        .collection("cards")
-        .create<CardRecord>({ ...data, theme: params.id });
+    const id = recordId();
+    if (id) {
+      await pb.collection("cards").update<CardRecord>(id, data);
+      return;
     }
-    navigate(`/themes/${params.id}`);
+    const record = await pb
+      .collection("cards")
+      .create<CardRecord>({ ...data, theme: params.id });
+    setRecordId(record.id);
+    // Swap the URL to the edit route so a refresh or the back button
+    // lands on the now-existing card instead of the "new" route.
+    navigate(`/themes/${params.id}/cards/${record.id}`, { replace: true });
   };
 
   return (
@@ -45,11 +55,6 @@ export default function CardForm() {
         initialTitle={existing()?.title}
         initialContent={existing()?.content}
         onSave={handleSave}
-        errorMessage={
-          params.cardId
-            ? "Failed to update the card."
-            : "Failed to add the card."
-        }
       />
     </Show>
   );
