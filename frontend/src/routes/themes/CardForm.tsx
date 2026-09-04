@@ -12,7 +12,6 @@ export interface CardRecord {
   title: string;
   content: string;
   theme: string;
-  kind: "quote" | "idea";
   created: string;
   updated: string;
 }
@@ -82,10 +81,6 @@ interface CardFieldsProps {
 function CardFields(props: CardFieldsProps) {
   const navigate = useNavigate();
 
-  // eslint-disable-next-line solid/reactivity
-  const [kind, setKind] = createSignal<CardRecord["kind"]>(
-    props.card?.kind ?? "idea",
-  );
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal("");
 
@@ -113,7 +108,6 @@ function CardFields(props: CardFieldsProps) {
         title: title.trim(),
         content: rest.join("\n").trim(),
         theme: props.themeId,
-        kind: kind(),
       };
       if (props.cardId) {
         await pb.collection("cards").update<CardRecord>(props.cardId, data);
@@ -134,29 +128,6 @@ function CardFields(props: CardFieldsProps) {
       onSubmit={handleSave}
       class="flex min-h-0 flex-1 w-full flex-col gap-4 mb-20"
     >
-      <div role="radiogroup" aria-label="Kind" class="flex gap-4">
-        <label class="flex items-center gap-1.5">
-          <input
-            type="radio"
-            name="kind"
-            value="idea"
-            checked={kind() === "idea"}
-            onChange={() => setKind("idea")}
-          />
-          Idea
-        </label>
-        <label class="flex items-center gap-1.5">
-          <input
-            type="radio"
-            name="kind"
-            value="quote"
-            checked={kind() === "quote"}
-            onChange={() => setKind("quote")}
-          />
-          Quote
-        </label>
-      </div>
-
       <TextEditor
         initialContent={initialContent}
         saving={saving()}

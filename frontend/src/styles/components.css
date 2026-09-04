@@ -26,30 +26,6 @@
     @apply rounded-md border border-border bg-field;
   }
 
-  .notes-toolbar {
-    @apply flex flex-wrap items-center gap-0.5 rounded-t-md border-b border-border bg-surface p-1.5;
-  }
-
-  .notes-toolbar-group {
-    @apply flex items-center gap-0.5;
-  }
-
-  /* A thin vertical rule between toolbar groups (history / marks / block
-   * type / lists), so related buttons read as one cluster. */
-  .notes-toolbar-divider {
-    @apply mx-1 h-5 w-px bg-border;
-  }
-
-  .notes-toolbar button {
-    @apply flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm
-         text-text transition-colors hover:bg-hover-bg
-         disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent;
-  }
-
-  .notes-toolbar button.is-active {
-    @apply bg-active-bg text-text;
-  }
-
   .notes-editor-content {
     @apply p-3 pb-10 text-text outline-none;
   }
@@ -84,8 +60,9 @@
    * Larger, bold text sets it apart from the body without a separate
    * title input. */
   .notes-editor-content.ProseMirror > p:first-child {
-    font-size: 1.5em;
+    font-size: 2em;
     font-weight: bold;
+    margin-bottom: 0.4em;
   }
 
   /* Cell for the generic Heatmap component (see

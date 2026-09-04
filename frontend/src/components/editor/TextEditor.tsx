@@ -5,7 +5,6 @@ import { defineBasicExtension } from "prosekit/basic";
 import { createEditor } from "prosekit/core";
 import { ProseKit } from "prosekit/solid";
 
-import EditorToolbar from "./EditorToolbar";
 import EditorSaveButton from "./EditorSaveButton";
 
 export interface TextEditorProps {
@@ -56,7 +55,6 @@ export default function TextEditor(props: TextEditorProps) {
           the save button sits outside it as a separate element. */}
       <div class="flex min-h-0 flex-1 flex-col gap-2">
         <div class="notes-editor flex min-h-0 flex-1 flex-col">
-          <EditorToolbar />
           <div
             ref={mountEditor}
             class="ProseMirror notes-editor-content min-h-0 flex-1 overflow-y-auto"
