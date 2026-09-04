@@ -1116,7 +1116,7 @@ func init() {
 						"id": "number3619293394",
 						"max": null,
 						"min": null,
-						"name": "ppsition",
+						"name": "position",
 						"onlyInt": false,
 						"presentable": false,
 						"required": false,

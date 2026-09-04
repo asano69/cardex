@@ -1,7 +1,12 @@
 import { createSignal, Show } from "solid-js";
 import { TextField } from "@kobalte/core/text-field";
 import { ToggleButton } from "@kobalte/core/toggle-button";
-import { CircleCheckBig, Circle, Trash2 } from "../../lib/icons";
+import {
+  CircleCheckBig,
+  Circle,
+  Trash2,
+  GripVertical,
+} from "../../lib/icons";
 
 import pb from "../../lib/pb";
 import { playCompletionSound } from "../../lib/completionSound";
@@ -13,13 +18,22 @@ export interface ThemeItemProps {
   onChanged: (record: ThemeRecord) => void;
   // Called with the (now-deleted) theme after a successful delete.
   onDeleted: (theme: ThemeRecord) => void;
+  // Registers this row's DOM element with the parent, so it can measure
+  // row positions during drag-to-reorder (see routes/themes/index.tsx).
+  rowRef: (el: HTMLDivElement) => void;
+  // Whether this theme is the one currently being dragged.
+  dragging: boolean;
+  // Starts a drag-to-reorder gesture on pointerdown on the handle. The
+  // parent owns the actual reordering logic, since it needs to compare
+  // this row's position against every other row's.
+  onDragStart: (event: PointerEvent) => void;
 }
 
-// A single row in the Themes list: a done/not-done toggle, an
-// inline-editable title (click to rename), and a delete button. Owns
-// its own PocketBase calls and reports the result back to the page
-// (see onChanged/onDeleted), so the page only has to keep its theme
-// list in sync rather than know about individual mutations.
+// A single row in the Themes list: a drag handle, a done/not-done
+// toggle, an inline-editable title (click to rename), and a delete
+// button. Owns its own PocketBase calls and reports the result back to
+// the page (see onChanged/onDeleted), so the page only has to keep its
+// theme list in sync rather than know about individual mutations.
 export default function ThemeItem(props: ThemeItemProps) {
   const [editing, setEditing] = createSignal(false);
   const [editValue, setEditValue] = createSignal("");
@@ -76,10 +90,30 @@ export default function ThemeItem(props: ThemeItemProps) {
 
   return (
     <div
+      ref={props.rowRef}
       class="flex flex-col gap-1 rounded-md border border-border bg-card p-1 shadow-card transition-opacity"
-      classList={{ "opacity-50": props.theme.done }}
+      // Dragging takes priority (opacity-40) since it needs to stand
+      // out more sharply than the milder "done" fade (opacity-50).
+      classList={{
+        "opacity-40": props.dragging,
+        "opacity-50": !props.dragging && props.theme.done,
+      }}
     >
       <div class="flex items-center gap-3">
+        {/* Drag handle: pointer events instead of native HTML5
+            drag-and-drop, so reordering works the same way with touch
+            (mobile) and mouse (desktop). Actual reordering happens in
+            the parent, which tracks every row's position (see
+            rowRef/onDragStart above). touch-none stops the browser
+            from scrolling the page while dragging on mobile. */}
+        <button
+          type="button"
+          aria-label="Drag to reorder"
+          class="icon-btn shrink-0 cursor-grab touch-none active:cursor-grabbing"
+          onPointerDown={(e) => props.onDragStart(e)}
+        >
+          <GripVertical size={15} />
+        </button>
         <ToggleButton
           pressed={props.theme.done}
           onChange={toggleDone}
