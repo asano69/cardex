@@ -5,6 +5,7 @@ import AppShell from "../components/layout/AppShell";
 
 import Themes from "../routes/themes";
 import ThemeDetail from "../routes/themes/ThemeDetail";
+import CardForm from "../routes/themes/CardForm";
 import Diary from "../routes/diary";
 
 // All top-level routes in one place, so adding or removing a page never
@@ -22,6 +23,7 @@ export default function AppRouter() {
 
       <Route path="/themes" component={Themes} />
       <Route path="/themes/:id" component={ThemeDetail} />
+      <Route path="/themes/:id/cards/new" component={CardForm} />
       <Route path="/diary" component={Diary} />
     </Router>
   );

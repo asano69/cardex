@@ -1,6 +1,6 @@
 import { createResource, Show } from "solid-js";
 import { useParams, A } from "@solidjs/router";
-import { ChevronsLeft as ChevronLeft } from "../../lib/icons";
+import { ChevronsLeft as ChevronLeft, Plus } from "../../lib/icons";
 
 import pb from "../../lib/pb";
 import Loading from "../../components/Loading";
@@ -12,16 +12,25 @@ async function fetchTheme(id: string): Promise<ThemeRecord> {
 
 // Detail page for a single theme, reached via the folder-open button on
 // ThemeItem. Will eventually list the cards belonging to this theme;
-// for now it only shows the theme's title as a placeholder.
+// for now it only shows the theme's title and an add-card button.
 export default function ThemeDetail() {
   const params = useParams();
   const [theme] = createResource(() => params.id, fetchTheme);
 
   return (
     <div class="flex w-full flex-col gap-4">
-      <A href="/themes" class="icon-btn self-start" aria-label="Back to themes">
-        <ChevronLeft size={20} />
-      </A>
+      <div class="flex items-center justify-between">
+        <A href="/themes" class="icon-btn" aria-label="Back to themes">
+          <ChevronLeft size={20} />
+        </A>
+        <A
+          href={`/themes/${params.id}/cards/new`}
+          class="icon-btn"
+          aria-label="Add card"
+        >
+          <Plus size={20} />
+        </A>
+      </div>
       <Show when={!theme.loading} fallback={<Loading />}>
         <h1 class="font-sans text-4xl">{theme()?.title}</h1>
       </Show>
