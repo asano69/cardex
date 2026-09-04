@@ -23,6 +23,7 @@ export default function CardForm() {
   const params = useParams();
   const navigate = useNavigate();
 
+  const [title, setTitle] = createSignal("");
   const [content, setContent] = createSignal("");
   const [kind, setKind] = createSignal<CardRecord["kind"]>("idea");
   const [saving, setSaving] = createSignal(false);
@@ -30,11 +31,12 @@ export default function CardForm() {
 
   const handleSave = async (e: SubmitEvent) => {
     e.preventDefault();
-    if (!content().trim()) return;
+    if (!title().trim() || !content().trim()) return;
     setError("");
     setSaving(true);
     try {
       await pb.collection("cards").create<CardRecord>({
+        title: title().trim(),
         content: content().trim(),
         theme: params.id,
         kind: kind(),
@@ -52,6 +54,18 @@ export default function CardForm() {
       class="flex min-h-0 flex-1 w-full flex-col gap-4 mb-20"
     >
       <h1 class="font-sans text-4xl">Add card</h1>
+
+      <TextField
+        value={title()}
+        onChange={setTitle}
+        class="flex flex-col gap-1"
+      >
+        <TextField.Label class="text-sm text-text">Title</TextField.Label>
+        <TextField.Input
+          autofocus
+          class="w-full rounded-md border border-border bg-field px-3 py-2 text-text"
+        />
+      </TextField>
 
       <div role="radiogroup" aria-label="Kind" class="flex gap-4">
         <label class="flex items-center gap-1.5">
@@ -76,15 +90,20 @@ export default function CardForm() {
         </label>
       </div>
 
-      <TextField value={content()} onChange={setContent} class="flex flex-1 flex-col gap-1">
-        <TextField.TextArea
-          autofocus
-          class="min-h-0 flex-1 resize-none rounded-md border border-border bg-field p-3 text-text"
-        />
+      <TextField
+        value={content()}
+        onChange={setContent}
+        class="flex flex-1 flex-col gap-1"
+      >
+        <TextField.TextArea class="min-h-0 flex-1 resize-none rounded-md border border-border bg-field p-3 text-text" />
       </TextField>
 
       {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
-      <SaveButton saving={saving()} justSaved={false} dirty={content().trim() !== ""} />
+      <SaveButton
+        saving={saving()}
+        justSaved={false}
+        dirty={title().trim() !== "" && content().trim() !== ""}
+      />
     </form>
   );
 }
