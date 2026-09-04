@@ -19,7 +19,10 @@ export interface NoteEditorProps {
   // ProseKit doc JSON, matching the "content" field's storage format
   // now that it is a JSON column instead of plain text.
   initialContent?: object;
-  onSave: (data: { title: string; content: object }) => Promise<void>;
+  // Only the fields that actually changed are included, so an
+  // unrelated title-only or content-only edit doesn't resend the
+  // whole document every time (see AutoSave.save below).
+  onSave: (data: { title?: string; content?: object }) => Promise<void>;
 }
 
 // Title input + ProseKit rich-text body, combined into a single
@@ -98,7 +101,7 @@ export default function NoteEditor(props: NoteEditorProps) {
 interface AutoSaveProps {
   initialTitle: string;
   title: () => string;
-  onSave: (data: { title: string; content: object }) => Promise<void>;
+  onSave: (data: { title?: string; content?: object }) => Promise<void>;
   registerFlush: (flush: () => void) => void;
 }
 
@@ -122,27 +125,33 @@ function AutoSave(props: AutoSaveProps) {
   // edits made while saving aren't dropped.
   let pending = false;
 
-  const isDirty = () =>
-    props.title().trim() !== baselineTitle ||
-    JSON.stringify(docJSON()) !== baselineContent;
-
   const save = async () => {
     if (timer) {
       clearTimeout(timer);
       timer = undefined;
     }
     const title = props.title().trim();
-    if (!title || !isDirty()) return;
+    if (!title) return;
+
+    const content = docJSON();
+    const titleChanged = title !== baselineTitle;
+    const contentChanged = JSON.stringify(content) !== baselineContent;
+    if (!titleChanged && !contentChanged) return;
+
     if (saving) {
       pending = true;
       return;
     }
     saving = true;
-    const content = docJSON();
     try {
-      await props.onSave({ title, content });
+      // Only include the fields that actually changed, so e.g. fixing
+      // a typo in the title doesn't resend the whole document body.
+      const data: { title?: string; content?: object } = {};
+      if (titleChanged) data.title = title;
+      if (contentChanged) data.content = content;
+      await props.onSave(data);
       baselineTitle = title;
-      baselineContent = JSON.stringify(docJSON());
+      baselineContent = JSON.stringify(content);
     } catch (err) {
       console.error("[noteEditor] autosave failed:", err);
     } finally {

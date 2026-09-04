@@ -35,7 +35,7 @@ export default function CardForm() {
   // autosave, without needing a page reload in between.
   const [recordId, setRecordId] = createSignal(params.cardId);
 
-  const handleSave = async (data: { title: string; content: object }) => {
+  const handleSave = async (data: { title?: string; content?: object }) => {
     const id = recordId();
     if (id) {
       await pb.collection("cards").update<CardRecord>(id, data);
