@@ -937,7 +937,7 @@ func init() {
 						"id": "relation2541086472",
 						"maxSelect": 0,
 						"minSelect": 0,
-						"name": "theme",
+						"name": "issue",
 						"presentable": false,
 						"required": false,
 						"system": false,
@@ -968,6 +968,21 @@ func init() {
 						"required": false,
 						"system": false,
 						"type": "json"
+					},
+					{
+						"help": "",
+						"hidden": false,
+						"id": "file1316164732",
+						"maxSelect": 0,
+						"maxSize": 0,
+						"mimeTypes": null,
+						"name": "ydoc",
+						"presentable": false,
+						"protected": false,
+						"required": false,
+						"system": false,
+						"thumbs": null,
+						"type": "file"
 					},
 					{
 						"hidden": false,
