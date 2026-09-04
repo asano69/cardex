@@ -1,4 +1,3 @@
-import { For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import type { CardRecord } from "./CardForm";
 
@@ -6,31 +5,25 @@ export interface CardItemProps {
   card: CardRecord;
 }
 
-// A single card rendered as a Scrapbox/Cosense-style page card: a
-// colored title followed by the body split into outline-style lines
-// with a left guide line, instead of plain paragraphs. Used by
-// ThemeDetail's card grid.
+// A single card in ThemeDetail's card grid, styled to match Cosense's
+// own page-list card (see .card-grid-item in styles/components.css).
+// white-space: pre-line on .description means the raw content string
+// can be rendered as-is -- no need to split it into lines ourselves.
 export default function CardItem(props: CardItemProps) {
-  const lines = () =>
-    props.card.content.split("\n").filter((line) => line.trim() !== "");
-
   return (
-    // The whole card links to its edit page (CardForm doubles as both
-    // the create and edit form) instead of only some inner element, so
-    // clicking anywhere on the card opens it.
-    <A
-      href={`/themes/${props.card.theme}/cards/${props.card.id}`}
-      class="scrapbox-card"
-    >
-      <div class="scrapbox-card-title">{props.card.title}</div>
-      <div class="scrapbox-card-body">
-        <For each={lines()}>
-          {(line) => <p class="scrapbox-card-line">{line}</p>}
-        </For>
-      </div>
-      <Show when={props.card.kind}>
-        <span class="scrapbox-card-tag">#{props.card.kind}</span>
-      </Show>
-    </A>
+    // The <li> carries the grid item's aspect-ratio; the whole card
+    // links to its edit page (CardForm doubles as both the create and
+    // edit form) instead of only some inner element, so clicking
+    // anywhere on the card opens it.
+    <li class="card-grid-item">
+      <A href={`/themes/${props.card.theme}/cards/${props.card.id}`}>
+        <div class="content">
+          <div class="header">
+            <h3 class="title">{props.card.title}</h3>
+          </div>
+          <div class="description">{props.card.content}</div>
+        </div>
+      </A>
+    </li>
   );
 }

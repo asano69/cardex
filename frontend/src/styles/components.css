@@ -88,27 +88,90 @@
     @apply h-3 w-3 shrink-0 cursor-pointer rounded-[2px] transition-colors;
   }
 
-  /* Scrapbox-style grid card, ported from the obsidian-scrapbox-flavored
-   * plugin's Card.svelte (packages/grid-view/src/view/Card.svelte): a
-   * square tile with a thick colored top border, used for the card
-   * grid on ThemeDetail (see routes/themes/CardItem.tsx). */
-  .scrapbox-card {
-    @apply flex aspect-square flex-col overflow-hidden rounded-md border-t-[15px] border-border bg-card p-3 shadow-card transition-colors hover:bg-hover-bg;
+  /* Page-card grid, ported directly from Cosense's own page-list card
+   * (see `.grid li.page-list-item` in app.css). Layout, colors and
+   * spacing are copied as-is so ThemeDetail's card grid looks like the
+   * real thing. Light/dark colors are the literal fallback values
+   * Cosense uses for its default/default-dark themes (--card-bg,
+   * --card-title-bg, --card-title-color, --card-description-color),
+   * since this app has no theme switcher of its own. */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(147px, 1fr));
+    gap: clamp(8px, 1.5svw, 16px);
   }
 
-  .scrapbox-card-title {
-    @apply mb-1 truncate font-serif text-base font-bold text-[#5484e7];
+  .card-grid-item {
+    position: relative;
+    aspect-ratio: 1 / 1.1;
   }
 
-  .scrapbox-card-body {
-    @apply flex-1 overflow-hidden text-sm text-text;
+  .card-grid-item a {
+    display: block;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: light-dark(#fff, #373b44);
+    box-shadow: 0 2px 0 light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.2));
+    border-radius: 2px;
+    color: light-dark(#363c49, #f0f0f0);
+    word-break: break-word;
+    text-decoration: none;
+    transition: box-shadow 0.1s;
   }
 
-  .scrapbox-card-line {
-    @apply truncate leading-relaxed;
+  .card-grid-item a:hover {
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.23);
   }
 
-  .scrapbox-card-tag {
-    @apply mt-auto self-start rounded-sm bg-hover-bg px-1.5 py-0.5 text-xs text-[#5484e7];
+  /* calc(100% - 5px) matches Cosense's own .content sizing; the 5px
+   * gap is what keeps .description's column layout below from
+   * touching the card's bottom edge. */
+  .card-grid-item .content {
+    height: calc(100% - 5px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .card-grid-item .header {
+    width: 100%;
+    border-top: 4px solid light-dark(#f2f2f3, #2b2e38);
+    padding: 10px 12px;
+  }
+
+  .card-grid-item .title {
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 20px;
+    max-height: 60px;
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  /* column-width/column-count lay overflow text out sideways into a
+   * second (clipped) column instead of letting it grow past the
+   * card's bottom edge, so long content gets a clean cut instead of
+   * being sliced mid-line. flex-shrink:16 and min-height:0 let this
+   * box actually shrink inside the column flex parent -- flex items
+   * default to min-height:auto, which would otherwise refuse to
+   * shrink and force an ugly overflow despite overflow:hidden here. */
+  .card-grid-item .description {
+    flex: 1 1 auto;
+    flex-shrink: 16;
+    min-height: 0;
+    height: inherit;
+    padding: 0 12px;
+    font-size: 12px;
+    line-height: 20px;
+    white-space: pre-line;
+    column-count: 1;
+    column-gap: 2em;
+    column-width: 10em;
+    overflow: hidden;
+    color: light-dark(#808080, #c4c4c4);
   }
 }

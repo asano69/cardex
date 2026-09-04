@@ -48,9 +48,9 @@ export default function ThemeDetail() {
         <h1 class="font-sans text-4xl">{theme()?.title}</h1>
       </Show>
       <Show when={!cards.loading} fallback={<Loading />}>
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+        <ul class="card-grid">
           <For each={cards()}>{(card) => <CardItem card={card} />}</For>
-        </div>
+        </ul>
       </Show>
     </div>
   );
