@@ -12,7 +12,7 @@
 
   --font-display: "Fraunces", "TeX Gyre Termes", Georgia, serif;
 
-  --color-bg: light-dark(#f9fafb, #1e1f20);
+  --color-bg: light-dark(#f3f4f6, #1e1f20);
   --color-text: light-dark(#000000, #e0e0e0);
   --color-panel: light-dark(#f8f8f8, #252525);
   --color-surface: light-dark(#fcfcfc, #1e1e1e);

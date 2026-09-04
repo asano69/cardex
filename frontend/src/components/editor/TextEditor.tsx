@@ -29,9 +29,9 @@ export interface TextEditorProps {
 // Owns editor creation and mounting; the caller gets the raw ProseKit
 // `editor` instance via onReady so it can read the content (e.g.
 // editor.getDocJSON()) and wire up its own save logic -- this component
-// has no idea what "save" means for the caller. See
-// routes/diary/index.tsx for an example of a <form> wrapping this and
-// driving `saving`/`justSaved`.
+// this component has no idea what "save" means for the caller. See
+// routes/themes/CardForm.tsx for an example of a <form> wrapping this
+// and driving `saving`/`justSaved`.
 export default function TextEditor(props: TextEditorProps) {
   const editor = createEditor({
     extension: defineBasicExtension(),

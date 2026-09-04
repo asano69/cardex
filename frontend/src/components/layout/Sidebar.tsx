@@ -1,23 +1,20 @@
-import { For, Show } from "solid-js";
+import { For, Show, type Component } from "solid-js";
 import { A } from "@solidjs/router";
-
-import { Notebook } from "../../lib/icons";
 
 import { useVersion } from "../../lib/version";
 
 interface NavItem {
   href: string;
   label: string;
-  icon: typeof Notebook;
+  icon: Component<{ size?: number }>;
 }
 
 // Static top-level nav items, in the order they're shown. Kept as plain
 // data so each entry is just a {href, label, icon} tuple instead of
 // duplicating the same <A> markup per page. Themes now lives in
-// TopBar next to the logo instead of here (see TopBar.tsx).
-const NAV_ITEMS: NavItem[] = [
-  { href: "/diary", label: "Diary", icon: Notebook },
-];
+// TopBar next to the logo instead of here (see TopBar.tsx). Empty now
+// that Diary has been removed; add future top-level pages here.
+const NAV_ITEMS: NavItem[] = [];
 
 export interface SidebarProps {
   isMobile: boolean;

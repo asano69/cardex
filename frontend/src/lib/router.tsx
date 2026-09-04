@@ -6,7 +6,6 @@ import AppShell from "../components/layout/AppShell";
 import Themes from "../routes/themes";
 import ThemeDetail from "../routes/themes/ThemeDetail";
 import CardForm from "../routes/themes/CardForm";
-import Diary from "../routes/diary";
 
 // All top-level routes in one place, so adding or removing a page never
 // requires touching main.tsx.
@@ -27,7 +26,6 @@ export default function AppRouter() {
       {/* Edit route shares CardForm with the create route above; the
           presence of :cardId is what switches it into edit mode. */}
       <Route path="/themes/:id/cards/:cardId" component={CardForm} />
-      <Route path="/diary" component={Diary} />
     </Router>
   );
 }
