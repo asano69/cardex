@@ -24,6 +24,9 @@ export default function AppRouter() {
       <Route path="/themes" component={Themes} />
       <Route path="/themes/:id" component={ThemeDetail} />
       <Route path="/themes/:id/cards/new" component={CardForm} />
+      {/* Edit route shares CardForm with the create route above; the
+          presence of :cardId is what switches it into edit mode. */}
+      <Route path="/themes/:id/cards/:cardId" component={CardForm} />
       <Route path="/diary" component={Diary} />
     </Router>
   );

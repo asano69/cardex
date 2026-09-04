@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js";
+import { A } from "@solidjs/router";
 import type { CardRecord } from "./CardForm";
 
 export interface CardItemProps {
@@ -14,7 +15,13 @@ export default function CardItem(props: CardItemProps) {
     props.card.content.split("\n").filter((line) => line.trim() !== "");
 
   return (
-    <div class="scrapbox-card">
+    // The whole card links to its edit page (CardForm doubles as both
+    // the create and edit form) instead of only some inner element, so
+    // clicking anywhere on the card opens it.
+    <A
+      href={`/themes/${props.card.theme}/cards/${props.card.id}`}
+      class="scrapbox-card"
+    >
       <div class="scrapbox-card-title">{props.card.title}</div>
       <div class="scrapbox-card-body">
         <For each={lines()}>
@@ -24,6 +31,6 @@ export default function CardItem(props: CardItemProps) {
       <Show when={props.card.kind}>
         <span class="scrapbox-card-tag">#{props.card.kind}</span>
       </Show>
-    </div>
+    </A>
   );
 }
