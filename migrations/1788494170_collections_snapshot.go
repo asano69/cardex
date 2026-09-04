@@ -918,25 +918,10 @@ func init() {
 						"autogeneratePattern": "",
 						"help": "",
 						"hidden": false,
-						"id": "text2862495610",
+						"id": "text4274335913",
 						"max": 0,
 						"min": 0,
-						"name": "date",
-						"pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
-						"presentable": false,
-						"primaryKey": false,
-						"required": true,
-						"system": false,
-						"type": "text"
-					},
-					{
-						"autogeneratePattern": "",
-						"help": "",
-						"hidden": false,
-						"id": "text724990059",
-						"max": 0,
-						"min": 0,
-						"name": "title",
+						"name": "content",
 						"pattern": "",
 						"presentable": false,
 						"primaryKey": false,
@@ -945,27 +930,33 @@ func init() {
 						"type": "text"
 					},
 					{
+						"cascadeDelete": false,
+						"collectionId": "pbc_575754128",
 						"help": "",
 						"hidden": false,
-						"id": "bool271442091",
-						"name": "done",
+						"id": "relation2541086472",
+						"maxSelect": 0,
+						"minSelect": 0,
+						"name": "theme",
 						"presentable": false,
 						"required": false,
 						"system": false,
-						"type": "bool"
+						"type": "relation"
 					},
 					{
 						"help": "",
 						"hidden": false,
-						"id": "number1177347317",
-						"max": null,
-						"min": null,
-						"name": "position",
-						"onlyInt": false,
+						"id": "select1002749145",
+						"maxSelect": 0,
+						"name": "kind",
 						"presentable": false,
 						"required": false,
 						"system": false,
-						"type": "number"
+						"type": "select",
+						"values": [
+							"quote",
+							"idea"
+						]
 					},
 					{
 						"hidden": false,
@@ -988,10 +979,10 @@ func init() {
 						"type": "autodate"
 					}
 				],
-				"id": "pbc_881283477",
+				"id": "pbc_2527524235",
 				"indexes": [],
 				"listRule": null,
-				"name": "focus_tasks",
+				"name": "cards",
 				"system": false,
 				"type": "base",
 				"updateRule": null,
@@ -1020,27 +1011,16 @@ func init() {
 						"autogeneratePattern": "",
 						"help": "",
 						"hidden": false,
-						"id": "text2862495610",
+						"id": "text2638274075",
 						"max": 0,
 						"min": 0,
-						"name": "date",
-						"pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
+						"name": "title",
+						"pattern": "",
 						"presentable": false,
 						"primaryKey": false,
-						"required": true,
-						"system": false,
-						"type": "text"
-					},
-					{
-						"help": "",
-						"hidden": false,
-						"id": "json3485334036",
-						"maxSize": 0,
-						"name": "note",
-						"presentable": false,
 						"required": false,
 						"system": false,
-						"type": "json"
+						"type": "text"
 					},
 					{
 						"hidden": false,
@@ -1063,12 +1043,88 @@ func init() {
 						"type": "autodate"
 					}
 				],
-				"id": "pbc_2659547552",
-				"indexes": [
-					"CREATE UNIQUE INDEX ` + "`" + `idx_wdwfwf1a0p` + "`" + ` ON ` + "`" + `diary_entries` + "`" + ` (` + "`" + `date` + "`" + `)"
-				],
+				"id": "pbc_2800040823",
+				"indexes": [],
 				"listRule": null,
-				"name": "diary_entries",
+				"name": "topics",
+				"system": false,
+				"type": "base",
+				"updateRule": null,
+				"viewRule": null
+			},
+			{
+				"createRule": null,
+				"deleteRule": null,
+				"fields": [
+					{
+						"autogeneratePattern": "[a-z0-9]{15}",
+						"help": "",
+						"hidden": false,
+						"id": "text3208210256",
+						"max": 15,
+						"min": 15,
+						"name": "id",
+						"pattern": "^[a-z0-9]+$",
+						"presentable": false,
+						"primaryKey": true,
+						"required": true,
+						"system": true,
+						"type": "text"
+					},
+					{
+						"autogeneratePattern": "",
+						"help": "",
+						"hidden": false,
+						"id": "text724990059",
+						"max": 0,
+						"min": 0,
+						"name": "title",
+						"pattern": "",
+						"presentable": false,
+						"primaryKey": false,
+						"required": false,
+						"system": false,
+						"type": "text"
+					},
+					{
+						"cascadeDelete": false,
+						"collectionId": "pbc_2800040823",
+						"help": "",
+						"hidden": false,
+						"id": "relation2638274075",
+						"maxSelect": 0,
+						"minSelect": 0,
+						"name": "topic",
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "relation"
+					},
+					{
+						"hidden": false,
+						"id": "autodate2990389176",
+						"name": "created",
+						"onCreate": true,
+						"onUpdate": false,
+						"presentable": false,
+						"system": false,
+						"type": "autodate"
+					},
+					{
+						"hidden": false,
+						"id": "autodate3332085495",
+						"name": "updated",
+						"onCreate": true,
+						"onUpdate": true,
+						"presentable": false,
+						"system": false,
+						"type": "autodate"
+					}
+				],
+				"id": "pbc_575754128",
+				"indexes": [],
+				"listRule": null,
+				"name": "themes",
 				"system": false,
 				"type": "base",
 				"updateRule": null,
