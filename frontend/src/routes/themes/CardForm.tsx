@@ -5,11 +5,12 @@ import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 
-// Matches the PocketBase "cards" collection schema.
+// Matches the PocketBase "cards" collection schema. "content" holds
+// the ProseKit doc JSON directly, not a plain string.
 export interface CardRecord {
   id: string;
   title: string;
-  content: string;
+  content: object;
   theme: string;
   created: string;
   updated: string;
@@ -34,7 +35,7 @@ export default function CardForm() {
   // autosave, without needing a page reload in between.
   const [recordId, setRecordId] = createSignal(params.cardId);
 
-  const handleSave = async (data: { title: string; content: string }) => {
+  const handleSave = async (data: { title: string; content: object }) => {
     const id = recordId();
     if (id) {
       await pb.collection("cards").update<CardRecord>(id, data);

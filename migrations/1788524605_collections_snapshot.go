@@ -930,21 +930,6 @@ func init() {
 						"type": "text"
 					},
 					{
-						"autogeneratePattern": "",
-						"help": "",
-						"hidden": false,
-						"id": "text4274335913",
-						"max": 0,
-						"min": 0,
-						"name": "content",
-						"pattern": "",
-						"presentable": false,
-						"primaryKey": false,
-						"required": false,
-						"system": false,
-						"type": "text"
-					},
-					{
 						"cascadeDelete": false,
 						"collectionId": "pbc_575754128",
 						"help": "",
@@ -972,6 +957,17 @@ func init() {
 							"quote",
 							"idea"
 						]
+					},
+					{
+						"help": "",
+						"hidden": false,
+						"id": "json4274335913",
+						"maxSize": 0,
+						"name": "content",
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "json"
 					},
 					{
 						"hidden": false,

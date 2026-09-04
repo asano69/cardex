@@ -5,19 +5,21 @@ import { defineBasicExtension } from "prosekit/basic";
 import { createEditor } from "prosekit/core";
 import { ProseKit, useEditorDerivedValue } from "prosekit/solid";
 
-import { docToLines, linesToDocJSON } from "./docLines";
-
 // How long to wait after the last edit before autosaving. AutoSave's
 // flush (wired to onFocusOut below) saves immediately instead of
 // waiting for this timeout whenever a field loses focus.
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 
+// A brand-new card has no stored doc yet, so this is the smallest
+// valid ProseKit doc: a single empty paragraph.
+const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
+
 export interface NoteEditorProps {
   initialTitle?: string;
-  // Newline-separated lines, matching the storage format of the
-  // "content" field (see docLines.ts for the ProseKit doc conversion).
-  initialContent?: string;
-  onSave: (data: { title: string; content: string }) => Promise<void>;
+  // ProseKit doc JSON, matching the "content" field's storage format
+  // now that it is a JSON column instead of plain text.
+  initialContent?: object;
+  onSave: (data: { title: string; content: object }) => Promise<void>;
 }
 
 // Title input + ProseKit rich-text body, combined into a single
@@ -37,9 +39,7 @@ export default function NoteEditor(props: NoteEditorProps) {
   const editor = createEditor({
     extension: defineBasicExtension(),
     // eslint-disable-next-line solid/reactivity
-    defaultContent: linesToDocJSON(
-      props.initialContent ? props.initialContent.split("\n") : [],
-    ),
+    defaultContent: props.initialContent ?? EMPTY_DOC,
   });
 
   // Solid doesn't auto-unmount ref callbacks the way React's new
@@ -98,7 +98,7 @@ export default function NoteEditor(props: NoteEditorProps) {
 interface AutoSaveProps {
   initialTitle: string;
   title: () => string;
-  onSave: (data: { title: string; content: string }) => Promise<void>;
+  onSave: (data: { title: string; content: object }) => Promise<void>;
   registerFlush: (flush: () => void) => void;
 }
 
@@ -138,7 +138,7 @@ function AutoSave(props: AutoSaveProps) {
       return;
     }
     saving = true;
-    const content = docToLines(docJSON()).join("\n").trim();
+    const content = docJSON();
     try {
       await props.onSave({ title, content });
       baselineTitle = title;
