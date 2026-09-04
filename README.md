@@ -2,8 +2,6 @@
 
 Cardex is a card box for thinkers.
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/cardex)
-
 <img src="frontend/public/favicon.svg" width="100" align="right" />
 
 
@@ -27,3 +25,7 @@ Cardex is a card box for thinkers.
 - Kobalte v0.13+
 - Tailwind v4
 - ProseKit
+
+---
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/cardex)
