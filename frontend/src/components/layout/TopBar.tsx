@@ -10,6 +10,10 @@ export interface TopBarProps {
   isMobile: boolean;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  // Extra classes for the outer <header>, so callers can control the
+  // bar's height/padding (e.g. "h-10 py-0") without editing this
+  // component. Falls back to the original spacing when omitted.
+  class?: string;
 }
 
 // The hamburger button here only toggles the Sidebar (owned by
@@ -17,8 +21,10 @@ export interface TopBarProps {
 // separate mobile-only menu anymore.
 export default function TopBar(props: TopBarProps) {
   return (
-    <header class="sticky top-0 z-40 p-2 border-b border-border bg-nav">
-      <div class="flex justify-between px-2 md:px-8">
+    <header
+      class={`sticky top-0 z-40 flex items-center border-b border-border bg-nav ${props.class}`}
+    >
+      <div class="flex w-full justify-between px-2 md:px-8">
         <div class="flex items-center gap-3">
           {/* Toggle button only exists on mobile; on desktop the
               sidebar is always visible so there's nothing to toggle. */}
@@ -30,7 +36,7 @@ export default function TopBar(props: TopBarProps) {
               aria-expanded={props.sidebarOpen}
               class="icon-btn"
             >
-              {props.sidebarOpen ? <X size={30} /> : <Menu size={30} />}
+              {props.sidebarOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </Show>
           {/* Version hidden on mobile: there isn't room for it next to
@@ -45,7 +51,7 @@ export default function TopBar(props: TopBarProps) {
             class="icon-btn"
             aria-label="Themes"
           >
-            <Network size={22} />
+            <Network size={18} />
           </A>
         </div>
 

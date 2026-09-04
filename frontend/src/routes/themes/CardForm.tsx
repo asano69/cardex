@@ -128,7 +128,7 @@ function CardFields(props: CardFieldsProps) {
   return (
     <form
       onSubmit={handleSave}
-      class="flex min-h-0 flex-1 w-full flex-col gap-4 mb-20"
+      class="flex min-h-0 flex-1 w-full flex-col gap-4 m-6"
     >
       <TextEditor
         // Rendered inside TextEditor's own bordered box (see the
@@ -142,7 +142,7 @@ function CardFields(props: CardFieldsProps) {
             onInput={(e) => setTitle(e.currentTarget.value)}
             required
             autofocus
-            class="w-full bg-transparent px-3 pt-3 pb-2 text-2xl font-bold text-text outline-none"
+            class="w-full bg-transparent px-3 pt-3 pb-2 text-2xl outline-none"
           />
         }
         initialContent={initialContent}

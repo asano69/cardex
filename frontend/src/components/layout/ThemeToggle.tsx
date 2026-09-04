@@ -30,7 +30,7 @@ export default function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenu.Trigger aria-label="Change theme" class="icon-btn">
-        <Dynamic component={activeOption().icon} size={24} />
+        <Dynamic component={activeOption().icon} size={22} />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content class="z-50 min-w-[160px] rounded-md border border-border bg-card p-1 shadow-popover outline-none font-sans">

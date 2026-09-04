@@ -19,11 +19,14 @@ export default function MainLayout(props: ParentProps) {
     // Sidebar and <main> below can each scroll independently instead of
     // the whole page scrolling as one.
     <div class="flex h-screen flex-col overflow-hidden bg-bg">
-      {/* TopBar with logo and sidebar toggle */}
+      {/* TopBar with logo and sidebar toggle. Height/spacing is
+          controlled here (not inside TopBar) via the `class` prop, so
+          this is the one place to tweak the bar's size. */}
       <TopBar
         isMobile={isMobile()}
         sidebarOpen={sidebarOpen()}
         onToggleSidebar={toggleSidebar}
+        class="h-10 py-0"
       />
 
       {/* Main content area. min-h-0 lets its flex children (Sidebar,

@@ -23,7 +23,7 @@
    * inner typography and targets the "ProseMirror" class, which is why
    * that class is applied directly to notes-editor-content below. */
   .notes-editor {
-    @apply rounded-md border border-border bg-field;
+    @apply bg-field shadow-md;
   }
 
   .notes-editor-content {

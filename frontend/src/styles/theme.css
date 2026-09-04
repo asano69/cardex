@@ -12,7 +12,7 @@
 
   --font-display: "Fraunces", "TeX Gyre Termes", Georgia, serif;
 
-  --color-bg: light-dark(#f3f4f6, #1e1f20);
+  --color-bg: light-dark(#e8e9eb, #1e1f20);
   --color-text: light-dark(#000000, #e0e0e0);
   --color-panel: light-dark(#f8f8f8, #252525);
   --color-surface: light-dark(#fcfcfc, #1e1e1e);
@@ -26,7 +26,7 @@
   /* Shared background for the app's outer nav (TopBar, Sidebar).
    * A dedicated role token, not a literal color name, so it stays
    * correct if the actual color is swapped in either light or dark. */
-  --color-nav: light-dark(#f6f7fa, #1a1b1e);
+  --color-nav: light-dark(#dcdde0, #1a1b1e);
 
   /* Focus heatmap cell colors (see components/focus/FocusHeatmap.tsx).
    * --color-heat-empty is the "no tasks created" background, matching

@@ -60,13 +60,13 @@ export default function TextEditor(props: TextEditorProps) {
           height, so nothing overflows past the bottom of the screen.
           The editor box itself keeps its border/background (notes-editor);
           the save button sits outside it as a separate element. */}
-      <div class="flex min-h-0 flex-1 flex-col gap-2">
-        <div class="notes-editor flex min-h-0 flex-1 flex-col">
+      <div class="flex flex-1 flex-col gap-2">
+        <div class="notes-editor flex flex-1 flex-col">
           {props.header}
 
           <div
             ref={mountEditor}
-            class="ProseMirror notes-editor-content min-h-0 flex-1 overflow-y-auto"
+            class="ProseMirror notes-editor-content flex-1 overflow-y-auto"
           />
         </div>
 
