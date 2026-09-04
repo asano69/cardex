@@ -68,7 +68,7 @@ export default function NoteEditor(props: NoteEditorProps) {
         class="m-6 flex min-h-0 w-full flex-1 flex-col gap-4"
         onFocusOut={() => flush?.()}
       >
-        <div class="flex flex-1 flex-col p-10 bg-field shadow-md">
+        <div class="p-10 bg-field shadow-md">
           <input
             type="text"
             placeholder="Title"
