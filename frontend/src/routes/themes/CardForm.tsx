@@ -81,17 +81,20 @@ interface CardFieldsProps {
 function CardFields(props: CardFieldsProps) {
   const navigate = useNavigate();
 
+  // Read once: CardFields is remounted fresh whenever the loaded card
+  // changes (see CardForm's <Show>), so this never needs to react to
+  // props.card updating.
+  // eslint-disable-next-line solid/reactivity
+  const [title, setTitle] = createSignal(props.card?.title ?? "");
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal("");
 
-  // The title is line 1, the content is every line after it -- the
-  // same split Scrapbox uses for its own pages, so the editor reads as
-  // one continuous note instead of two separate fields.
+  // Body only now: title is its own plain input above the editor (see
+  // the <input> below), not the doc's first paragraph.
   // eslint-disable-next-line solid/reactivity
-  const initialContent = linesToDocJSON([
-    props.card?.title ?? "",
-    ...(props.card?.content ? props.card.content.split("\n") : []),
-  ]);
+  const initialContent = linesToDocJSON(
+    props.card?.content ? props.card.content.split("\n") : [],
+  );
 
   // Set by TextEditor's onReady once its ProseKit editor is created, so
   // handleSave can read the current content via editor.getDocJSON().
@@ -99,14 +102,13 @@ function CardFields(props: CardFieldsProps) {
 
   const handleSave = async (e: SubmitEvent) => {
     e.preventDefault();
-    const [title, ...rest] = docToLines(editor.getDocJSON());
-    if (!title?.trim()) return;
+    if (!title().trim()) return;
     setError("");
     setSaving(true);
     try {
       const data = {
-        title: title.trim(),
-        content: rest.join("\n").trim(),
+        title: title().trim(),
+        content: docToLines(editor.getDocJSON()).join("\n").trim(),
         theme: props.themeId,
       };
       if (props.cardId) {
@@ -129,6 +131,20 @@ function CardFields(props: CardFieldsProps) {
       class="flex min-h-0 flex-1 w-full flex-col gap-4 mb-20"
     >
       <TextEditor
+        // Rendered inside TextEditor's own bordered box (see the
+        // "header" prop) so the title and body read as one sheet of
+        // paper instead of two separately-bordered elements.
+        header={
+          <input
+            type="text"
+            placeholder="Title"
+            value={title()}
+            onInput={(e) => setTitle(e.currentTarget.value)}
+            required
+            autofocus
+            class="w-full bg-transparent px-3 pt-3 pb-2 text-2xl font-bold text-text outline-none"
+          />
+        }
         initialContent={initialContent}
         saving={saving()}
         justSaved={false}

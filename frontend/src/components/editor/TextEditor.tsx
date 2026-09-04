@@ -1,4 +1,4 @@
-import { onCleanup } from "solid-js";
+import { onCleanup, type JSX } from "solid-js";
 import "prosekit/basic/style.css";
 import "prosekit/basic/typography.css";
 import { defineBasicExtension } from "prosekit/basic";
@@ -14,6 +14,13 @@ export interface TextEditorProps {
   saving: boolean;
   justSaved: boolean;
   onReady?: (editor: ReturnType<typeof createEditor>) => void;
+
+  // Optional content (e.g. a title <input>) rendered above the editor,
+  // inside the same bordered box (see notes-editor below), so a caller
+  // like CardForm can present title + body as a single sheet of paper
+  // instead of two separately-bordered elements. Omitted by callers
+  // like Diary that have no title field of their own.
+  header?: JSX.Element;
 }
 
 // Reusable rich-text editor: a ProseKit editor with a formatting toolbar
@@ -55,13 +62,20 @@ export default function TextEditor(props: TextEditorProps) {
           the save button sits outside it as a separate element. */}
       <div class="flex min-h-0 flex-1 flex-col gap-2">
         <div class="notes-editor flex min-h-0 flex-1 flex-col">
+          {props.header}
+
           <div
             ref={mountEditor}
             class="ProseMirror notes-editor-content min-h-0 flex-1 overflow-y-auto"
           />
         </div>
-        <EditorSaveButton saving={props.saving} justSaved={props.justSaved} />
+
+        <EditorSaveButton
+          saving={props.saving}
+          justSaved={props.justSaved}
+        />
       </div>
     </ProseKit>
   );
 }
+

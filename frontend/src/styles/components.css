@@ -54,17 +54,6 @@
     margin: 0.75em 0;
   }
 
-  /* First line reads as the note's title, mirroring how Scrapbox
-   * treats a page's first line (see CardForm.tsx, which splits the
-   * editor's first paragraph off into the "title" field on save).
-   * Larger, bold text sets it apart from the body without a separate
-   * title input. */
-  .notes-editor-content.ProseMirror > p:first-child {
-    font-size: 2em;
-    font-weight: bold;
-    margin-bottom: 0.4em;
-  }
-
   /* Cell for the generic Heatmap component (see
    * components/common/Heatmap.tsx). Background color is set inline
    * per-cell by the caller, not here, so it always applies regardless
