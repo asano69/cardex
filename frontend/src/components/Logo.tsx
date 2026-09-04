@@ -37,7 +37,7 @@ export default function Logo(props: LogoProps) {
     // extra CSS needed here.
     <svg
       viewBox="0 0 588.161 588.161"
-      fill="currentColor"
+      fill="#4B6F44"
       style={{ width: `${size()}px`, height: `${size()}px` }}
       xmlns="http://www.w3.org/2000/svg"
     >
