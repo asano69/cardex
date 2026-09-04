@@ -68,18 +68,19 @@ export default function NoteEditor(props: NoteEditorProps) {
         class="m-6 flex min-h-0 w-full flex-1 flex-col gap-4"
         onFocusOut={() => flush?.()}
       >
-        <div class="flex flex-1 flex-col bg-field shadow-md">
+        <div class="flex flex-1 flex-col p-10 bg-field shadow-md">
           <input
             type="text"
             placeholder="Title"
             value={title()}
             onInput={(e) => setTitle(e.currentTarget.value)}
+            required
             autofocus
-            class="w-full bg-transparent px-3 pt-3 pb-2 text-2xl outline-none"
+            class="w-full bg-transparent pb-5 text-2xl outline-none"
           />
           <div
             ref={mountEditor}
-            class="ProseMirror flex-1 overflow-y-auto p-3 pb-10 text-text outline-none"
+            class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
           />
         </div>
 
