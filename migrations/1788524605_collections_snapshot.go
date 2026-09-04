@@ -1158,7 +1158,7 @@ func init() {
 				"id": "pbc_575754128",
 				"indexes": [],
 				"listRule": null,
-				"name": "themes",
+				"name": "issues",
 				"system": false,
 				"type": "base",
 				"updateRule": null,

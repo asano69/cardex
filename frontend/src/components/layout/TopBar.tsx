@@ -46,7 +46,7 @@ export default function TopBar(props: TopBarProps) {
               Sidebar holds just Diary, so it lives here next to the
               logo instead of behind the sidebar toggle. */}
           <A
-            href="/themes"
+            href="/issues"
             activeClass="bg-active-bg"
             class="icon-btn"
             aria-label="Themes"

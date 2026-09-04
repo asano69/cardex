@@ -19,7 +19,7 @@ function blockText(node: any): string {
   return children.map(blockText).join("");
 }
 
-// A single card in ThemeDetail's card grid, styled to match Cosense's
+// A single card in IssueDetail's card grid, styled to match Cosense's
 // own page-list card (see .card-grid-item in styles/components.css).
 export default function CardItem(props: CardItemProps) {
   return (
@@ -28,7 +28,7 @@ export default function CardItem(props: CardItemProps) {
     // edit form) instead of only some inner element, so clicking
     // anywhere on the card opens it.
     <li class="card-grid-item">
-      <A href={`/themes/${props.card.theme}/cards/${props.card.id}`}>
+      <A href={`/issues/${props.card.issue}/cards/${props.card.id}`}>
         <div class="content">
           <div class="header">
             <h3 class="title">{props.card.title}</h3>

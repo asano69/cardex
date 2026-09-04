@@ -4,8 +4,8 @@ import { Plus } from "../../lib/icons";
 
 import pb from "../../lib/pb";
 
-// Matches the PocketBase "themes" collection schema.
-export interface ThemeRecord {
+// Matches the PocketBase "issues" collection schema.
+export interface IssueRecord {
   id: string;
   title: string;
   done: boolean;
@@ -14,22 +14,22 @@ export interface ThemeRecord {
   updated: string;
 }
 
-export interface ThemeFormProps {
-  // Whether at least one theme already exists -- tones down the
+export interface IssueFormProps {
+  // Whether at least one issue already exists -- tones down the
   // input's styling once the list isn't empty, so it reads as an
   // optional affordance rather than a prompt nagging the user to fill
   // the list.
-  hasExistingThemes: boolean;
-  // Position to store on the new theme, so it's appended after every
-  // existing theme regardless of any gaps left by earlier deletes.
+  hasExistingIssues: boolean;
+  // Position to store on the new issue, so it's appended after every
+  // existing issue regardless of any gaps left by earlier deletes.
   nextPosition: number;
-  onAdded: (record: ThemeRecord) => void;
+  onAdded: (record: IssueRecord) => void;
 }
 
-// Add-theme input for the Themes page. Saves directly to PocketBase's
-// "themes" collection and reports the created record back via onAdded,
-// since the page owns the actual theme list.
-export default function ThemeForm(props: ThemeFormProps) {
+// Add-issue input for the Issues page. Saves directly to PocketBase's
+// "issues" collection and reports the created record back via onAdded,
+// since the page owns the actual issue list.
+export default function IssueForm(props: IssueFormProps) {
   const [title, setTitle] = createSignal("");
   const [submitting, setSubmitting] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -40,7 +40,7 @@ export default function ThemeForm(props: ThemeFormProps) {
     setError("");
     setSubmitting(true);
     try {
-      const record = await pb.collection("themes").create<ThemeRecord>({
+      const record = await pb.collection("issues").create<IssueRecord>({
         title: title().trim(),
         done: false,
         position: props.nextPosition,
@@ -48,7 +48,7 @@ export default function ThemeForm(props: ThemeFormProps) {
       props.onAdded(record);
       setTitle("");
     } catch {
-      setError("Failed to add the theme.");
+      setError("Failed to add the issue.");
     } finally {
       setSubmitting(false);
     }
@@ -60,22 +60,22 @@ export default function ThemeForm(props: ThemeFormProps) {
       <form
         onSubmit={handleSubmit}
         class="flex items-center gap-2 transition-opacity focus-within:opacity-100"
-        classList={{ "opacity-50": props.hasExistingThemes }}
+        classList={{ "opacity-50": props.hasExistingIssues }}
       >
         <TextField value={title()} onChange={setTitle} class="flex-1">
           <TextField.Input
-            placeholder="What theme do you want to think about?"
+            placeholder="What issue do you want to think about?"
             class="w-full rounded-md border border-border bg-field px-3 py-2 text-text"
             classList={{
-              "border-transparent bg-transparent px-0": props.hasExistingThemes,
+              "border-transparent bg-transparent px-0": props.hasExistingIssues,
             }}
           />
         </TextField>
         {/* Plus icon instead of an "Add" label, matching the delete
-            icon on each theme row. */}
+            icon on each issue row. */}
         <button
           type="submit"
-          aria-label={submitting() ? "Adding…" : "Add theme"}
+          aria-label={submitting() ? "Adding…" : "Add issue"}
           class="icon-btn shrink-0"
           disabled={submitting()}
         >

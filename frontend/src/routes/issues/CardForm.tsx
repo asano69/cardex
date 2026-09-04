@@ -11,7 +11,7 @@ export interface CardRecord {
   id: string;
   title: string;
   content: object;
-  theme: string;
+  issue: string;
   created: string;
   updated: string;
 }
@@ -20,9 +20,9 @@ async function fetchCard(id: string): Promise<CardRecord> {
   return await pb.collection("cards").getOne<CardRecord>(id);
 }
 
-// Add/edit page for a single card, reached from ThemeDetail's "add card"
-// button (create, at /themes/:id/cards/new) or by clicking a card
-// (edit, at /themes/:id/cards/:cardId). Both modes share the same
+// Add/edit page for a single card, reached from IssueDetail's "add card"
+// button (create, at /issues/:id/cards/new) or by clicking a card
+// (edit, at /issues/:id/cards/:cardId). Both modes share the same
 // NoteEditor, which autosaves on every edit; params.cardId being
 // present is what selects edit mode initially.
 export default function CardForm() {
@@ -43,11 +43,11 @@ export default function CardForm() {
     }
     const record = await pb
       .collection("cards")
-      .create<CardRecord>({ ...data, theme: params.id });
+      .create<CardRecord>({ ...data, issue: params.id });
     setRecordId(record.id);
     // Swap the URL to the edit route so a refresh or the back button
     // lands on the now-existing card instead of the "new" route.
-    navigate(`/themes/${params.id}/cards/${record.id}`, { replace: true });
+    navigate(`/issues/${params.id}/cards/${record.id}`, { replace: true });
   };
 
   return (
