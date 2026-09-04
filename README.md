@@ -1,5 +1,7 @@
 # Cardex
 
+Cardex is a card box for thinkers.
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/cardex)
 
 <img src="frontend/public/favicon.svg" width="100" align="right" />
