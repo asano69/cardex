@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/spf13/cobra"
@@ -23,6 +24,14 @@ func serveCmd(app *pocketbase.PocketBase) *cobra.Command {
 		Short: "Start the web server",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// --dev also raises the default slog level to Debug, so
+			// slog.Debug calls throughout the codebase (e.g.
+			// internal/serve/ydoc.go's XML dump) become visible without
+			// a separate flag to remember.
+			if app.IsDev() {
+				slog.SetLogLoggerLevel(slog.LevelDebug)
+			}
+
 			cfg, err := config.Load()
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)

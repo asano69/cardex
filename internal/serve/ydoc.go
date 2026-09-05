@@ -245,6 +245,7 @@ func (p *ydocPersistence) updateTitleAndPreview(room string) error {
 		return nil // room isn't loaded -- nothing to derive yet
 	}
 	xml := doc.GetXmlFragment("prosemirror").ToXML()
+	slog.Debug("card xml", "room", room, "xml", xml)
 
 	record, err := p.app.FindRecordById("cards", room)
 	if err != nil {
@@ -312,11 +313,16 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	}
 
 	if m := headingRe.FindStringSubmatch(xml); m != nil {
-		title = truncateRunes(strings.TrimSpace(xmlUnescaper.Replace(m[1])), titleMaxRunes)
-	} else if len(paragraphs) > 0 {
-		title = truncateRunes(paragraphs[0], titleMaxRunes)
+		title = strings.TrimSpace(xmlUnescaper.Replace(m[1]))
+	}
+	// Empty heading (e.g. a brand-new card whose title hasn't been
+	// typed yet) falls back to the first paragraph too, not just a
+	// missing heading tag.
+	if title == "" && len(paragraphs) > 0 {
+		title = paragraphs[0]
 		paragraphs = paragraphs[1:]
 	}
+	title = truncateRunes(title, titleMaxRunes)
 
 	preview = truncateRunes(strings.Join(paragraphs, "\n"), previewMaxRunes)
 	return title, preview
