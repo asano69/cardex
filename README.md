@@ -19,7 +19,7 @@ Cardex is a card box for thinkers.
 ### backend
 - Go
 - PocketBase v0.39+
-- ygo
+- reearth/ygo v1.49.5
 
 ### frontend
 - Solid.js v1.9
