@@ -30,10 +30,14 @@ export default function YjsPoc() {
   // The "/yjs" prefix is proxied to the Go backend's "/yjs/{room}"
   // route (see vite.config.ts).
   const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+  // disableBc: true forces every tab through the real WebSocket server
+  // instead of syncing via BroadcastChannel, so multi-tab testing
+  // actually exercises the same code path as a second real client.
   const provider = new WebsocketProvider(
     `${wsProtocol}//${location.host}/yjs`,
     ROOM,
     ydoc,
+    { disableBc: true },
   );
 
   const editor = createEditor({ extension: defineBasicExtension() });
