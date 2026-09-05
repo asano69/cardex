@@ -8,7 +8,15 @@ import (
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+
+	yjsws "github.com/reearth/ygo/provider/websocket"
 )
+
+// yjsServer is a single in-memory Yjs sync server shared by every room.
+// PoC only (see docs/yjs-design.md): no auth, no persistence yet -- a
+// room's state lives purely in memory and is lost on restart or once
+// every peer disconnects.
+var yjsServer = yjsws.NewServer()
 
 // registerRoutes wires up every HTTP route served by cardex. It is passed
 // to app.OnServe().BindFunc in serve.go, keeping all route/handler
@@ -25,6 +33,11 @@ func registerRoutes(e *core.ServeEvent) error {
 	e.Router.GET("/health", func(re *core.RequestEvent) error {
 		return re.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	// PoC: real-time Yjs sync (see docs/yjs-design.md). Intentionally
+	// unauthenticated for now -- {room} is any client-chosen room name.
+	// TODO: gate behind RequireSuperuserAuth once the design is validated.
+	e.Router.GET("/yjs/{room}", apis.WrapStdHandler(yjsServer))
 
 	// Custom API routes that return or mutate user data go under this
 	// group so RequireSuperuserAuth only has to be declared once here,
