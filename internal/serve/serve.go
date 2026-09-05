@@ -4,6 +4,7 @@
 // The package is split across three files:
 //   - serve.go:   route registration and server startup (this file)
 //   - handler.go: HTTP handlers
+//   - ydoc.go:    periodic Yjs snapshot persistence
 package serve
 
 import (

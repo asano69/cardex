@@ -12,6 +12,10 @@ export interface CardRecord {
   title: string;
   content: object;
   issue: string;
+  // Filename of the periodically-saved Yjs snapshot (see
+  // internal/serve/ydoc.go). Undefined until the first snapshot has
+  // been taken.
+  ydoc?: string;
   created: string;
   updated: string;
 }
@@ -54,11 +58,23 @@ export default function CardForm() {
     navigate(`/issues/${params.id}/cards/${record.id}`, { replace: true });
   };
 
+  // Download URL of the card's last periodic Yjs snapshot (see
+  // internal/serve/ydoc.go), used by NoteEditor to seed the body
+  // editor before its websocket room has synced -- e.g. right after a
+  // server restart when the in-memory room is still empty. Undefined
+  // for a brand-new card, which has no snapshot yet.
+  const initialYdocUrl = () => {
+    const filename = existing()?.ydoc;
+    const id = recordId();
+    return filename && id ? `/api/files/cards/${id}/${filename}` : undefined;
+  };
+
   return (
     <Show when={!params.cardId || !existing.loading} fallback={<Loading />}>
       <NoteEditor
         initialTitle={existing()?.title}
         cardId={recordId}
+        initialYdocUrl={initialYdocUrl()}
         onSaveTitle={handleSaveTitle}
       />
     </Show>

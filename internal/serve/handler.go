@@ -13,9 +13,10 @@ import (
 )
 
 // yjsServer is a single in-memory Yjs sync server shared by every room.
-// PoC only (see docs/yjs-design.md): no auth, no persistence yet -- a
-// room's state lives purely in memory and is lost on restart or once
-// every peer disconnects.
+// PoC only (see docs/yjs-design.md): no auth yet -- a room's live state
+// is still purely in-memory, but it is periodically snapshotted to the
+// matching card's "ydoc" field (see ydoc.go) so content survives a
+// restart and NoteEditor has something to seed from.
 var yjsServer = yjsws.NewServer()
 
 // registerRoutes wires up every HTTP route served by cardex. It is passed
@@ -37,7 +38,16 @@ func registerRoutes(e *core.ServeEvent) error {
 	// PoC: real-time Yjs sync (see docs/yjs-design.md). Intentionally
 	// unauthenticated for now -- {room} is any client-chosen room name.
 	// TODO: gate behind RequireSuperuserAuth once the design is validated.
-	e.Router.GET("/yjs/{room}", apis.WrapStdHandler(yjsServer))
+	//
+	// The room name doubles as the "cards" record id (see
+	// NoteEditor.tsx), so every connection attempt is remembered here;
+	// the snapshot loop in ydoc.go uses that list to know which cards
+	// to check.
+	yjsHandler := apis.WrapStdHandler(yjsServer)
+	e.Router.GET("/yjs/{room}", func(re *core.RequestEvent) error {
+		rememberRoom(re.Request.PathValue("room"))
+		return yjsHandler(re)
+	})
 
 	// Custom API routes that return or mutate user data go under this
 	// group so RequireSuperuserAuth only has to be declared once here,
@@ -57,6 +67,8 @@ func registerRoutes(e *core.ServeEvent) error {
 	// RequireSuperuserAuth, so an unauthenticated visitor only ever
 	// sees the login screen the SPA renders client-side.
 	e.Router.GET("/{path...}", apis.Static(static.FS, true))
+
+	startYdocSnapshotLoop(e.App)
 
 	return e.Next()
 }
