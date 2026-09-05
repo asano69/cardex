@@ -41,13 +41,22 @@
     margin: 0.75em 0;
   }
 
-  /* The note editor's first block doubles as the card's title (see
-   * components/noteEditor) -- there's no separate title input
-   * anymore, so it's styled larger/bolder here to read as a heading. */
-  .ProseMirror > :first-child {
-    font-family: var(--font-sans);
-    font-size: 1.5rem;
+  /* The note editor's first block is enforced to be a level-1 heading
+   * (see forceFirstHeadingPlugin) and doubles as the card's title --
+   * there's no separate title input anymore. Sizing/clamping here
+   * mirrors .card-grid-item .title (CardItem's own title style) so a
+   * card looks the same whether shown in the grid or open for editing.
+   */
+  .ProseMirror h1 {
+    font-size: 12px;
     font-weight: bold;
+    line-height: 20px;
+    max-height: 60px;
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
   }
 
   /* Cell for the generic Heatmap component (see
