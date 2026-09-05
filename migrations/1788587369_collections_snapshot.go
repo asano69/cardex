@@ -970,21 +970,6 @@ func init() {
 						"type": "json"
 					},
 					{
-						"help": "",
-						"hidden": false,
-						"id": "file1316164732",
-						"maxSelect": 0,
-						"maxSize": 0,
-						"mimeTypes": null,
-						"name": "ydoc",
-						"presentable": false,
-						"protected": false,
-						"required": false,
-						"system": false,
-						"thumbs": null,
-						"type": "file"
-					},
-					{
 						"hidden": false,
 						"id": "autodate2990389176",
 						"name": "created",
