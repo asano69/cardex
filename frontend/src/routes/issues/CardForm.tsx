@@ -1,5 +1,5 @@
 import { createResource, createSignal, createMemo, Show } from "solid-js";
-import { useParams, useNavigate } from "@solidjs/router";
+import { useParams } from "@solidjs/router";
 
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
@@ -35,7 +35,6 @@ async function fetchCard(id: string): Promise<void> {
 // present is what selects edit mode initially.
 export default function CardForm() {
   const params = useParams();
-  const navigate = useNavigate();
   const [existing] = createResource(() => params.cardId, fetchCard);
 
   // Tracks the record once it exists, so a brand-new card (no
@@ -70,7 +69,11 @@ export default function CardForm() {
     setRecordId(record.id);
     // Swap the URL to the edit route so a refresh or the back button
     // lands on the now-existing card instead of the "new" route.
-    navigate(`/issues/${params.id}/cards/${record.id}`, { replace: true });
+    // Uses history.replaceState directly (not solid-router's navigate)
+    // so only the URL bar changes -- navigate() would match a different
+    // Route pattern (see router.tsx) and remount this whole component,
+    // which would tear down and reconnect the Yjs room mid-edit.
+    history.replaceState(null, "", `/issues/${params.id}/cards/${record.id}`);
   };
 
   return (
