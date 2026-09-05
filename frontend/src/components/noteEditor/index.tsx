@@ -6,7 +6,6 @@ import { createEditor } from "prosekit/core";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { ySyncPlugin } from "y-prosemirror";
-import { Trash2 } from "../../lib/icons";
 
 // How long to wait after the last title edit before autosaving. Losing
 // focus on the title field (see onFocusOut below) flushes immediately
@@ -27,10 +26,6 @@ export interface NoteEditorProps {
   // available, since a Yjs room needs a name to connect to.
   cardId: () => string | undefined;
   onSaveTitle: (title: string) => Promise<void>;
-  // Shows a delete button to the right of the editor when provided.
-  // Omitted (not just disabled) for a card that doesn't exist yet,
-  // since there's nothing to delete.
-  onDelete?: () => void;
 }
 
 // Title input + Yjs-synced ProseKit rich-text body. Unlike the title,
@@ -66,47 +61,34 @@ export default function NoteEditor(props: NoteEditorProps) {
 
   return (
     // focusout bubbles (unlike blur), so losing focus on the title
-    // field flushes any pending autosave immediately.
+    // field flushes any pending autosave immediately. This is the
+    // whole editor's root -- callers own any surrounding layout (e.g.
+    // a delete button placed next to it), so this only sizes itself
+    // as a flex-1 item within whatever row/column the caller uses.
     <div
-      class="m-6 flex min-h-0 w-full flex-1 flex-col gap-4"
+      class="min-w-0 flex-1 p-10 bg-field shadow-md"
       onFocusOut={() => flush?.()}
     >
-      {/* items-start pins the delete button to the top-right corner
-          instead of stretching it to the editor's full height. */}
-      <div class="flex items-start gap-2">
-        <div class="min-w-0 flex-1 p-10 bg-field shadow-md">
-          <input
-            type="text"
-            placeholder="Title"
-            value={title()}
-            onInput={(e) => setTitle(e.currentTarget.value)}
-            required
-            autofocus
-            class="w-full bg-transparent pb-5 text-2xl outline-none"
-          />
-          {/* The body editor needs a room name to connect to, so it only
-              mounts once cardId is available (existing card, or a
-              brand-new one right after its first title save). */}
-          <Show
-            when={props.cardId()}
-            fallback={
-              <p class="text-sm text-border">Enter a title to start writing.</p>
-            }
-          >
-            {(id) => <YjsBody roomId={id()} />}
-          </Show>
-        </div>
-        <Show when={props.onDelete}>
-          <button
-            type="button"
-            aria-label="Delete card"
-            class="icon-btn shrink-0"
-            onClick={props.onDelete}
-          >
-            <Trash2 size={20} />
-          </button>
-        </Show>
-      </div>
+      <input
+        type="text"
+        placeholder="Title"
+        value={title()}
+        onInput={(e) => setTitle(e.currentTarget.value)}
+        required
+        autofocus
+        class="w-full bg-transparent pb-5 text-2xl outline-none"
+      />
+      {/* The body editor needs a room name to connect to, so it only
+          mounts once cardId is available (existing card, or a
+          brand-new one right after its first title save). */}
+      <Show
+        when={props.cardId()}
+        fallback={
+          <p class="text-sm text-border">Enter a title to start writing.</p>
+        }
+      >
+        {(id) => <YjsBody roomId={id()} />}
+      </Show>
 
       <TitleAutoSave
         title={title}

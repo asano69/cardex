@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "@solidjs/router";
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
+import { Trash2 } from "../../lib/icons";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 
 // Matches the PocketBase "cards" collection schema. "preview" is a
@@ -91,14 +92,28 @@ export default function CardForm() {
 
   return (
     <Show when={!params.cardId || !existing.loading} fallback={<Loading />}>
-      <NoteEditor
-        title={() => card()?.title}
-        cardId={recordId}
-        onSaveTitle={handleSaveTitle}
-        // Only an existing card can be deleted -- a brand-new,
-        // not-yet-saved card has no record to delete.
-        onDelete={recordId() ? handleDelete : undefined}
-      />
+      {/* Layout for a card-editing screen: the editor plus a delete
+          button beside it. NoteEditor itself stays layout-agnostic so
+          it can be reused without this app's card-specific chrome. */}
+      <div class="m-6 flex min-h-0 flex-1 items-start gap-2">
+        <NoteEditor
+          title={() => card()?.title}
+          cardId={recordId}
+          onSaveTitle={handleSaveTitle}
+        />
+        {/* Only an existing card can be deleted -- a brand-new,
+            not-yet-saved card has no record to delete. */}
+        <Show when={recordId()}>
+          <button
+            type="button"
+            aria-label="Delete card"
+            class="icon-btn shrink-0"
+            onClick={handleDelete}
+          >
+            <Trash2 size={20} />
+          </button>
+        </Show>
+      </div>
     </Show>
   );
 }
