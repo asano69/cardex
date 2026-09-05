@@ -944,32 +944,6 @@ func init() {
 						"type": "relation"
 					},
 					{
-						"help": "",
-						"hidden": false,
-						"id": "select1002749145",
-						"maxSelect": 0,
-						"name": "kind",
-						"presentable": false,
-						"required": false,
-						"system": false,
-						"type": "select",
-						"values": [
-							"quote",
-							"idea"
-						]
-					},
-					{
-						"help": "",
-						"hidden": false,
-						"id": "json4274335913",
-						"maxSize": 0,
-						"name": "content",
-						"presentable": false,
-						"required": false,
-						"system": false,
-						"type": "json"
-					},
-					{
 						"autogeneratePattern": "",
 						"help": "",
 						"hidden": false,
