@@ -20,11 +20,7 @@ export default function CardItem(props: CardItemProps) {
       <A href={`/issues/${props.card.issue}/cards/${props.card.id}`}>
         <div class="content">
           <div class="header">
-            {/* Falls back to "Untitled" for a brand-new, still-empty
-                card: the title is derived server-side from the first
-                line of the card's body (see internal/serve/ydoc.go),
-                so it stays blank until something is typed. */}
-            <h3 class="title">{props.card.title || "Untitled"}</h3>
+            <h3 class="title">{props.card.title}</h3>
           </div>
           <div class="description">{props.card.preview}</div>
         </div>

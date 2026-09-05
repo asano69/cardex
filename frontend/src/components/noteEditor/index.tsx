@@ -14,6 +14,7 @@ import { keymap } from "prosemirror-keymap";
 import { chainCommands } from "prosemirror-commands";
 import { createWrapInListCommand, listKeymap } from "prosemirror-flat-list";
 import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
+import { headingPlaceholderPlugin } from "./headingPlaceholderPlugin";
 
 export interface NoteEditorProps {
   // The card's PocketBase record id, doubling as the Yjs room name
@@ -81,6 +82,7 @@ export default function NoteEditor(props: NoteEditorProps) {
           ySyncPlugin(fragment),
           listTabKeymap,
           forceFirstHeadingPlugin(),
+          headingPlaceholderPlugin(),
           ...state.plugins,
         ],
       }),

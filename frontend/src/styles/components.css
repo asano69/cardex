@@ -55,6 +55,19 @@
     overflow: hidden;
   }
 
+  /* "Untitled" placeholder for the title heading before the user has
+   * typed anything (see noteEditor/headingPlaceholderPlugin.ts, which
+   * adds the "is-empty" class and data-placeholder attribute this
+   * relies on). Rendered via ::before so it's purely visual -- never
+   * part of the actual document content. */
+  .ProseMirror h1.is-empty::before {
+    content: attr(data-placeholder);
+    color: var(--color-note-title);
+    pointer-events: none;
+    float: left;
+    height: 0;
+  }
+
   /* Cell for the generic Heatmap component (see
    * components/common/Heatmap.tsx). Background color is set inline
    * per-cell by the caller, not here, so it always applies regardless
