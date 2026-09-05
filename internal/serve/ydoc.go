@@ -286,9 +286,10 @@ var xmlUnescaper = strings.NewReplacer(
 // buildTitleAndPreview turns a card's full ToXML() output into a title
 // and a preview: the document's first paragraph becomes the title (cut
 // to titleMaxRunes runes), every paragraph after it becomes the preview
-// (joined by a single space and cut to previewMaxRunes runes). Both are
-// unescaped plain text with no ellipsis; empty paragraphs (blank lines)
-// are dropped before either is built.
+// (joined by a newline and cut to previewMaxRunes runes, so line breaks
+// in the editor are preserved in the preview). Both are unescaped plain
+// text with no ellipsis; empty paragraphs (blank lines) are dropped
+// before either is built.
 func buildTitleAndPreview(xml string) (title, preview string) {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
@@ -302,7 +303,7 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	}
 
 	title = truncateRunes(paragraphs[0], titleMaxRunes)
-	preview = truncateRunes(strings.Join(paragraphs[1:], " "), previewMaxRunes)
+	preview = truncateRunes(strings.Join(paragraphs[1:], "\n"), previewMaxRunes)
 	return title, preview
 }
 
