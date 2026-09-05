@@ -212,7 +212,41 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		return err
 	}
 
+	// PoC: keep the card's "preview" field in sync with the room's live
+	// text, so IssueDetail's card grid (see CardItem.tsx) has something
+	// human-readable to show -- today it can only render whatever JSON
+	// happens to be in "content", which nothing ever writes to anymore
+	// now that the body lives in this Yjs room instead of PocketBase.
+	if err := p.updatePreview(room); err != nil {
+		slog.Warn("update card preview", "room", room, "error", err)
+	}
+
 	return p.compactIfNeeded(room)
+}
+
+// updatePreview serializes the room's live "prosemirror" XmlFragment (the
+// same root name the frontend uses via ydoc.getXmlFragment("prosemirror"),
+// see NoteEditor.tsx) to XML and writes it into the matching "cards"
+// record's "preview" field.
+//
+// ToXML is called directly, not from inside a doc.Transact callback: its
+// leaf text nodes take the document's read lock internally, which would
+// deadlock under Transact's write lock. Calling it here, right after our
+// own StoreUpdate has returned, matches how compactIfNeeded already calls
+// doc.EncodeStateAsUpdate() directly on the same live doc.
+func (p *ydocPersistence) updatePreview(room string) error {
+	doc := yjsServer.GetDoc(room)
+	if doc == nil {
+		return nil // room isn't loaded -- nothing to preview yet
+	}
+	xml := doc.GetXmlFragment("prosemirror").ToXML()
+
+	record, err := p.app.FindRecordById("cards", room)
+	if err != nil {
+		return nil // card may have been deleted concurrently -- skip
+	}
+	record.Set("preview", xml)
+	return p.app.Save(record)
 }
 
 // compactIfNeeded merges every stored increment for room into a single
