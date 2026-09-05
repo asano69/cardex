@@ -64,21 +64,25 @@ CRDT（Yjs）ベースの差分同期に置き換える。将来的な複数人�
 
 ### 4.2 永続化（スナップショット）
 
-- ルームごとに30秒間隔のticker。
-- 前回スナップショット以降に変更がなければ（dirtyフラグが立っていなければ）書き込みをスキップ。
-- 変更があれば、Y.Docの現在状態を
-  - JSONに変換して`content`へ、
-  - バイナリのままエンコードして`ydoc`へ、
-  同時に書き込む。
-- 最後のクライアントが切断した瞬間にも、dirtyであれば即時1回スナップショットを行う。
+- 自前のdirtyフラグ・tickerは持たない。ygoの`Server.PersistCoalesceWindow`/
+  `PersistCoalesceMaxWait`（デフォルト: 2秒でまとめて、最大10秒ごとに強制flush）
+  がroom単位で自動的にデバウンスしてくれるため、`PersistenceAdapter.StoreUpdate`
+  （およびそのcontext版`StoreUpdateContext`）はそのまま「今のroomの状態を保存する」
+  処理を書くだけでよい。
+- 保存のたびにY.Docの現在状態を`ydoc`へバイナリのままエンコードして書き込む
+  （前回保存分とバイト列が同じ場合はスキップし、無駄な`updated`更新を避ける）。
+- 最後のクライアントが切断した瞬間のflushは、ygo自身の
+  "durable flush-before-evict"（room eviction前の保存保証）に任せる。
 
 ### 4.3 メモリ上のY.Doc解放
 
-- 全員切断後は、直後にルームをメモリから解放してよい（バイナリは既にディスクに
-  永続化済みのため、失うものがない）。次に誰かが開いた際は`ydoc`ファイルから
-  再ロードする。
-- ここは「解放を即時にするか、多少ディレイを入れて再接続に備えるか」は実装時の
-  微調整事項とし、設計上はどちらでも正しさに影響しない（要確認: 後述）。
+- 全員切断後、直後にルームをメモリから解放する（`Server.RoomIdleTimeout`は
+  デフォルト0＝即時解放）。解放前に必ずflushされる（ygoの
+  durable flush-before-evict）ため、バイナリを失う心配はない。次に誰かが開いた
+  際は`ydoc`ファイルから再ロードされる。
+- 再接続に備えて多少ディレイを入れたい場合は、`Server.RoomIdleTimeout` /
+  `MaxResidentRooms`を設定すれば自前の実装なしで実現できる（現時点では未設定 =
+  即時解放のまま）。
 
 ## 5. WebSocketエンドポイント
 
@@ -99,9 +103,11 @@ CRDT（Yjs）ベースの差分同期に置き換える。将来的な複数人�
 
 - prosekitのyjs拡張が実際に「JSON → 初期Y.Doc構築」をクライアント側で
   どう提供しているか（API仕様の確認が必要）。
-- PocketBaseの`file`フィールド更新を30秒間隔で行う際のディスクI/O・フックの
-  オーバーヘッドが実運用で問題にならないか。
-- ルーム解放のタイミング（即時 or ディレイ）の最終決定。
+- PocketBaseの`file`フィールド更新をygoのデフォルトcoalesce間隔（2〜10秒）で
+  行う際のディスクI/O・フックのオーバーヘッドが実運用で問題にならないか。
+- `app.OnTerminate()`のイベント型（`core.TerminateEvent`という想定で実装した）
+  が、vendoringしているPocketBaseのバージョンと一致しているかの確認
+  （`go doc github.com/pocketbase/pocketbase/core App.OnTerminate`で要確認）。
 
 ## 8. ざっくりとした実装タスク分解
 
