@@ -1,5 +1,5 @@
 import { createResource, createSignal, createMemo, Show } from "solid-js";
-import { useParams } from "@solidjs/router";
+import { useParams, useNavigate } from "@solidjs/router";
 
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
@@ -35,6 +35,7 @@ async function fetchCard(id: string): Promise<void> {
 // present is what selects edit mode initially.
 export default function CardForm() {
   const params = useParams();
+  const navigate = useNavigate();
   const [existing] = createResource(() => params.cardId, fetchCard);
 
   // Tracks the record once it exists, so a brand-new card (no
@@ -76,12 +77,27 @@ export default function CardForm() {
     history.replaceState(null, "", `/issues/${params.id}/cards/${record.id}`);
   };
 
+  // Cascade deletion of the card's card_blocks/ydoc_updates records and
+  // its in-memory Yjs room is already handled server-side (see
+  // migrations/1788596608_collections_snapshot.go's cascadeDelete and
+  // internal/serve/ydoc.go's forgetRoom), so this only needs to delete
+  // the "cards" record itself.
+  const handleDelete = async () => {
+    const id = recordId();
+    if (!id) return;
+    await pb.collection("cards").delete(id);
+    navigate(`/issues/${params.id}`);
+  };
+
   return (
     <Show when={!params.cardId || !existing.loading} fallback={<Loading />}>
       <NoteEditor
         title={() => card()?.title}
         cardId={recordId}
         onSaveTitle={handleSaveTitle}
+        // Only an existing card can be deleted -- a brand-new,
+        // not-yet-saved card has no record to delete.
+        onDelete={recordId() ? handleDelete : undefined}
       />
     </Show>
   );
