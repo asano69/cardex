@@ -51,11 +51,7 @@ export default defineConfig({
       "/api": { target: "http://127.0.0.1:3000", changeOrigin: true },
       "/_": { target: "http://127.0.0.1:3000", changeOrigin: true },
       "/health": { target: "http://127.0.0.1:3000", changeOrigin: true },
-      // PoC Yjs sync endpoint (see docs/yjs-design.md). ws: true is
-      // required for Vite to proxy the WebSocket upgrade. The
-      // trailing slash keeps this key from also prefix-matching
-      // "/yjs-poc" (Vite's proxy keys are matched by prefix).
-      //
+
       // configure() rewrites the outgoing Origin header to match the
       // proxy target: the backend's websocket upgrader (gorilla/
       // websocket's default CheckOrigin) rejects any handshake whose
