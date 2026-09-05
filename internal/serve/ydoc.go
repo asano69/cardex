@@ -214,33 +214,35 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		return err
 	}
 
-	// PoC: keep the card's "preview" field in sync with the room's live
-	// text, so IssueDetail's card grid (see CardItem.tsx) has something
-	// human-readable to show -- today it can only render whatever JSON
-	// happens to be in "content", which nothing ever writes to anymore
-	// now that the body lives in this Yjs room instead of PocketBase.
-	if err := p.updatePreview(room); err != nil {
-		slog.Warn("update card preview", "room", room, "error", err)
+	// Keep the card's "title" and "preview" fields in sync with the
+	// room's live text, so IssueDetail's card grid (see CardItem.tsx)
+	// has something human-readable to show. There is no separate title
+	// input anymore -- the document's first block is the title (see
+	// components/noteEditor).
+	if err := p.updateTitleAndPreview(room); err != nil {
+		slog.Warn("update card title/preview", "room", room, "error", err)
 	}
 
 	return p.compactIfNeeded(room)
 }
 
-// updatePreview serializes the room's live "prosemirror" XmlFragment (the
-// same root name the frontend uses via ydoc.getXmlFragment("prosemirror"),
-// see NoteEditor.tsx) to XML, reduces that XML to a short plain-text
-// preview (see buildPreview), and writes it into the matching "cards"
-// record's "preview" field.
+// updateTitleAndPreview serializes the room's live "prosemirror"
+// XmlFragment (the same root name the frontend uses via
+// ydoc.getXmlFragment("prosemirror"), see components/noteEditor) to
+// XML, splits that XML into a title and a short plain-text preview
+// (see buildTitleAndPreview), and writes both into the matching
+// "cards" record. There is no separate title input anymore -- the
+// document's first block IS the title (see components/noteEditor).
 //
 // ToXML is called directly, not from inside a doc.Transact callback: its
 // leaf text nodes take the document's read lock internally, which would
 // deadlock under Transact's write lock. Calling it here, right after our
 // own StoreUpdate has returned, matches how compactIfNeeded already calls
 // doc.EncodeStateAsUpdate() directly on the same live doc.
-func (p *ydocPersistence) updatePreview(room string) error {
+func (p *ydocPersistence) updateTitleAndPreview(room string) error {
 	doc := yjsServer.GetDoc(room)
 	if doc == nil {
-		return nil // room isn't loaded -- nothing to preview yet
+		return nil // room isn't loaded -- nothing to derive yet
 	}
 	xml := doc.GetXmlFragment("prosemirror").ToXML()
 
@@ -249,16 +251,19 @@ func (p *ydocPersistence) updatePreview(room string) error {
 		return nil // card may have been deleted concurrently -- skip
 	}
 
-	preview := buildPreview(xml)
-	if record.GetString("preview") == preview {
+	title, preview := buildTitleAndPreview(xml)
+	if record.GetString("title") == title && record.GetString("preview") == preview {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
+	record.Set("title", title)
 	record.Set("preview", preview)
 	return p.app.Save(record)
 }
 
-// previewMaxRunes caps how much text buildPreview keeps, counted in runes
-// (not bytes) so a card written in Japanese isn't cut mid-character.
+// titleMaxRunes and previewMaxRunes cap how much text
+// buildTitleAndPreview keeps, counted in runes (not bytes) so a card
+// written in Japanese isn't cut mid-character.
+const titleMaxRunes = 80
 const previewMaxRunes = 120
 
 // paragraphRe pulls out the inner text of every <paragraph> element in a
@@ -278,11 +283,13 @@ var xmlUnescaper = strings.NewReplacer(
 	"&amp;", "&",
 )
 
-// buildPreview turns a card's full ToXML() output into a short, readable
-// preview: every paragraph's text, unescaped, with empty paragraphs
-// (blank lines) dropped, joined by a single space and cut to
-// previewMaxRunes runes with no ellipsis.
-func buildPreview(xml string) string {
+// buildTitleAndPreview turns a card's full ToXML() output into a title
+// and a preview: the document's first paragraph becomes the title (cut
+// to titleMaxRunes runes), every paragraph after it becomes the preview
+// (joined by a single space and cut to previewMaxRunes runes). Both are
+// unescaped plain text with no ellipsis; empty paragraphs (blank lines)
+// are dropped before either is built.
+func buildTitleAndPreview(xml string) (title, preview string) {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
 		text := strings.TrimSpace(xmlUnescaper.Replace(m[1]))
@@ -290,11 +297,21 @@ func buildPreview(xml string) string {
 			paragraphs = append(paragraphs, text)
 		}
 	}
-	preview := strings.Join(paragraphs, " ")
+	if len(paragraphs) == 0 {
+		return "", ""
+	}
 
-	runes := []rune(preview)
-	if len(runes) > previewMaxRunes {
-		runes = runes[:previewMaxRunes]
+	title = truncateRunes(paragraphs[0], titleMaxRunes)
+	preview = truncateRunes(strings.Join(paragraphs[1:], " "), previewMaxRunes)
+	return title, preview
+}
+
+// truncateRunes cuts s to at most max runes (not bytes), so a card
+// written in Japanese isn't cut mid-character.
+func truncateRunes(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) > max {
+		runes = runes[:max]
 	}
 	return string(runes)
 }

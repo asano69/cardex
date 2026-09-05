@@ -41,6 +41,15 @@
     margin: 0.75em 0;
   }
 
+  /* The note editor's first block doubles as the card's title (see
+   * components/noteEditor) -- there's no separate title input
+   * anymore, so it's styled larger/bolder here to read as a heading. */
+  .ProseMirror > :first-child {
+    font-family: var(--font-sans);
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
   /* Cell for the generic Heatmap component (see
    * components/common/Heatmap.tsx). Background color is set inline
    * per-cell by the caller, not here, so it always applies regardless

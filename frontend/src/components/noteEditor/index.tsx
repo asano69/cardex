@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { onCleanup } from "solid-js";
 import "prosekit/basic/style.css";
 import "prosekit/basic/typography.css";
 import { defineBasicExtension } from "prosekit/basic";
@@ -6,206 +6,28 @@ import { createEditor } from "prosekit/core";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { ySyncPlugin } from "y-prosemirror";
-import { TextSelection } from "prosemirror-state";
 import { keymap } from "prosemirror-keymap";
 import { chainCommands } from "prosemirror-commands";
 import { createWrapInListCommand, listKeymap } from "prosemirror-flat-list";
 
-// How long to wait after the last title edit before autosaving. Losing
-// focus on the title field (see onFocusOut below) flushes immediately
-// instead of waiting for this timeout.
-const AUTOSAVE_DEBOUNCE_MS = 1000;
-
 export interface NoteEditorProps {
-  // Reactive accessor for the title, sourced from the shared cards
-  // store (see routes/issues/CardForm.tsx) -- the same store
-  // IssueDetail's card grid reads from. Any change here, whether our
-  // own save round-tripping through the store or another user's edit
-  // arriving over realtime, replaces the title field. No conflict
-  // resolution for now: a remote change wins even mid-edit.
-  title: () => string | undefined;
   // The card's PocketBase record id, doubling as the Yjs room name
-  // (see docs/yjs-design.md). undefined until the card has been
-  // created -- the body editor only mounts once this becomes
-  // available, since a Yjs room needs a name to connect to.
-  cardId: () => string | undefined;
-  onSaveTitle: (title: string) => Promise<void>;
+  // (see docs/yjs-design.md). Always defined -- CardForm creates the
+  // record (and therefore the room) before this component is ever
+  // mounted, so there's no "no card yet" state to handle here anymore.
+  cardId: () => string;
 }
 
-// Title input + Yjs-synced ProseKit rich-text body. Unlike the title,
-// the body is not persisted to PocketBase at all right now: it only
-// lives in the server's in-memory Yjs room (see
-// internal/serve/handler.go) and is lost once every peer disconnects
-// or the server restarts. This is a deliberate PoC simplification
-// (see docs/yjs-design.md) -- only the title is still autosaved,
-// through onSaveTitle.
+// A single Yjs-synced ProseKit editor covering both title and body:
+// the document's first block is the title (styled larger via
+// ".ProseMirror > :first-child" in styles/components.css), everything
+// below it is the body. Neither is persisted to PocketBase directly --
+// both only live in the server's in-memory Yjs room (see
+// internal/serve/handler.go). The "title" and "preview" fields shown
+// elsewhere (e.g. CardItem's grid) are derived server-side from this
+// same room's content (see internal/serve/ydoc.go), not saved from
+// here.
 export default function NoteEditor(props: NoteEditorProps) {
-  // eslint-disable-next-line solid/reactivity
-  const [title, setTitle] = createSignal(props.title() ?? "");
-  // The last title known to be saved -- the initial fetch, a remote
-  // update, or our own successful save. TitleAutoSave compares against
-  // this (instead of a mount-time snapshot) to decide whether there's
-  // anything left to save.
-  // eslint-disable-next-line solid/reactivity
-  const [savedTitle, setSavedTitle] = createSignal(props.title() ?? "");
-
-  // Keeps the title field in sync with the shared store: whenever
-  // props.title() changes -- another user's edit, or our own save
-  // echoed back through the store -- it becomes the new title.
-  createEffect(() => {
-    const remote = props.title();
-    if (remote === undefined) return;
-    setTitle(remote);
-    setSavedTitle(remote);
-  });
-
-  // Set by TitleAutoSave once it mounts, so a blur on the title field
-  // can flush the same debounced save it schedules on every edit.
-  let flush: (() => void) | undefined;
-  // Set by YjsBody once its editor mounts (undefined until then, and
-  // while there's no card yet to hold a body). Used by the title
-  // field's Enter handler below.
-  let focusBodyStart: (() => void) | undefined;
-
-  return (
-    // focusout bubbles (unlike blur), so losing focus on the title
-    // field flushes any pending autosave immediately. This is the
-    // whole editor's root -- callers own any surrounding layout (e.g.
-    // a delete button placed next to it), so this only sizes itself
-    // as a flex-1 item within whatever row/column the caller uses.
-    <div
-      class="min-w-0 flex-1 p-10 bg-field shadow-md"
-      onFocusOut={() => flush?.()}
-    >
-      <input
-        type="text"
-        placeholder="Title"
-        value={title()}
-        onInput={(e) => setTitle(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          // Enter moves straight into the body instead of doing
-          // nothing (this input isn't inside a <form>, so preventing
-          // its default has no other side effect). A blank line is
-          // always inserted at the very top of the body first, so
-          // there's somewhere to type even if the body already has
-          // content.
-          if (e.key !== "Enter") return;
-          e.preventDefault();
-          focusBodyStart?.();
-        }}
-        required
-        autofocus
-        class="w-full bg-transparent pb-5 text-2xl outline-none text-note-title"
-      />
-      {/* The body editor needs a room name to connect to, so it only
-          mounts once cardId is available (existing card, or a
-          brand-new one right after its first title save). */}
-      <Show
-        when={props.cardId()}
-        fallback={
-          <p class="text-sm text-note-text">Enter a title to start writing.</p>
-        }
-      >
-        {(id) => (
-          <YjsBody
-            roomId={id()}
-            registerFocusStart={(fn) => (focusBodyStart = fn)}
-          />
-        )}
-      </Show>
-
-      <TitleAutoSave
-        title={title}
-        savedTitle={savedTitle}
-        onSave={props.onSaveTitle}
-        onSaved={setSavedTitle}
-        registerFlush={(fn) => (flush = fn)}
-      />
-    </div>
-  );
-}
-
-interface TitleAutoSaveProps {
-  title: () => string;
-  // The last known-saved title, owned by NoteEditor so both this
-  // component and the remote-sync effect above can update it (see
-  // NoteEditor's savedTitle signal).
-  savedTitle: () => string;
-  onSave: (title: string) => Promise<void>;
-  onSaved: (title: string) => void;
-  registerFlush: (flush: () => void) => void;
-}
-
-// Watches the title (passed down as an accessor) and saves it whenever
-// it changes: debounced while the person keeps typing (see
-// AUTOSAVE_DEBOUNCE_MS), or immediately once NoteEditor's onFocusOut
-// calls the flush function registered below. A save is skipped
-// entirely while the title is empty or unchanged. Renders nothing.
-function TitleAutoSave(props: TitleAutoSaveProps) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let saving = false;
-  // Whether another save is needed once the in-flight one finishes, so
-  // edits made while saving aren't dropped.
-  let pending = false;
-
-  const save = async () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = undefined;
-    }
-    const title = props.title().trim();
-    if (!title || title === props.savedTitle()) return;
-
-    if (saving) {
-      pending = true;
-      return;
-    }
-    saving = true;
-    try {
-      await props.onSave(title);
-      props.onSaved(title);
-    } catch (err) {
-      console.error("[noteEditor] title autosave failed:", err);
-    } finally {
-      saving = false;
-      if (pending) {
-        pending = false;
-        save();
-      }
-    }
-  };
-
-  createEffect(() => {
-    props.title();
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(save, AUTOSAVE_DEBOUNCE_MS);
-  });
-
-  onCleanup(() => {
-    if (timer) clearTimeout(timer);
-  });
-
-  props.registerFlush(save);
-
-  return null;
-}
-
-interface YjsBodyProps {
-  roomId: string;
-  // Registers a function that inserts a blank paragraph at the top of
-  // the body and focuses it there. Called once the editor mounts, and
-  // cleared back to undefined on unmount, so NoteEditor's title field
-  // never calls into a stale, unmounted editor view.
-  registerFocusStart: (fn: (() => void) | undefined) => void;
-}
-
-// Mounts a ProseKit editor synced in real time via Yjs (see
-// docs/yjs-design.md): the room name is the card's own id, so every
-// tab editing the same card shares one document. The room's content is
-// kept in sync with the matching card's "ydoc" field on the Go side
-// (see internal/serve/ydoc.go): that field seeds a fresh room the
-// moment the first peer connects, so there is nothing to load here.
-function YjsBody(props: YjsBodyProps) {
   const ydoc = new Y.Doc();
   const fragment = ydoc.getXmlFragment("prosemirror");
 
@@ -216,7 +38,7 @@ function YjsBody(props: YjsBodyProps) {
   const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
   const provider = new WebsocketProvider(
     `${wsProtocol}//${location.host}/yjs`,
-    props.roomId,
+    props.cardId(),
     ydoc,
   );
 
@@ -245,8 +67,8 @@ function YjsBody(props: YjsBodyProps) {
 
     // Splice the yjs sync plugin into the state prosekit already
     // built. The doc always starts empty here: nothing is loaded from
-    // PocketBase's "content" field, only whatever the room already
-    // holds (nothing, for a brand-new card).
+    // PocketBase, only whatever the room already holds (nothing, for
+    // a brand-new card).
     const state = editor.view.state;
     editor.view.updateState(
       state.reconfigure({
@@ -254,21 +76,11 @@ function YjsBody(props: YjsBodyProps) {
       }),
     );
 
-    // Enter in the title field (see NoteEditor) inserts a blank
-    // paragraph at the very top of the body and moves the cursor
-    // there.
-    const focusBodyStart = () => {
-      const { view } = editor;
-      const paragraph = view.state.schema.nodes.paragraph.create();
-      const tr = view.state.tr.insert(0, paragraph);
-      tr.setSelection(TextSelection.near(tr.doc.resolve(0)));
-      view.dispatch(tr);
-      view.focus();
-    };
-    props.registerFocusStart(focusBodyStart);
+    // Autofocus straight into the editor -- there's no separate title
+    // field to focus instead anymore.
+    editor.view.focus();
 
     onCleanup(() => {
-      props.registerFocusStart(undefined);
       provider.destroy();
       ydoc.destroy();
       if (typeof unmount === "function") unmount();
@@ -276,9 +88,11 @@ function YjsBody(props: YjsBodyProps) {
   };
 
   return (
-    <div
-      ref={mountEditor}
-      class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
-    />
+    <div class="min-w-0 flex-1 p-10 bg-field shadow-md">
+      <div
+        ref={mountEditor}
+        class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
+      />
+    </div>
   );
 }
