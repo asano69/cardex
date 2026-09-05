@@ -248,7 +248,12 @@ func (p *ydocPersistence) updatePreview(room string) error {
 	if err != nil {
 		return nil // card may have been deleted concurrently -- skip
 	}
-	record.Set("preview", buildPreview(xml))
+
+	preview := buildPreview(xml)
+	if record.GetString("preview") == preview {
+		return nil // unchanged -- avoid a no-op write and its "updated" bump
+	}
+	record.Set("preview", preview)
 	return p.app.Save(record)
 }
 
