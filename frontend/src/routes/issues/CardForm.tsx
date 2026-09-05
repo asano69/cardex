@@ -33,17 +33,21 @@ export default function CardForm() {
   // Tracks the record once it exists, so a brand-new card (no
   // params.cardId) switches from create to update after its first
   // autosave, without needing a page reload in between.
+  // Tracks the record once it exists, so a brand-new card (no
+  // params.cardId) switches into edit mode after its first title save,
+  // without needing a page reload in between. Also doubles as
+  // NoteEditor's Yjs room id -- see NoteEditor's cardId prop.
   const [recordId, setRecordId] = createSignal(params.cardId);
 
-  const handleSave = async (data: { title?: string; content?: object }) => {
+  const handleSaveTitle = async (title: string) => {
     const id = recordId();
     if (id) {
-      await pb.collection("cards").update<CardRecord>(id, data);
+      await pb.collection("cards").update<CardRecord>(id, { title });
       return;
     }
     const record = await pb
       .collection("cards")
-      .create<CardRecord>({ ...data, issue: params.id });
+      .create<CardRecord>({ title, issue: params.id });
     setRecordId(record.id);
     // Swap the URL to the edit route so a refresh or the back button
     // lands on the now-existing card instead of the "new" route.
@@ -54,8 +58,8 @@ export default function CardForm() {
     <Show when={!params.cardId || !existing.loading} fallback={<Loading />}>
       <NoteEditor
         initialTitle={existing()?.title}
-        initialContent={existing()?.content}
-        onSave={handleSave}
+        cardId={recordId}
+        onSaveTitle={handleSaveTitle}
       />
     </Show>
   );

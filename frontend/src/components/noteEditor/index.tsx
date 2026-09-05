@@ -1,124 +1,101 @@
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import "prosekit/basic/style.css";
 import "prosekit/basic/typography.css";
 import { defineBasicExtension } from "prosekit/basic";
 import { createEditor } from "prosekit/core";
-import { ProseKit, useEditorDerivedValue } from "prosekit/solid";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+import { ySyncPlugin } from "y-prosemirror";
 
-// How long to wait after the last edit before autosaving. AutoSave's
-// flush (wired to onFocusOut below) saves immediately instead of
-// waiting for this timeout whenever a field loses focus.
+// How long to wait after the last title edit before autosaving. Losing
+// focus on the title field (see onFocusOut below) flushes immediately
+// instead of waiting for this timeout.
 const AUTOSAVE_DEBOUNCE_MS = 1000;
-
-// A brand-new card has no stored doc yet, so this is the smallest
-// valid ProseKit doc: a single empty paragraph.
-const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
 export interface NoteEditorProps {
   initialTitle?: string;
-  // ProseKit doc JSON, matching the "content" field's storage format
-  // now that it is a JSON column instead of plain text.
-  initialContent?: object;
-  // Only the fields that actually changed are included, so an
-  // unrelated title-only or content-only edit doesn't resend the
-  // whole document every time (see AutoSave.save below).
-  onSave: (data: { title?: string; content?: object }) => Promise<void>;
+  // The card's PocketBase record id, doubling as the Yjs room name
+  // (see docs/yjs-design.md). undefined until the card has been
+  // created -- the body editor only mounts once this becomes
+  // available, since a Yjs room needs a name to connect to.
+  cardId: () => string | undefined;
+  onSaveTitle: (title: string) => Promise<void>;
 }
 
-// Title input + ProseKit rich-text body, combined into a single
-// self-contained editor: it owns ProseKit setup, doc<->lines
-// conversion, and autosaving. There is no manual save button -- every
-// edit is saved automatically (debounced while typing, or immediately
-// once a field loses focus), so callers only need to supply the
-// initial values and an onSave handler.
+// Title input + Yjs-synced ProseKit rich-text body. Unlike the title,
+// the body is not persisted to PocketBase at all right now: it only
+// lives in the server's in-memory Yjs room (see
+// internal/serve/handler.go) and is lost once every peer disconnects
+// or the server restarts. This is a deliberate PoC simplification
+// (see docs/yjs-design.md) -- only the title is still autosaved,
+// through onSaveTitle.
 export default function NoteEditor(props: NoteEditorProps) {
-  // Read once on mount: callers remount NoteEditor (e.g. via <Show>)
-  // whenever the initial values actually change, so nothing here needs
+  // Read once on mount: CardForm remounts NoteEditor (via <Show>)
+  // whenever the initial title actually changes, so nothing here needs
   // to react to prop updates afterwards.
   // eslint-disable-next-line solid/reactivity
   const initialTitle = props.initialTitle ?? "";
   const [title, setTitle] = createSignal(initialTitle);
 
-  const editor = createEditor({
-    extension: defineBasicExtension(),
-    // eslint-disable-next-line solid/reactivity
-    defaultContent: props.initialContent ?? EMPTY_DOC,
-  });
-
-  // Solid doesn't auto-unmount ref callbacks the way React's new
-  // ref-cleanup convention does, so the returned unmount function is
-  // wired to onCleanup explicitly here.
-  const mountEditor = (el: HTMLDivElement) => {
-    const unmount = editor.mount(el);
-    onCleanup(() => {
-      if (typeof unmount === "function") unmount();
-    });
-  };
-
-  // Set by AutoSave once it mounts, so a blur anywhere in this
-  // component can flush the same debounced save AutoSave schedules on
-  // every edit. AutoSave has to live inside <ProseKit> below (it reads
-  // the editor's doc via useEditorDerivedValue), so a plain closure
-  // variable is enough to share it -- nothing here needs to react to it.
+  // Set by TitleAutoSave once it mounts, so a blur on the title field
+  // can flush the same debounced save it schedules on every edit.
   let flush: (() => void) | undefined;
 
   return (
-    <ProseKit editor={editor}>
-      {/* focusout bubbles (unlike blur), so this one listener covers
-          both the title input and the editor body below: losing focus
-          on either one flushes any pending autosave immediately. */}
-      <div
-        class="m-6 flex min-h-0 w-full flex-1 flex-col gap-4"
-        onFocusOut={() => flush?.()}
-      >
-        <div class="p-10 bg-field shadow-md">
-          <input
-            type="text"
-            placeholder="Title"
-            value={title()}
-            onInput={(e) => setTitle(e.currentTarget.value)}
-            required
-            autofocus
-            class="w-full bg-transparent pb-5 text-2xl outline-none"
-          />
-          <div
-            ref={mountEditor}
-            class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
-          />
-        </div>
-
-        <AutoSave
-          initialTitle={initialTitle}
-          title={title}
-          onSave={props.onSave}
-          registerFlush={(fn) => (flush = fn)}
+    // focusout bubbles (unlike blur), so losing focus on the title
+    // field flushes any pending autosave immediately.
+    <div
+      class="m-6 flex min-h-0 w-full flex-1 flex-col gap-4"
+      onFocusOut={() => flush?.()}
+    >
+      <div class="p-10 bg-field shadow-md">
+        <input
+          type="text"
+          placeholder="Title"
+          value={title()}
+          onInput={(e) => setTitle(e.currentTarget.value)}
+          required
+          autofocus
+          class="w-full bg-transparent pb-5 text-2xl outline-none"
         />
+        {/* The body editor needs a room name to connect to, so it only
+            mounts once cardId is available (existing card, or a
+            brand-new one right after its first title save). */}
+        <Show
+          when={props.cardId()}
+          fallback={
+            <p class="text-sm text-border">
+              Enter a title to start writing.
+            </p>
+          }
+        >
+          {(id) => <YjsBody roomId={id()} />}
+        </Show>
       </div>
-    </ProseKit>
+
+      <TitleAutoSave
+        title={title}
+        onSave={props.onSaveTitle}
+        registerFlush={(fn) => (flush = fn)}
+      />
+    </div>
   );
 }
 
-interface AutoSaveProps {
-  initialTitle: string;
+interface TitleAutoSaveProps {
   title: () => string;
-  onSave: (data: { title?: string; content?: object }) => Promise<void>;
+  onSave: (title: string) => Promise<void>;
   registerFlush: (flush: () => void) => void;
 }
 
-// Watches the title (passed down as an accessor) and the editor's own
-// doc, and saves whenever either one changes: debounced while the
-// person keeps typing (see AUTOSAVE_DEBOUNCE_MS), or immediately once
-// NoteEditor's onFocusOut calls the flush function registered below.
-// A save is skipped entirely while the title is empty, which is what
-// keeps a brand-new card from being created until it actually has a
-// title -- once it does, every further edit (title or content) saves
-// normally. Renders nothing; it only exists to run inside <ProseKit>,
-// which useEditorDerivedValue requires.
-function AutoSave(props: AutoSaveProps) {
-  const docJSON = useEditorDerivedValue((editor) => editor.getDocJSON());
-
-  let baselineTitle = props.initialTitle;
-  let baselineContent = JSON.stringify(docJSON());
+// Watches the title (passed down as an accessor) and saves it whenever
+// it changes: debounced while the person keeps typing (see
+// AUTOSAVE_DEBOUNCE_MS), or immediately once NoteEditor's onFocusOut
+// calls the flush function registered below. A save is skipped
+// entirely while the title is empty or unchanged. Renders nothing.
+function TitleAutoSave(props: TitleAutoSaveProps) {
+  // eslint-disable-next-line solid/reactivity
+  let baselineTitle = props.title();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let saving = false;
   // Whether another save is needed once the in-flight one finishes, so
@@ -131,12 +108,7 @@ function AutoSave(props: AutoSaveProps) {
       timer = undefined;
     }
     const title = props.title().trim();
-    if (!title) return;
-
-    const content = docJSON();
-    const titleChanged = title !== baselineTitle;
-    const contentChanged = JSON.stringify(content) !== baselineContent;
-    if (!titleChanged && !contentChanged) return;
+    if (!title || title === baselineTitle) return;
 
     if (saving) {
       pending = true;
@@ -144,16 +116,10 @@ function AutoSave(props: AutoSaveProps) {
     }
     saving = true;
     try {
-      // Only include the fields that actually changed, so e.g. fixing
-      // a typo in the title doesn't resend the whole document body.
-      const data: { title?: string; content?: object } = {};
-      if (titleChanged) data.title = title;
-      if (contentChanged) data.content = content;
-      await props.onSave(data);
+      await props.onSave(title);
       baselineTitle = title;
-      baselineContent = JSON.stringify(content);
     } catch (err) {
-      console.error("[noteEditor] autosave failed:", err);
+      console.error("[noteEditor] title autosave failed:", err);
     } finally {
       saving = false;
       if (pending) {
@@ -164,10 +130,7 @@ function AutoSave(props: AutoSaveProps) {
   };
 
   createEffect(() => {
-    // Track both signals so any title or content edit reschedules the
-    // debounce timer below.
     props.title();
-    docJSON();
     if (timer) clearTimeout(timer);
     timer = setTimeout(save, AUTOSAVE_DEBOUNCE_MS);
   });
@@ -179,4 +142,61 @@ function AutoSave(props: AutoSaveProps) {
   props.registerFlush(save);
 
   return null;
+}
+
+interface YjsBodyProps {
+  roomId: string;
+}
+
+// Mounts a ProseKit editor synced in real time via Yjs (see
+// docs/yjs-design.md): the room name is the card's own id, so every
+// tab editing the same card shares one document. PoC only -- no
+// persistence, no auth: the doc lives purely in memory on the server
+// and is lost on restart or once every peer disconnects.
+function YjsBody(props: YjsBodyProps) {
+  const ydoc = new Y.Doc();
+  const fragment = ydoc.getXmlFragment("prosemirror");
+
+  // WebsocketProvider builds the connection URL as `${base}/${room}`.
+  // The "/yjs" prefix is proxied to the Go backend's "/yjs/{room}"
+  // route (see vite.config.ts).
+  const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const provider = new WebsocketProvider(
+    `${wsProtocol}//${location.host}/yjs`,
+    props.roomId,
+    ydoc,
+  );
+
+  const editor = createEditor({ extension: defineBasicExtension() });
+
+  // Solid doesn't auto-unmount ref callbacks the way React's new
+  // ref-cleanup convention does, so the returned unmount function is
+  // wired to onCleanup explicitly here.
+  const mountEditor = (el: HTMLDivElement) => {
+    const unmount = editor.mount(el);
+
+    // Splice the yjs sync plugin into the state prosekit already
+    // built. The doc always starts empty here: nothing is loaded from
+    // PocketBase's "content" field, only whatever the room already
+    // holds (nothing, for a brand-new card).
+    const state = editor.view.state;
+    editor.view.updateState(
+      state.reconfigure({
+        plugins: [ySyncPlugin(fragment), ...state.plugins],
+      }),
+    );
+
+    onCleanup(() => {
+      provider.destroy();
+      ydoc.destroy();
+      if (typeof unmount === "function") unmount();
+    });
+  };
+
+  return (
+    <div
+      ref={mountEditor}
+      class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
+    />
+  );
 }
