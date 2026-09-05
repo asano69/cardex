@@ -1,9 +1,11 @@
-// ydoc.go makes PocketBase's "cards.ydoc" field the single source of
-// truth for each card's Yjs body content. ydocPersistence plugs into
-// ygo's PersistenceAdapter (LoadDoc/StoreUpdate) and its context-aware
-// extension PersistenceAdapterContext (StoreUpdateContext) so that
-// field seeds a room on its first connection and is kept in sync with
-// the room's live state.
+// ydoc.go persists each card's Yjs body content as an append-only log
+// of updates in the "ydoc_updates" collection, one record per
+// increment (see the "card" relation field there), following the same
+// pattern as y-leveldb and other standard Yjs persistence adapters.
+// ydocPersistence plugs into ygo's PersistenceAdapter (LoadDoc/
+// StoreUpdate) and its context-aware extension
+// PersistenceAdapterContext (StoreUpdateContext) so that log seeds a
+// room on its first connection and grows with the room's live edits.
 //
 // Debouncing writes, isolating slow saves to one room at a time, and
 // flushing a room before it is evicted or the server shuts down are
@@ -17,27 +19,29 @@
 //     StoreUpdateContext with a context cancelled at shutdown so an
 //     in-flight save can abort instead of blocking indefinitely.
 //
-// This file's only job is turning one room's current state into a
-// PocketBase record write, and back.
+// Since the log would otherwise grow forever, compactIfNeeded merges
+// it back down to a single record once it passes compactionThreshold.
 package serve
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
+	"github.com/reearth/ygo/crdt"
 	yjsws "github.com/reearth/ygo/provider/websocket"
 )
 
-// lastSnapshot caches the last bytes saved per room, so a StoreUpdate
-// call that finds nothing new to save (e.g. a duplicate wakeup) skips
-// the write, and the "updated" bump that would come with it.
-var lastSnapshot sync.Map // map[string][]byte
+// compactionThreshold is how many stored increments a room's update
+// log can hold before compactIfNeeded merges them into one record.
+// Keeps LoadDoc from replaying an ever-growing history on every
+// reconnect.
+const compactionThreshold = 200
 
 var initYjsServerOnce sync.Once
 
@@ -73,23 +77,35 @@ func initYjsServer(app core.App) {
 	})
 }
 
-// ydocPersistence adapts PocketBase's "cards" collection to ygo's
+// ydocPersistence adapts the "ydoc_updates" collection to ygo's
 // PersistenceAdapter and PersistenceAdapterContext interfaces. The
-// room name is always a "cards" record id (see NoteEditor.tsx).
+// room name is always a "cards" record id (see NoteEditor.tsx), stored
+// on each ydoc_updates record via its "card" relation field.
 type ydocPersistence struct {
 	app core.App
 }
 
-// LoadDoc seeds a room from the matching card's "ydoc" field the first
-// time a peer connects to it. A missing card or field is not an error
-// -- it just means the room starts empty (e.g. a brand-new card).
-func (p *ydocPersistence) LoadDoc(room string) ([]byte, error) {
-	record, err := p.app.FindRecordById("cards", room)
+// findUpdateRecords returns every stored increment for room, oldest
+// first, so callers can replay or compact them in the order they were
+// written.
+func (p *ydocPersistence) findUpdateRecords(room string) ([]*core.Record, error) {
+	return p.app.FindRecordsByFilter(
+		"ydoc_updates",
+		"card = {:card}",
+		"created",
+		0, 0,
+		dbx.Params{"card": room},
+	)
+}
+
+// loadUpdates reads the raw update bytes off every stored increment
+// for room, oldest first.
+func (p *ydocPersistence) loadUpdates(room string) ([][]byte, error) {
+	records, err := p.findUpdateRecords(room)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
-	filename := record.GetString("ydoc")
-	if filename == "" {
+	if len(records) == 0 {
 		return nil, nil
 	}
 
@@ -99,75 +115,155 @@ func (p *ydocPersistence) LoadDoc(room string) ([]byte, error) {
 	}
 	defer fs.Close()
 
-	r, err := fs.GetReader(record.BaseFilesPath() + "/" + filename)
+	updates := make([][]byte, 0, len(records))
+	for _, record := range records {
+		filename := record.GetString("data")
+		if filename == "" {
+			continue
+		}
+		r, err := fs.GetReader(record.BaseFilesPath() + "/" + filename)
+		if err != nil {
+			return nil, err
+		}
+		data, err := io.ReadAll(r)
+		r.Close()
+		if err != nil {
+			return nil, err
+		}
+		updates = append(updates, data)
+	}
+	return updates, nil
+}
+
+// LoadDoc seeds a room by replaying every stored increment for the
+// matching card, oldest first, the first time a peer connects to it.
+// No stored increments is not an error -- it just means the room
+// starts empty (e.g. a brand-new card).
+func (p *ydocPersistence) LoadDoc(room string) ([]byte, error) {
+	updates, err := p.loadUpdates(room)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	switch len(updates) {
+	case 0:
+		return nil, nil
+	case 1:
+		return updates[0], nil
+	default:
+		return mergeUpdates(updates)
+	}
+}
 
-	return io.ReadAll(r)
+// mergeUpdates combines multiple standalone Yjs updates into the
+// single update that applying all of them, in order, would produce.
+// Only needed here for LoadDoc, when a room's history hasn't been
+// compacted down to one record yet.
+func mergeUpdates(updates [][]byte) ([]byte, error) {
+	doc := crdt.New()
+	for _, update := range updates {
+		if err := doc.ApplyUpdate(update); err != nil {
+			return nil, err
+		}
+	}
+	return doc.EncodeStateAsUpdate(), nil
 }
 
 // StoreUpdate is called by ygo's per-room persistence worker, already
 // debounced by Server.PersistCoalesceWindow/PersistCoalesceMaxWait
-// (coalesced every 2s, forced at least every 10s by default). The
-// incoming update bytes are ignored: PocketBase's "ydoc" field holds a
-// full snapshot rather than an update log, so the room's current full
-// state is re-encoded and saved instead.
-func (p *ydocPersistence) StoreUpdate(room string, _ []byte) error {
-	return p.store(context.Background(), room)
+// (coalesced every 2s, forced at least every 10s by default). Unlike
+// the old full-snapshot approach, the update bytes ygo hands us are
+// saved as-is -- the room's document is never re-encoded on a normal
+// save, so a write's cost is proportional to the size of the edit
+// rather than the size of the whole document.
+func (p *ydocPersistence) StoreUpdate(room string, update []byte) error {
+	return p.store(context.Background(), room, update)
 }
 
 // StoreUpdateContext is the shutdown-aware variant ygo prefers when
 // available (see PersistenceAdapterContext): ctx is cancelled once
 // Server.Shutdown begins, so a save still starting at that point can
 // abort instead of blocking shutdown.
-func (p *ydocPersistence) StoreUpdateContext(ctx context.Context, room string, _ []byte) error {
-	return p.store(ctx, room)
+func (p *ydocPersistence) StoreUpdateContext(ctx context.Context, room string, update []byte) error {
+	return p.store(ctx, room, update)
 }
 
-// store re-encodes room's current in-memory Yjs state and saves it to
-// the matching card's "ydoc" field, skipping the write if the content
-// hasn't actually changed since the last save.
-func (p *ydocPersistence) store(ctx context.Context, room string) error {
-	doc := yjsServer.GetDoc(room)
-	if doc == nil {
-		return nil // room was torn down between being queued and now
-	}
-
-	update := doc.EncodeStateAsUpdate()
-	if prev, ok := lastSnapshot.Load(room); ok && bytes.Equal(prev.([]byte), update) {
+// store appends update as a new increment for room, then compacts the
+// room's history once it grows past compactionThreshold.
+func (p *ydocPersistence) store(ctx context.Context, room string, update []byte) error {
+	if len(update) == 0 {
 		return nil
 	}
-
 	if err := ctx.Err(); err != nil {
 		return err // shutting down -- abort before touching the DB
 	}
 
-	record, err := p.app.FindRecordById("cards", room)
+	collection, err := p.app.FindCollectionByNameOrId("ydoc_updates")
 	if err != nil {
 		return err
 	}
-
-	file, err := filesystem.NewFileFromBytes(update, "ydoc.bin")
+	record := core.NewRecord(collection)
+	record.Set("card", room)
+	file, err := filesystem.NewFileFromBytes(update, "update.bin")
 	if err != nil {
 		return err
 	}
-	record.Set("ydoc", file)
+	record.Set("data", file)
 	if err := p.app.Save(record); err != nil {
 		return err
 	}
 
-	lastSnapshot.Store(room, update)
+	return p.compactIfNeeded(room)
+}
+
+// compactIfNeeded merges every stored increment for room into a single
+// record once their count passes compactionThreshold, so LoadDoc never
+// has to replay an unbounded history for a long-lived room. Only
+// called right after StoreUpdate, so the room's live doc -- the one
+// being edited -- is guaranteed to exist and already holds every
+// increment merged together; re-encoding it is equivalent to merging
+// every record here, with no separate merge step needed.
+func (p *ydocPersistence) compactIfNeeded(room string) error {
+	records, err := p.findUpdateRecords(room)
+	if err != nil {
+		return err
+	}
+	if len(records) <= compactionThreshold {
+		return nil
+	}
+
+	doc := yjsServer.GetDoc(room)
+	if doc == nil {
+		return nil // room isn't loaded right now -- compact next time instead
+	}
+
+	collection, err := p.app.FindCollectionByNameOrId("ydoc_updates")
+	if err != nil {
+		return err
+	}
+	compacted := core.NewRecord(collection)
+	compacted.Set("card", room)
+	file, err := filesystem.NewFileFromBytes(doc.EncodeStateAsUpdate(), "update.bin")
+	if err != nil {
+		return err
+	}
+	compacted.Set("data", file)
+	if err := p.app.Save(compacted); err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if err := p.app.Delete(record); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// forgetRoom drops room's cached snapshot and closes its live Yjs
-// room, if any. Called when the matching card is deleted, so a
-// deleted card stops being tracked here instead of lingering in
-// memory forever.
+// forgetRoom closes room's live Yjs room, if any. Called when the
+// matching card is deleted; its ydoc_updates records are expected to
+// cascade-delete via the "card" relation field's cascadeDelete option,
+// so only the in-memory room needs cleaning up here.
 func forgetRoom(room string) {
-	lastSnapshot.Delete(room)
 	if yjsServer != nil {
 		_ = yjsServer.CloseRoom(room, true)
 	}
