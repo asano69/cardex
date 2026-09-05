@@ -19,11 +19,6 @@ export interface NoteEditorProps {
   // created -- the body editor only mounts once this becomes
   // available, since a Yjs room needs a name to connect to.
   cardId: () => string | undefined;
-  // Download URL of the card's last periodic Yjs snapshot (see
-  // internal/serve/ydoc.go), applied to the body editor's Y.Doc before
-  // it starts syncing over the websocket. Omitted for a brand-new
-  // card, which has no snapshot yet.
-  initialYdocUrl?: string;
   onSaveTitle: (title: string) => Promise<void>;
 }
 
@@ -74,9 +69,7 @@ export default function NoteEditor(props: NoteEditorProps) {
             </p>
           }
         >
-          {(id) => (
-            <YjsBody roomId={id()} snapshotUrl={props.initialYdocUrl} />
-          )}
+          {(id) => <YjsBody roomId={id()} />}
         </Show>
       </div>
 
@@ -153,32 +146,17 @@ function TitleAutoSave(props: TitleAutoSaveProps) {
 
 interface YjsBodyProps {
   roomId: string;
-  // See NoteEditorProps.initialYdocUrl.
-  snapshotUrl?: string;
 }
 
 // Mounts a ProseKit editor synced in real time via Yjs (see
 // docs/yjs-design.md): the room name is the card's own id, so every
-// tab editing the same card shares one document. The room's live state
-// still lives only in the server's memory (lost once every peer
-// disconnects), but internal/serve/ydoc.go periodically snapshots it
-// to the card's "ydoc" field, and snapshotUrl below seeds a fresh room
-// from that snapshot -- e.g. right after a server restart.
+// tab editing the same card shares one document. The room's content is
+// kept in sync with the matching card's "ydoc" field on the Go side
+// (see internal/serve/ydoc.go): that field seeds a fresh room the
+// moment the first peer connects, so there is nothing to load here.
 function YjsBody(props: YjsBodyProps) {
   const ydoc = new Y.Doc();
   const fragment = ydoc.getXmlFragment("prosemirror");
-
-  // Apply the last snapshot before the provider connects. Yjs updates
-  // are idempotent, so this is safe even if the in-memory room already
-  // has the same (or newer) content -- it just merges with no effect.
-  if (props.snapshotUrl) {
-    fetch(props.snapshotUrl)
-      .then((res) => (res.ok ? res.arrayBuffer() : null))
-      .then((buf) => buf && Y.applyUpdate(ydoc, new Uint8Array(buf)))
-      .catch((err) =>
-        console.error("[noteEditor] failed to load ydoc snapshot:", err),
-      );
-  }
 
   // WebsocketProvider builds the connection URL as `${base}/${room}`.
   // The "/yjs" prefix is proxied to the Go backend's "/yjs/{room}"
