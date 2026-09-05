@@ -15,6 +15,9 @@ Cardex is a card box for thinkers.
 - 本や動画やブログなどの興味深いアイデア・言葉を保存する。
 - 自分が思いついたこと・考えたことを保存する。
 
+## Features
+- リアルタイム共同編集
+
 ## Tech Stack
 ### backend
 - Go
