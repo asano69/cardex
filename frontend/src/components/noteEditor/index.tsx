@@ -76,7 +76,7 @@ export default function NoteEditor(props: NoteEditorProps) {
         onInput={(e) => setTitle(e.currentTarget.value)}
         required
         autofocus
-        class="w-full bg-transparent pb-5 text-2xl outline-none"
+        class="w-full bg-transparent pb-5 text-2xl outline-none text-note-title"
       />
       {/* The body editor needs a room name to connect to, so it only
           mounts once cardId is available (existing card, or a
@@ -84,7 +84,7 @@ export default function NoteEditor(props: NoteEditorProps) {
       <Show
         when={props.cardId()}
         fallback={
-          <p class="text-sm text-border">Enter a title to start writing.</p>
+          <p class="text-sm text-note-text">Enter a title to start writing.</p>
         }
       >
         {(id) => <YjsBody roomId={id()} />}
