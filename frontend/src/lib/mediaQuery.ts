@@ -13,8 +13,8 @@ export function createMediaQuery(query: string): Accessor<boolean> {
   return matches;
 }
 
-// Breakpoint mirrors Tailwind's default `md` (768px): below it counts
-// as mobile, matching Sidebar's overlay behavior.
+// Breakpoint is 1680px (= 1920 * 7/8): below it counts as mobile,
+// matching Sidebar's overlay behavior.
 export function createIsMobile(): Accessor<boolean> {
-  return createMediaQuery("(max-width: 767px)");
+  return createMediaQuery("(max-width: 1679px)");
 }

@@ -62,7 +62,7 @@
    * part of the actual document content. */
   .ProseMirror h1.is-empty::before {
     content: attr(data-placeholder);
-    color: var(--color-note-title);
+    color: var(--color-note-text);
     pointer-events: none;
     float: left;
     height: 0;
