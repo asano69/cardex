@@ -1,6 +1,10 @@
 import { onCleanup } from "solid-js";
+// Only style.css (structural/functional editor CSS) is needed here.
+// typography.css layers its own opinionated heading/paragraph styles
+// on top, which conflict with this app's own overrides in
+// styles/components.css (.ProseMirror p/h1-h6/blockquote) -- this app
+// re-implements all the typography it needs there instead.
 import "prosekit/basic/style.css";
-import "prosekit/basic/typography.css";
 import { defineBasicExtension } from "prosekit/basic";
 import { createEditor } from "prosekit/core";
 import * as Y from "yjs";

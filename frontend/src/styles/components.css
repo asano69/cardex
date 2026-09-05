@@ -48,15 +48,11 @@
    * card looks the same whether shown in the grid or open for editing.
    */
   .ProseMirror h1 {
-    font-size: 12px;
-    font-weight: bold;
-    line-height: 20px;
-    max-height: 60px;
-    margin: 0;
+    font-size: 1.5rem;
+    color: var(--color-note-title);
+
+    margin-bottom: 1.5rem;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
   }
 
   /* Cell for the generic Heatmap component (see
