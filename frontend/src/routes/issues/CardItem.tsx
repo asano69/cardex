@@ -5,22 +5,11 @@ export interface CardItemProps {
   card: CardRecord;
 }
 
-// Flattens a ProseKit doc JSON into plain text for the card preview,
-// joining top-level blocks with a newline. .description's
-// white-space: pre-line renders those newlines as line breaks.
-function previewText(doc: any): string {
-  const blocks: any[] = doc?.content ?? [];
-  return blocks.map(blockText).join("\n");
-}
-
-function blockText(node: any): string {
-  if (node.type === "text") return node.text ?? "";
-  const children: any[] = node.content ?? [];
-  return children.map(blockText).join("");
-}
-
 // A single card in IssueDetail's card grid, styled to match Cosense's
 // own page-list card (see .card-grid-item in styles/components.css).
+// The preview text itself is precomputed server-side (see
+// internal/serve/ydoc.go's buildPreview) from the card's live Yjs body,
+// not parsed here.
 export default function CardItem(props: CardItemProps) {
   return (
     // The <li> carries the grid item's aspect-ratio; the whole card
@@ -33,7 +22,7 @@ export default function CardItem(props: CardItemProps) {
           <div class="header">
             <h3 class="title">{props.card.title}</h3>
           </div>
-          <div class="description">{previewText(props.card.content)}</div>
+          <div class="description">{props.card.preview}</div>
         </div>
       </A>
     </li>

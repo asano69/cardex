@@ -5,12 +5,15 @@ import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 
-// Matches the PocketBase "cards" collection schema. "content" holds
-// the ProseKit doc JSON directly, not a plain string.
+// Matches the PocketBase "cards" collection schema. "preview" is a
+// short plain-text preview computed server-side from the card's live
+// Yjs body (see internal/serve/ydoc.go's buildPreview) -- the full body
+// itself is never stored here, only in the live Yjs room (see
+// NoteEditor.tsx).
 export interface CardRecord {
   id: string;
   title: string;
-  content: object;
+  preview: string;
   issue: string;
   created: string;
   updated: string;

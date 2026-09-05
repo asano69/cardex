@@ -27,6 +27,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -226,7 +228,8 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 
 // updatePreview serializes the room's live "prosemirror" XmlFragment (the
 // same root name the frontend uses via ydoc.getXmlFragment("prosemirror"),
-// see NoteEditor.tsx) to XML and writes it into the matching "cards"
+// see NoteEditor.tsx) to XML, reduces that XML to a short plain-text
+// preview (see buildPreview), and writes it into the matching "cards"
 // record's "preview" field.
 //
 // ToXML is called directly, not from inside a doc.Transact callback: its
@@ -245,8 +248,50 @@ func (p *ydocPersistence) updatePreview(room string) error {
 	if err != nil {
 		return nil // card may have been deleted concurrently -- skip
 	}
-	record.Set("preview", xml)
+	record.Set("preview", buildPreview(xml))
 	return p.app.Save(record)
+}
+
+// previewMaxRunes caps how much text buildPreview keeps, counted in runes
+// (not bytes) so a card written in Japanese isn't cut mid-character.
+const previewMaxRunes = 120
+
+// paragraphRe pulls out the inner text of every <paragraph> element in a
+// ToXML() string, wherever it's nested (directly, or inside a
+// <list><paragraph>...>). Non-paragraph blocks (headings, code blocks,
+// ...) are skipped on purpose -- good enough for a short card-grid
+// preview (see CardItem.tsx), not a full-fidelity render.
+var paragraphRe = regexp.MustCompile(`(?s)<paragraph[^>]*>(.*?)</paragraph>`)
+
+// xmlUnescaper reverses ygo's own xmlEscapeText/xmlEscapeAttr (crdt
+// package), so the preview shows plain "&"/"<"/">" instead of entities.
+var xmlUnescaper = strings.NewReplacer(
+	"&lt;", "<",
+	"&gt;", ">",
+	"&quot;", `"`,
+	"&apos;", "'",
+	"&amp;", "&",
+)
+
+// buildPreview turns a card's full ToXML() output into a short, readable
+// preview: every paragraph's text, unescaped, with empty paragraphs
+// (blank lines) dropped, joined by a single space and cut to
+// previewMaxRunes runes with no ellipsis.
+func buildPreview(xml string) string {
+	var paragraphs []string
+	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
+		text := strings.TrimSpace(xmlUnescaper.Replace(m[1]))
+		if text != "" {
+			paragraphs = append(paragraphs, text)
+		}
+	}
+	preview := strings.Join(paragraphs, " ")
+
+	runes := []rune(preview)
+	if len(runes) > previewMaxRunes {
+		runes = runes[:previewMaxRunes]
+	}
+	return string(runes)
 }
 
 // compactIfNeeded merges every stored increment for room into a single
