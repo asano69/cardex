@@ -13,7 +13,13 @@ import { ySyncPlugin } from "y-prosemirror";
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 export interface NoteEditorProps {
-  initialTitle?: string;
+  // Reactive accessor for the title, sourced from the shared cards
+  // store (see routes/issues/CardForm.tsx) -- the same store
+  // IssueDetail's card grid reads from. Any change here, whether our
+  // own save round-tripping through the store or another user's edit
+  // arriving over realtime, replaces the title field. No conflict
+  // resolution for now: a remote change wins even mid-edit.
+  title: () => string | undefined;
   // The card's PocketBase record id, doubling as the Yjs room name
   // (see docs/yjs-design.md). undefined until the card has been
   // created -- the body editor only mounts once this becomes
@@ -30,12 +36,24 @@ export interface NoteEditorProps {
 // (see docs/yjs-design.md) -- only the title is still autosaved,
 // through onSaveTitle.
 export default function NoteEditor(props: NoteEditorProps) {
-  // Read once on mount: CardForm remounts NoteEditor (via <Show>)
-  // whenever the initial title actually changes, so nothing here needs
-  // to react to prop updates afterwards.
   // eslint-disable-next-line solid/reactivity
-  const initialTitle = props.initialTitle ?? "";
-  const [title, setTitle] = createSignal(initialTitle);
+  const [title, setTitle] = createSignal(props.title() ?? "");
+  // The last title known to be saved -- the initial fetch, a remote
+  // update, or our own successful save. TitleAutoSave compares against
+  // this (instead of a mount-time snapshot) to decide whether there's
+  // anything left to save.
+  // eslint-disable-next-line solid/reactivity
+  const [savedTitle, setSavedTitle] = createSignal(props.title() ?? "");
+
+  // Keeps the title field in sync with the shared store: whenever
+  // props.title() changes -- another user's edit, or our own save
+  // echoed back through the store -- it becomes the new title.
+  createEffect(() => {
+    const remote = props.title();
+    if (remote === undefined) return;
+    setTitle(remote);
+    setSavedTitle(remote);
+  });
 
   // Set by TitleAutoSave once it mounts, so a blur on the title field
   // can flush the same debounced save it schedules on every edit.
@@ -75,7 +93,9 @@ export default function NoteEditor(props: NoteEditorProps) {
 
       <TitleAutoSave
         title={title}
+        savedTitle={savedTitle}
         onSave={props.onSaveTitle}
+        onSaved={setSavedTitle}
         registerFlush={(fn) => (flush = fn)}
       />
     </div>
@@ -84,7 +104,12 @@ export default function NoteEditor(props: NoteEditorProps) {
 
 interface TitleAutoSaveProps {
   title: () => string;
+  // The last known-saved title, owned by NoteEditor so both this
+  // component and the remote-sync effect above can update it (see
+  // NoteEditor's savedTitle signal).
+  savedTitle: () => string;
   onSave: (title: string) => Promise<void>;
+  onSaved: (title: string) => void;
   registerFlush: (flush: () => void) => void;
 }
 
@@ -94,8 +119,6 @@ interface TitleAutoSaveProps {
 // calls the flush function registered below. A save is skipped
 // entirely while the title is empty or unchanged. Renders nothing.
 function TitleAutoSave(props: TitleAutoSaveProps) {
-  // eslint-disable-next-line solid/reactivity
-  let baselineTitle = props.title();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let saving = false;
   // Whether another save is needed once the in-flight one finishes, so
@@ -108,7 +131,7 @@ function TitleAutoSave(props: TitleAutoSaveProps) {
       timer = undefined;
     }
     const title = props.title().trim();
-    if (!title || title === baselineTitle) return;
+    if (!title || title === props.savedTitle()) return;
 
     if (saving) {
       pending = true;
@@ -117,7 +140,7 @@ function TitleAutoSave(props: TitleAutoSaveProps) {
     saving = true;
     try {
       await props.onSave(title);
-      baselineTitle = title;
+      props.onSaved(title);
     } catch (err) {
       console.error("[noteEditor] title autosave failed:", err);
     } finally {
