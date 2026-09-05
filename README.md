@@ -29,5 +29,6 @@ Cardex is a card box for thinkers.
 - yjs
 
 ---
+- Logo: "Japan Flat Vectors" by maxicons (CC Attribution License)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/cardex)

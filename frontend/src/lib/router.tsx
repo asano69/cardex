@@ -24,7 +24,6 @@ export default function AppRouter() {
       {/* Edit route shares CardForm with the create route above; the
           presence of :cardId is what switches it into edit mode. */}
       <Route path="/issues/:id/cards/:cardId" component={CardForm} />
-
     </Router>
   );
 }

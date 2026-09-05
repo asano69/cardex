@@ -90,9 +90,7 @@ export default function NoteEditor(props: NoteEditorProps) {
           <Show
             when={props.cardId()}
             fallback={
-              <p class="text-sm text-border">
-                Enter a title to start writing.
-              </p>
+              <p class="text-sm text-border">Enter a title to start writing.</p>
             }
           >
             {(id) => <YjsBody roomId={id()} />}
