@@ -19,12 +19,14 @@ Cardex is a card box for thinkers.
 ### backend
 - Go
 - PocketBase v0.39+
+- ygo
 
 ### frontend
 - Solid.js v1.9
 - Kobalte v0.13+
 - Tailwind v4
 - ProseKit
+- yjs
 
 ---
 
