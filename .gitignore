@@ -3,7 +3,7 @@
 
 /data/
 
-pb_data/
+pb_data*/
 node_modules/
 dist/
 tmp/

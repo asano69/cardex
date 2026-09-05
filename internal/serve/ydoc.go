@@ -268,10 +268,18 @@ const previewMaxRunes = 120
 
 // paragraphRe pulls out the inner text of every <paragraph> element in a
 // ToXML() string, wherever it's nested (directly, or inside a
-// <list><paragraph>...>). Non-paragraph blocks (headings, code blocks,
-// ...) are skipped on purpose -- good enough for a short card-grid
-// preview (see CardItem.tsx), not a full-fidelity render.
+// <list><paragraph>...>). Non-paragraph blocks (code blocks, ...) are
+// skipped on purpose -- good enough for a short card-grid preview (see
+// CardItem.tsx), not a full-fidelity render. The document's own title
+// heading is excluded here since it's a <heading>, not a <paragraph>
+// (see headingRe below).
 var paragraphRe = regexp.MustCompile(`(?s)<paragraph[^>]*>(.*?)</paragraph>`)
+
+// headingRe pulls out the inner text of the document's first-level
+// heading. forceFirstHeadingPlugin (see components/noteEditor) enforces
+// that the first block is always a level-1 heading, so this heading
+// doubles as the card's title.
+var headingRe = regexp.MustCompile(`(?s)<heading[^>]*>(.*?)</heading>`)
 
 // xmlUnescaper reverses ygo's own xmlEscapeText/xmlEscapeAttr (crdt
 // package), so the preview shows plain "&"/"<"/">" instead of entities.
@@ -284,12 +292,16 @@ var xmlUnescaper = strings.NewReplacer(
 )
 
 // buildTitleAndPreview turns a card's full ToXML() output into a title
-// and a preview: the document's first paragraph becomes the title (cut
-// to titleMaxRunes runes), every paragraph after it becomes the preview
-// (joined by a newline and cut to previewMaxRunes runes, so line breaks
-// in the editor are preserved in the preview). Both are unescaped plain
-// text with no ellipsis; empty paragraphs (blank lines) are dropped
-// before either is built.
+// and a preview. The document's first-level heading is normally the
+// title (see forceFirstHeadingPlugin for why the first block is always
+// a heading), with every paragraph becoming the preview (joined by a
+// newline and cut to previewMaxRunes runes, so line breaks in the
+// editor are preserved in the preview). If no heading is found (e.g. an
+// older card synced before forceFirstHeadingPlugin existed), the first
+// paragraph is used as the title instead, and only the remaining
+// paragraphs go into the preview. Both are unescaped plain text with no
+// ellipsis; a blank heading or blank paragraphs are dropped before
+// either is built.
 func buildTitleAndPreview(xml string) (title, preview string) {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
@@ -298,12 +310,15 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 			paragraphs = append(paragraphs, text)
 		}
 	}
-	if len(paragraphs) == 0 {
-		return "", ""
+
+	if m := headingRe.FindStringSubmatch(xml); m != nil {
+		title = truncateRunes(strings.TrimSpace(xmlUnescaper.Replace(m[1])), titleMaxRunes)
+	} else if len(paragraphs) > 0 {
+		title = truncateRunes(paragraphs[0], titleMaxRunes)
+		paragraphs = paragraphs[1:]
 	}
 
-	title = truncateRunes(paragraphs[0], titleMaxRunes)
-	preview = truncateRunes(strings.Join(paragraphs[1:], "\n"), previewMaxRunes)
+	preview = truncateRunes(strings.Join(paragraphs, "\n"), previewMaxRunes)
 	return title, preview
 }
 
