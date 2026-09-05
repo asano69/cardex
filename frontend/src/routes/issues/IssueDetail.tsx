@@ -59,9 +59,9 @@ export default function IssueDetail() {
           <Plus size={20} />
         </A>
       </div>
-      <Show when={!issue.loading} fallback={<Loading />}>
-        <h1 class="font-sans text-4xl">{issue()?.title}</h1>
-      </Show>
+ 
+        <h1 class="font-sans text-xl">{issue()?.title}</h1>
+     
       <Show when={!cardsLoaded.loading} fallback={<Loading />}>
         <ul class="card-grid">
           <For each={cards()}>{(card) => <CardItem card={card} />}</For>
