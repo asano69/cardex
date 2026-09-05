@@ -7,6 +7,7 @@ import "prosekit/basic/style.css";
 import "prosekit/basic/typography.css";
 import { defineBasicExtension } from "prosekit/basic";
 import { createEditor } from "prosekit/core";
+import { yjsBaseUrl } from "../lib/yjsUrl";
 
 // Fixed room name for this proof of concept -- there is no per-card
 // room yet (see docs/yjs-design.md section 4). No persistence: once
@@ -26,19 +27,9 @@ export default function YjsPoc() {
   const ydoc = new Y.Doc();
   const fragment = ydoc.getXmlFragment("prosemirror");
 
-  // WebsocketProvider builds the connection URL as `${base}/${room}`.
-  // The "/yjs" prefix is proxied to the Go backend's "/yjs/{room}"
-  // route (see vite.config.ts).
-  const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  // disableBc: true forces every tab through the real WebSocket server
-  // instead of syncing via BroadcastChannel, so multi-tab testing
-  // actually exercises the same code path as a second real client.
-  const provider = new WebsocketProvider(
-    `${wsProtocol}//${location.host}/yjs`,
-    ROOM,
-    ydoc,
-    { disableBc: true },
-  );
+   // WebsocketProvider builds the connection URL as `${base}/${room}`.
+  // See lib/yjsUrl.ts for why dev bypasses Vite's proxy entirely.
+  const provider = new WebsocketProvider(yjsBaseUrl(), ROOM, ydoc);
 
   const editor = createEditor({ extension: defineBasicExtension() });
 

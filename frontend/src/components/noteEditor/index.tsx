@@ -6,6 +6,7 @@ import { createEditor } from "prosekit/core";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { ySyncPlugin } from "y-prosemirror";
+import { yjsBaseUrl } from "../../lib/yjsUrl";
 
 // How long to wait after the last title edit before autosaving. Losing
 // focus on the title field (see onFocusOut below) flushes immediately
@@ -158,14 +159,8 @@ function YjsBody(props: YjsBodyProps) {
   const fragment = ydoc.getXmlFragment("prosemirror");
 
   // WebsocketProvider builds the connection URL as `${base}/${room}`.
-  // The "/yjs" prefix is proxied to the Go backend's "/yjs/{room}"
-  // route (see vite.config.ts).
-  const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const provider = new WebsocketProvider(
-    `${wsProtocol}//${location.host}/yjs`,
-    props.roomId,
-    ydoc,
-  );
+  // See lib/yjsUrl.ts for why dev bypasses Vite's proxy entirely.
+  const provider = new WebsocketProvider(yjsBaseUrl(), props.roomId, ydoc);
 
   const editor = createEditor({ extension: defineBasicExtension() });
 
