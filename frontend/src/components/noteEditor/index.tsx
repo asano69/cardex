@@ -6,6 +6,10 @@ import { createEditor } from "prosekit/core";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { ySyncPlugin } from "y-prosemirror";
+import { TextSelection } from "prosemirror-state";
+import { keymap } from "prosemirror-keymap";
+import { chainCommands } from "prosemirror-commands";
+import { createWrapInListCommand, listKeymap } from "prosemirror-flat-list";
 
 // How long to wait after the last title edit before autosaving. Losing
 // focus on the title field (see onFocusOut below) flushes immediately
@@ -58,6 +62,10 @@ export default function NoteEditor(props: NoteEditorProps) {
   // Set by TitleAutoSave once it mounts, so a blur on the title field
   // can flush the same debounced save it schedules on every edit.
   let flush: (() => void) | undefined;
+  // Set by YjsBody once its editor mounts (undefined until then, and
+  // while there's no card yet to hold a body). Used by the title
+  // field's Enter handler below.
+  let focusBodyStart: (() => void) | undefined;
 
   return (
     // focusout bubbles (unlike blur), so losing focus on the title
@@ -74,6 +82,17 @@ export default function NoteEditor(props: NoteEditorProps) {
         placeholder="Title"
         value={title()}
         onInput={(e) => setTitle(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          // Enter moves straight into the body instead of doing
+          // nothing (this input isn't inside a <form>, so preventing
+          // its default has no other side effect). A blank line is
+          // always inserted at the very top of the body first, so
+          // there's somewhere to type even if the body already has
+          // content.
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          focusBodyStart?.();
+        }}
         required
         autofocus
         class="w-full bg-transparent pb-5 text-2xl outline-none text-note-title"
@@ -87,7 +106,12 @@ export default function NoteEditor(props: NoteEditorProps) {
           <p class="text-sm text-note-text">Enter a title to start writing.</p>
         }
       >
-        {(id) => <YjsBody roomId={id()} />}
+        {(id) => (
+          <YjsBody
+            roomId={id()}
+            registerFocusStart={(fn) => (focusBodyStart = fn)}
+          />
+        )}
       </Show>
 
       <TitleAutoSave
@@ -168,6 +192,11 @@ function TitleAutoSave(props: TitleAutoSaveProps) {
 
 interface YjsBodyProps {
   roomId: string;
+  // Registers a function that inserts a blank paragraph at the top of
+  // the body and focuses it there. Called once the editor mounts, and
+  // cleared back to undefined on unmount, so NoteEditor's title field
+  // never calls into a stale, unmounted editor view.
+  registerFocusStart: (fn: (() => void) | undefined) => void;
 }
 
 // Mounts a ProseKit editor synced in real time via Yjs (see
@@ -199,6 +228,21 @@ function YjsBody(props: YjsBodyProps) {
   const mountEditor = (el: HTMLDivElement) => {
     const unmount = editor.mount(el);
 
+    // Tab/Shift-Tab hotkeys, active only while this ProseMirror
+    // instance has focus: Tab turns the current block into a bullet
+    // list, or indents it one level deeper if it's already a list
+    // item (prosemirror-flat-list's own "Mod-]" indent command);
+    // Shift-Tab dedents a list item back out ("Mod-["), and is a
+    // no-op outside a list. Ordered lists aren't used in this
+    // project, so only "bullet" is wired up here.
+    const listTabKeymap = keymap({
+      Tab: chainCommands(
+        listKeymap["Mod-]"],
+        createWrapInListCommand({ kind: "bullet" }),
+      ),
+      "Shift-Tab": listKeymap["Mod-["],
+    });
+
     // Splice the yjs sync plugin into the state prosekit already
     // built. The doc always starts empty here: nothing is loaded from
     // PocketBase's "content" field, only whatever the room already
@@ -206,11 +250,25 @@ function YjsBody(props: YjsBodyProps) {
     const state = editor.view.state;
     editor.view.updateState(
       state.reconfigure({
-        plugins: [ySyncPlugin(fragment), ...state.plugins],
+        plugins: [ySyncPlugin(fragment), listTabKeymap, ...state.plugins],
       }),
     );
 
+    // Enter in the title field (see NoteEditor) inserts a blank
+    // paragraph at the very top of the body and moves the cursor
+    // there.
+    const focusBodyStart = () => {
+      const { view } = editor;
+      const paragraph = view.state.schema.nodes.paragraph.create();
+      const tr = view.state.tr.insert(0, paragraph);
+      tr.setSelection(TextSelection.near(tr.doc.resolve(0)));
+      view.dispatch(tr);
+      view.focus();
+    };
+    props.registerFocusStart(focusBodyStart);
+
     onCleanup(() => {
+      props.registerFocusStart(undefined);
       provider.destroy();
       ydoc.destroy();
       if (typeof unmount === "function") unmount();
