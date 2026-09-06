@@ -33,6 +33,8 @@ export default defineConfig({
       "prosekit/core",
       "prosekit/basic",
       "prosekit/extensions/readonly",
+      "prosekit/extensions/link",
+      "prosekit/extensions/mark-rule",
     ],
   },
   plugins: [solid(), tailwindcss(), injectAppNameHtml],
