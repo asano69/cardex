@@ -8,6 +8,7 @@ import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { POSITION_STEP } from "../../lib/position";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { cardTitleToSegment, segmentToCardTitle } from "../../lib/cardSlug";
+import type { IssueRecord } from "./IssueForm";
 
 // Matches the PocketBase "cards" collection schema. "title" and
 // "preview" are both derived server-side from the card's live Yjs body
@@ -46,14 +47,17 @@ export default function CardForm() {
     if (params.cardTitle) {
       // Editing an existing card: its PocketBase id isn't in the URL
       // anymore, so it's resolved by matching the decoded title within
-      // this issue. Titles are unique within an issue (enforced at the
-      // database level), so this lookup returns at most one record.
+      // the issue identified by :slug. Titles are unique within an
+      // issue (enforced at the database level), so this lookup returns
+      // at most one record. Filtering on the related issue's "slug"
+      // directly (dot notation) avoids a separate lookup just to get
+      // the issue's id.
       try {
         const record = await pb
           .collection("cards")
           .getFirstListItem<CardRecord>(
-            pb.filter("issue = {:issue} && title = {:title}", {
-              issue: params.id,
+            pb.filter("issue.slug = {:slug} && title = {:title}", {
+              slug: params.slug,
               title: segmentToCardTitle(params.cardTitle),
             }),
           );
@@ -65,19 +69,27 @@ export default function CardForm() {
       return;
     }
 
+    // Creating a card needs the issue's actual PocketBase id, since a
+    // relation field can't be set to a slug -- resolved once up front.
+    const issue = await pb
+      .collection("issues")
+      .getFirstListItem<IssueRecord>(
+        pb.filter("slug = {:slug}", { slug: params.slug }),
+      );
+
     // New cards get the current highest position + POSITION_STEP (see
     // lib/position.ts), which puts them first in IssueDetail's
     // descending-sorted card grid. Only the current highest position
     // is fetched here -- never the full card list -- so this stays
     // cheap regardless of how many thousands of cards the issue holds.
     const existing = await pb.collection("cards").getList<CardRecord>(1, 1, {
-      filter: pb.filter("issue = {:issue}", { issue: params.id }),
+      filter: pb.filter("issue = {:issue}", { issue: issue.id }),
       sort: "-position",
     });
     const position = (existing.items[0]?.position ?? 0) + POSITION_STEP;
     const record = await pb
       .collection("cards")
-      .create<CardRecord>({ title: "", issue: params.id, position });
+      .create<CardRecord>({ title: "", issue: issue.id, position });
     mergeCards([record]);
     setRecordId(record.id);
   });
@@ -95,7 +107,7 @@ export default function CardForm() {
     const segment = cardTitleToSegment(cardsById[id]?.title ?? "");
     if (segment === urlSegment) return;
     urlSegment = segment;
-    history.replaceState(null, "", `/${params.id}/${segment}`);
+    history.replaceState(null, "", `/${params.slug}/${segment}`);
   });
 
   // Cascade deletion of the card's card_blocks/ydoc_updates records and
@@ -107,7 +119,7 @@ export default function CardForm() {
     const id = recordId();
     if (!id) return;
     await pb.collection("cards").delete(id);
-    navigate(`/issues/${params.id}`);
+    navigate(`/${params.slug}`);
   };
 
   // Whether this card is currently pinned, read from the shared cards
@@ -135,7 +147,7 @@ export default function CardForm() {
       fallback={
         <div class="flex flex-col items-center gap-2 py-12 text-text">
           <p>Card not found.</p>
-          <A href={`/${params.id}`} class="underline">
+          <A href={`/${params.slug}`} class="underline">
             Back to issue
           </A>
         </div>

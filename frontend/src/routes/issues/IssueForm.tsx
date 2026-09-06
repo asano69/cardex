@@ -7,6 +7,7 @@ import pb from "../../lib/pb";
 // Matches the PocketBase "issues" collection schema.
 export interface IssueRecord {
   id: string;
+  slug: string;
   title: string;
   done: boolean;
   position: number;

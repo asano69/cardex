@@ -11,6 +11,11 @@ export interface CardItemProps {
   // useSortable below so dnd-kit can report initialIndex/index on drop
   // (see IssueDetail.tsx's handleDragEnd).
   index: number;
+  // The parent issue's slug, used to build this card's URL (see
+  // lib/cardSlug.ts). Cards only store their parent issue's
+  // PocketBase id (see CardRecord's "issue" field), not its slug, so
+  // the slug is passed down from IssueDetail instead.
+  issueSlug: string;
 }
 
 // A single card in IssueDetail's card grid, styled to match Cosense's
@@ -51,7 +56,7 @@ export default function CardItem(props: CardItemProps) {
       classList={{ "opacity-40": isDragging() }}
     >
       <A
-        href={`/${props.card.issue}/${cardTitleToSegment(props.card.title)}`}
+        href={`/${props.issueSlug}/${cardTitleToSegment(props.card.title)}`}
       >
         {/* Folded-corner indicator for pinned cards (see
             styles/components.css's .card-grid-item .pin). */}

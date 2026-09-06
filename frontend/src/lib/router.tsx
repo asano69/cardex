@@ -17,14 +17,18 @@ export default function AppRouter() {
   return (
     <Router root={AppShell}>
       <Route path="/" component={Issues} />
-      <Route path="/:id" component={IssueDetail} />
-      <Route path="/:id/cards/new" component={CardForm} />
+      {/* The issue segment in the URL is now the issue's unique
+          "slug" field, not its PocketBase id (see IssueDetail.tsx
+          and CardForm.tsx, which resolve the actual record via
+          this slug). */}
+      <Route path="/:slug" component={IssueDetail} />
+      <Route path="/:slug/cards/new" component={CardForm} />
       {/* Edit route shares CardForm with the create route above; the
           presence of :cardTitle is what switches it into edit mode.
           The card's actual PocketBase id is resolved by matching this
-          (decoded) title within the issue -- see CardForm.tsx and
-          lib/cardSlug.ts. */}
-      <Route path="/:id/:cardTitle" component={CardForm} />
+          (decoded) title within the issue identified by :slug -- see
+          CardForm.tsx and lib/cardSlug.ts. */}
+      <Route path="/:slug/:cardTitle" component={CardForm} />
     </Router>
   );
 }

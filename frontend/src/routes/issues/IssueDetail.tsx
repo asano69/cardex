@@ -13,8 +13,13 @@ import { computePosition } from "../../lib/position";
 import type { IssueRecord } from "./IssueForm";
 import type { CardRecord } from "./CardForm";
 
-async function fetchIssue(id: string): Promise<IssueRecord> {
-  return await pb.collection("issues").getOne<IssueRecord>(id);
+// Issues are now addressed by their unique "slug" field in the URL
+// instead of their PocketBase id, so this looks the record up via a
+// filter rather than a direct getOne by id.
+async function fetchIssue(slug: string): Promise<IssueRecord> {
+  return await pb
+    .collection("issues")
+    .getFirstListItem<IssueRecord>(pb.filter("slug = {:slug}", { slug }));
 }
 
 // Fetches every card belonging to this issue and seeds them into the
@@ -51,8 +56,11 @@ const sensors = [
 
 export default function IssueDetail() {
   const params = useParams();
-  const [issue] = createResource(() => params.id, fetchIssue);
-  const [cardsLoaded] = createResource(() => params.id, fetchCards);
+  const [issue] = createResource(() => params.slug, fetchIssue);
+  // Cards relate to the issue by its PocketBase id (see the "cards"
+  // collection's "issue" relation field), not its slug, so this waits
+  // for `issue` to resolve before fetching.
+  const [cardsLoaded] = createResource(() => issue()?.id, fetchCards);
 
   // Sorted descending by the fractional-indexing "position" column
   // (see lib/position.ts), with id as a tie-breaker for equal
@@ -62,7 +70,7 @@ export default function IssueDetail() {
   // create/update/delete events too, not just the initial fetch above.
   const cards = createMemo(() =>
     Object.values(cardsById)
-      .filter((card) => card.issue === params.id)
+      .filter((card) => card.issue === issue()?.id)
       // Pinned cards always sort before unpinned ones; within each
       // group the existing position/id ordering is unchanged.
       .sort((a, b) => {
@@ -161,7 +169,7 @@ export default function IssueDetail() {
           <ChevronLeft size={20} />
         </A>
         <A
-          href={`/${params.id}/cards/new`}
+          href={`/${params.slug}/cards/new`}
           class="icon-btn"
           aria-label="Add card"
         >
@@ -175,7 +183,13 @@ export default function IssueDetail() {
         <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
           <ul class="card-grid">
             <For each={cards()}>
-              {(card, index) => <CardItem card={card} index={index()} />}
+              {(card, index) => (
+                <CardItem
+                  card={card}
+                  index={index()}
+                  issueSlug={params.slug}
+                />
+              )}
             </For>
           </ul>
         </DragDropProvider>
