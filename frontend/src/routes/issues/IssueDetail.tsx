@@ -3,6 +3,7 @@ import { useParams, A } from "@solidjs/router";
 import { ChevronsLeft as ChevronLeft, Plus } from "../../lib/icons";
 import { DragDropProvider } from "@dnd-kit/solid";
 import { isSortable } from "@dnd-kit/solid/sortable";
+import { PointerSensor, KeyboardSensor } from "@dnd-kit/dom";
 
 import pb from "../../lib/pb";
 import Loading from "../../components/Loading";
@@ -33,6 +34,21 @@ async function fetchCards(issueId: string): Promise<void> {
 // IssueItem: the issue's title, an add-card button, and every card
 // belonging to it laid out as a Scrapbox/Cosense-style card grid (see
 // CardItem).
+// CardItem wraps the whole card in an <a> link (see CardItem.tsx), and
+// PointerSensor's default preventActivation refuses to start a drag on
+// interactive elements (<a>/<button>/<input>) unless they're the
+// designated drag handle -- that's why no drag ever activated here.
+// Overriding it lets a pointerdown on the card start tracking; the
+// default per-pointer-type activation constraint (5px of movement for
+// mouse) still lets a plain click with no movement fall through to the
+// link's normal navigation, and only real dragging hijacks it.
+const sensors = [
+  PointerSensor.configure({
+    preventActivation: () => false,
+  }),
+  KeyboardSensor,
+];
+
 export default function IssueDetail() {
   const params = useParams();
   const [issue] = createResource(() => params.id, fetchIssue);
@@ -104,7 +120,7 @@ export default function IssueDetail() {
         <h1 class="font-sans text-xl">{issue()?.title}</h1>
      
       <Show when={!cardsLoaded.loading} fallback={<Loading />}>
-        <DragDropProvider onDragEnd={handleDragEnd}>
+        <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
           <ul class="card-grid">
             <For each={cards()}>
               {(card, index) => <CardItem card={card} index={index()} />}
