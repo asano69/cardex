@@ -18,6 +18,7 @@ import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
 import { headingPlaceholderPlugin } from "./headingPlaceholderPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
+import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
 
 export interface NoteEditorProps {
   // The card's PocketBase record id, doubling as the Yjs room name
@@ -93,6 +94,7 @@ export default function NoteEditor(props: NoteEditorProps) {
           blockIdPlugin(),
           headingPlaceholderPlugin(),
           linkClickPlugin(),
+          pasteUrlDecodePlugin(),
           ...state.plugins,
         ],
       }),
