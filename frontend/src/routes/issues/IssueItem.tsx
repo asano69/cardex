@@ -4,7 +4,6 @@ import { ToggleButton } from "@kobalte/core/toggle-button";
 import {
   CircleCheckBig,
   Circle,
-  Trash2,
   GripVertical,
   Pencil,
 } from "../../lib/icons";
@@ -139,17 +138,7 @@ export default function IssueItem(props: IssueItemProps) {
           <Pencil size={18} />
         </button>
 
-        <button
-          type="button"
-          aria-label="Delete issue"
-          class="icon-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDelete();
-          }}
-        >
-          <Trash2 size={18} />
-        </button>
+    
       </div>
       {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
 
