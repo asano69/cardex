@@ -23,9 +23,19 @@
    * CSS, since they must out-specificity prosekit/basic/typography.css
    * regardless of which file happens to load first, which Tailwind's
    * @apply can't express. */
+  /* A single 1rem "leading" for every line box in the editor:
+   * calc(1em + 1rem) keeps the extra space (line-height minus
+   * font-size) at exactly 1rem no matter the element's own font-size,
+   * so a paragraph break and a wrapped line produce the same visual
+   * gap. Paragraphs need no margin of their own -- the half-leading
+   * above/below each line already adds up to that 1rem gap between
+   * the last line of one paragraph and the first line of the next. */
+  .ProseMirror {
+    line-height: calc(1em + 1rem);
+  }
+
   .ProseMirror p {
-    margin: 0 0 0.75em;
-    line-height: 1.7;
+    margin: 0;
   }
 
   .ProseMirror h1,
@@ -38,7 +48,7 @@
   }
 
   .ProseMirror blockquote {
-    margin: 0.75em 0;
+    margin: 0.75rem;
   }
 
   /* Autolinked/typed links (see noteEditor/index.tsx's defineLink). */
