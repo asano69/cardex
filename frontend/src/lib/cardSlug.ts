@@ -11,11 +11,10 @@
 // Card titles are unique within an issue (enforced at the database
 // level), so the segment doubles as the lookup key: CardForm resolves
 // the actual PocketBase record id by matching on the decoded title.
-// An empty title (a brand-new card before anything has been typed) is
-// mapped to the literal "Untitled" segment instead, matching the
-// placeholder text shown in the editor itself (see
-// noteEditor/headingPlaceholderPlugin.ts).
-const EMPTY_TITLE_SEGMENT = "Untitled";
+// The backend never stores an empty title -- an empty document's
+// title always resolves to the literal string "Untitled" instead (see
+// defaultTitle in internal/serve/ydoc.go) -- so this doesn't need any
+// special-casing for an empty title.
 
 function encodeUnsafeChars(title: string): string {
   return title
@@ -49,9 +48,9 @@ function decodeUnsafeChars(segment: string): string {
 }
 
 export function cardTitleToSegment(title: string): string {
-  return title === "" ? EMPTY_TITLE_SEGMENT : encodeUnsafeChars(title);
+  return encodeUnsafeChars(title);
 }
 
 export function segmentToCardTitle(segment: string): string {
-  return segment === EMPTY_TITLE_SEGMENT ? "" : decodeUnsafeChars(segment);
+  return decodeUnsafeChars(segment);
 }

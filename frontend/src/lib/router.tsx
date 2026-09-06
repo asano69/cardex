@@ -16,6 +16,7 @@ import CardForm from "../routes/issues/CardForm";
 export default function AppRouter() {
   return (
     <Router root={AppShell}>
+      <Route path="/" component={Issues} />
       <Route path="/:slug" component={IssueDetail} />
       {/* The issue segment in the URL is now the issue's unique
           "slug" field, not its PocketBase id (see IssueDetail.tsx
