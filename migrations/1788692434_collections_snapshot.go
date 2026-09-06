@@ -1112,6 +1112,21 @@ func init() {
 					},
 					{
 						"autogeneratePattern": "",
+						"help": "Name can contain only alphabets, numbers and hyphens. It must start and end with alphabet or number",
+						"hidden": false,
+						"id": "text2560465762",
+						"max": 0,
+						"min": 0,
+						"name": "slug",
+						"pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$",
+						"presentable": true,
+						"primaryKey": false,
+						"required": true,
+						"system": false,
+						"type": "text"
+					},
+					{
+						"autogeneratePattern": "",
 						"help": "",
 						"hidden": false,
 						"id": "text724990059",
