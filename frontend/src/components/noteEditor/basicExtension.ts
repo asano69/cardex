@@ -11,6 +11,7 @@ import {
   defineBaseCommands,
   defineBaseKeymap,
   defineHistory,
+  defineNodeAttr,
   union,
 } from "prosekit/core";
 import { defineBlockquote } from "prosekit/extensions/blockquote";
@@ -34,6 +35,23 @@ import { defineText } from "prosekit/extensions/text";
 import { defineUnderline } from "prosekit/extensions/underline";
 import { defineVirtualSelection } from "prosekit/extensions/virtual-selection";
 
+// Adds an `id` attribute (rendered/parsed as `data-block-id`) to a node
+// type, so each block instance can carry a stable identifier for the
+// current editing session. Actual id assignment happens in
+// blockIdPlugin.ts, not here -- this only makes the schema aware that
+// the attribute exists. splittable is intentionally left unset: a
+// block created by pressing Enter should start with id: null (a fresh
+// block), not inherit the id of the block it was split from.
+function defineBlockIdAttr(type: string) {
+  return defineNodeAttr({
+    type,
+    attr: "id",
+    default: null,
+    toDOM: (value) => (value ? ["data-block-id", value] : undefined),
+    parseDOM: (dom) => dom.getAttribute("data-block-id"),
+  });
+}
+
 export function defineNoteExtension() {
   return union(
     // Nodes
@@ -48,6 +66,12 @@ export function defineNoteExtension() {
     defineHardBreak(),
     defineTable(),
     defineCodeBlock(),
+    // Per-block UUIDv7 ids (see blockIdPlugin.ts). Add more calls here
+    // if other block types also need a stable id.
+    defineBlockIdAttr("paragraph"),
+    defineBlockIdAttr("heading"),
+    defineBlockIdAttr("blockquote"),
+    defineBlockIdAttr("codeBlock"),
     // Marks
     defineItalic(),
     defineBold(),
