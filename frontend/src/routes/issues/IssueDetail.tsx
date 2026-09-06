@@ -80,7 +80,21 @@ export default function IssueDetail() {
   // dnd-kit reports the drop via event.operation.source rather than
   // SortableJS's oldIndex/newIndex; isSortable narrows that source so
   // its initialIndex/index can be read instead.
-  const handleDragEnd = async (event) => {
+  // How long to wait, after the local optimistic reorder is applied,
+  // before sending the new position to PocketBase. This client is
+  // also subscribed to its own realtime "cards" updates (see
+  // startCardsSubscription in lib/cardsStore.ts), and that handler
+  // always runs the FLIP animation, which sets the same element's
+  // `transform` that dnd-kit's own drop animation is still settling
+  // right after a drag ends. Delaying only the network request (not
+  // the local store update below) means the resulting echo arrives
+  // once dnd-kit's animation has long finished, so the FLIP handler
+  // measures identical before/after rects and animates nothing.
+  // Realtime propagation to other users isn't latency-sensitive
+  // enough for this brief delay to matter.
+  const PERSIST_DELAY_MS = 300;
+
+  const handleDragEnd = (event) => {
     if (event.canceled) return;
     const { source } = event.operation;
     if (!isSortable(source)) return;
@@ -103,24 +117,29 @@ export default function IssueDetail() {
       rest[newIndex - 1]?.position,
     );
 
-    // Apply the new position to the shared store immediately, before
-    // the PocketBase round-trip resolves. dnd-kit resets its own
-    // optimistic DOM order back to whatever `cards()` currently
-    // returns as soon as the drag ends, so without this the grid
-    // visibly snaps back to the old order and then jumps again once
-    // the request completes. Rolled back below if the request fails.
+    // Applied immediately, in step with dnd-kit's own drop animation
+    // settling the dragged card into this same slot. skipFlip: true
+    // since this is the local dragger's own move -- there's nothing
+    // left to FLIP-animate once dnd-kit has already shown the card
+    // moving there itself.
     const previousPosition = moved.position;
-    mergeCards([{ ...moved, position }]);
+    mergeCards([{ ...moved, position }], { skipFlip: true });
 
-    try {
-      const updated = await pb
-        .collection("cards")
-        .update<CardRecord>(moved.id, { position });
-      mergeCards([updated]);
-    } catch (err) {
-      console.error("[issues] failed to reorder card:", err);
-      mergeCards([{ ...moved, position: previousPosition }]);
-    }
+    // Only the PocketBase round-trip (and the realtime echo it
+    // triggers) is deferred -- see PERSIST_DELAY_MS above.
+    setTimeout(async () => {
+      try {
+        const updated = await pb
+          .collection("cards")
+          .update<CardRecord>(moved.id, { position });
+        mergeCards([updated], { skipFlip: true });
+      } catch (err) {
+        console.error("[issues] failed to reorder card:", err);
+        mergeCards([{ ...moved, position: previousPosition }], {
+          skipFlip: true,
+        });
+      }
+    }, PERSIST_DELAY_MS);
   };
 
   return (

@@ -21,11 +21,22 @@ export { cardsById };
 
 // Merges a freshly fetched batch of cards into the store. Existing
 // entries for the same id are overwritten, so a stale cached copy
-// never wins over a fresh fetch. Wrapped in withCardsFlip so a reorder
-// (e.g. a drag's optimistic position update) animates every affected
-// card into its new grid slot instead of snapping there instantly.
-export function mergeCards(records: CardRecord[]) {
-  withCardsFlip(() => {
+// never wins over a fresh fetch. By default this is wrapped in
+// withCardsFlip so a reorder (e.g. another user's drag) animates every
+// affected card into its new grid slot instead of snapping there
+// instantly.
+//
+// `skipFlip` opts out of that animation. dnd-kit already animates the
+// dragged card into place during the gesture itself, so replaying our
+// own FLIP animation on top of that (when the local dragger's own
+// optimistic update lands) makes the card jump/stutter instead of
+// looking smooth -- see IssueDetail's handleDragEnd, the only caller
+// that passes this.
+export function mergeCards(
+  records: CardRecord[],
+  options?: { skipFlip?: boolean },
+) {
+  const apply = () => {
     setCardsById(
       produce((store) => {
         for (const record of records) {
@@ -33,7 +44,13 @@ export function mergeCards(records: CardRecord[]) {
         }
       }),
     );
-  });
+  };
+
+  if (options?.skipFlip) {
+    apply();
+  } else {
+    withCardsFlip(apply);
+  }
 }
 
 // Starts the shared "cards" realtime subscription and returns an

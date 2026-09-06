@@ -8,7 +8,7 @@
 // the browser run the animation on the compositor (GPU) without
 // redoing Layout/Paint every frame -- same reasoning as
 // moveAnimation.ts elsewhere in this app.
-const MOVE_DURATION_MS = 1000;
+const MOVE_DURATION_MS = 500;
 const MOVE_EASING = "cubic-bezier(0.25, 0, 0.2, 1)";
 
 // Every currently-mounted card's root element, keyed by card id (see
