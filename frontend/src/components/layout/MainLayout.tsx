@@ -48,7 +48,10 @@ export default function MainLayout(props: ParentProps) {
             notes list) are unaffected: they just grow past this height
             and main's own overflow-y-auto still scrolls them. */}
         <main class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8">
+          {/* Horizontal padding shrinks to almost nothing on narrow
+              (phone-width) screens, since every pixel of width matters
+              there, and grows back once there's room to spare. */}
+          <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col px-1 sm:px-6 lg:px-8">
             {props.children}
           </div>
         </main>

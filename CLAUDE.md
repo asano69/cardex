@@ -22,12 +22,8 @@ import math
 from flask import Flask
 >>>>>>> REPLACE
 ```
-- Tailwindを使っている。marginのような外側レイアウトに影響を及ぼすスタイルは親コンポーネントから使うようにする。
-
-## Tech Stack
-
-- backend: Go + PocketBase **v0.39+**
-- frontend: solid.js + **tailwind v4**
+- Tailwindを使っており、marginのような親/兄弟レイアウトに影響を及ぼすスタイルは親コンポーネントから使うようにするべき。
+- jsxにおいて、return の先頭にコメント（{/*...*/} ）を置く場合は Fragment （<>...</>）で囲まなければならない。
 
 
 ## Work in progress

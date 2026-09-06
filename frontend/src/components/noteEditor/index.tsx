@@ -111,12 +111,16 @@ export default function NoteEditor(props: NoteEditorProps) {
     });
   };
 
+  // 
   return (
-    <div class="min-w-0 flex-1 p-10 bg-field shadow-md">
+    <>
+    {/* *Horizontal padding is minimal on narrow screens (phones) since width is scarce there, but vertical padding stays generous regardless of screen size. */}
+    <div class="min-w-0 flex-1 px-2 py-10 sm:px-10 bg-field shadow-md">
       <div
         ref={mountEditor}
         class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
       />
     </div>
+    </>
   );
 }
