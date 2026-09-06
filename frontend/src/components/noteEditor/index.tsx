@@ -5,8 +5,9 @@ import { onCleanup } from "solid-js";
 // styles/components.css (.ProseMirror p/h1-h6/blockquote) -- this app
 // re-implements all the typography it needs there instead.
 import "prosekit/basic/style.css";
-import { defineBasicExtension } from "prosekit/basic";
-import { createEditor } from "prosekit/core";
+import { createEditor, union } from "prosekit/core";
+import { defineNoteExtension } from "./basicExtension";
+import { defineUrlLinkRule } from "./urlLinkRule";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { ySyncPlugin } from "y-prosemirror";
@@ -15,6 +16,7 @@ import { chainCommands } from "prosemirror-commands";
 import { createWrapInListCommand, listKeymap } from "prosemirror-flat-list";
 import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
 import { headingPlaceholderPlugin } from "./headingPlaceholderPlugin";
+import { linkClickPlugin } from "./linkClickPlugin";
 
 export interface NoteEditorProps {
   // The card's PocketBase record id, doubling as the Yjs room name
@@ -48,7 +50,12 @@ export default function NoteEditor(props: NoteEditorProps) {
     ydoc,
   );
 
-  const editor = createEditor({ extension: defineBasicExtension() });
+  // defineNoteExtension() (see basicExtension.ts) is our own copy of
+  // prosekit's defineBasicExtension() with prosekit's built-in
+  // auto-linking swapped out for defineUrlLinkRule(), which only
+  // recognizes explicit http(s):// URLs (see urlLinkRule.ts).
+  const extension = union(defineNoteExtension(), defineUrlLinkRule());
+  const editor = createEditor({ extension });
 
   // Solid doesn't auto-unmount ref callbacks the way React's new
   // ref-cleanup convention does, so the returned unmount function is
@@ -83,6 +90,7 @@ export default function NoteEditor(props: NoteEditorProps) {
           listTabKeymap,
           forceFirstHeadingPlugin(),
           headingPlaceholderPlugin(),
+          linkClickPlugin(),
           ...state.plugins,
         ],
       }),

@@ -41,6 +41,13 @@
     margin: 0.75em 0;
   }
 
+  /* Autolinked/typed links (see noteEditor/index.tsx's defineLink). */
+  .ProseMirror a {
+    color: light-dark(#0969da, #58a6ff);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
   /* The note editor's first block is enforced to be a level-1 heading
    * (see forceFirstHeadingPlugin) and doubles as the card's title --
    * there's no separate title input anymore. Sizing/clamping here
