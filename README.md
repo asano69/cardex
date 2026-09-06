@@ -9,7 +9,7 @@ Cardex is a card box for thinkers.
 ## Purpose
 - アイデアや言葉を保存する汎用的なカード箱
 - Backendは、GoとPocketBase v0.39+を使い、frontendは、solid.js + tailwind v4を使います。
-- このアプリは、SPA＋CSRの個人向けのアプリです。
+- このアプリは、SPA＋CSRの個人・チーム向けのアプリです。
 
 ## Uses
 - 本や動画やブログなどの興味深いアイデア・言葉を保存する。
