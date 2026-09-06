@@ -4,8 +4,9 @@ import { useParams, useNavigate } from "@solidjs/router";
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
-import { Trash2 } from "../../lib/icons";
+import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { POSITION_STEP } from "../../lib/position";
+import { cardsById, mergeCards } from "../../lib/cardsStore";
 
 // Matches the PocketBase "cards" collection schema. "title" and
 // "preview" are both derived server-side from the card's live Yjs body
@@ -19,6 +20,7 @@ export interface CardRecord {
   preview: string;
   issue: string;
   position: number;
+  pin: boolean;
   created: string;
   updated: string;
 }
@@ -77,6 +79,25 @@ export default function CardForm() {
     navigate(`/issues/${params.id}`);
   };
 
+  // Whether this card is currently pinned, read from the shared cards
+  // store (see lib/cardsStore.ts) so it stays in sync with IssueDetail's
+  // grid ordering and with other users' edits, instead of tracking a
+  // separate local copy.
+  const pinned = () => cardsById[recordId()]?.pin ?? false;
+
+  const togglePin = async () => {
+    const id = recordId();
+    if (!id) return;
+    try {
+      const updated = await pb
+        .collection("cards")
+        .update<CardRecord>(id, { pin: !pinned() });
+      mergeCards([updated]);
+    } catch {
+      // Best-effort: if this fails the pin state simply doesn't change.
+    }
+  };
+
   return (
     <Show when={!creating()} fallback={<Loading />}>
       {/* Layout for a card-editing screen: the editor plus a delete
@@ -84,6 +105,16 @@ export default function CardForm() {
           it can be reused without this app's card-specific chrome. */}
       <div class="m-6 flex min-h-0 flex-1 items-start gap-2">
         <NoteEditor cardId={recordId} />
+        <button
+          type="button"
+          aria-label={pinned() ? "Unpin card" : "Pin card"}
+          class="icon-btn shrink-0"
+          onClick={togglePin}
+        >
+          <Show when={pinned()} fallback={<Pin size={20} />}>
+            <PinOff size={20} />
+          </Show>
+        </button>
         <button
           type="button"
           aria-label="Delete card"

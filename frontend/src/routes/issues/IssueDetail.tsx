@@ -63,7 +63,12 @@ export default function IssueDetail() {
   const cards = createMemo(() =>
     Object.values(cardsById)
       .filter((card) => card.issue === params.id)
-      .sort((a, b) => b.position - a.position || a.id.localeCompare(b.id)),
+      // Pinned cards always sort before unpinned ones; within each
+      // group the existing position/id ordering is unchanged.
+      .sort((a, b) => {
+        if (a.pin !== b.pin) return a.pin ? -1 : 1;
+        return b.position - a.position || a.id.localeCompare(b.id);
+      }),
   );
 
   // Persists a drag-to-reorder drop: only the moved card's own
