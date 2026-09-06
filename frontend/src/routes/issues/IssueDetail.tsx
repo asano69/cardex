@@ -106,6 +106,18 @@ export default function IssueDetail() {
     const moved = ordered[initialIndex];
     if (!moved) return;
 
+    // Pinned cards always sort before unpinned ones (see `cards`
+    // above). Clamp the drop target to the same pin group so a drag
+    // that overshoots past the group's boundary can't compute a
+    // position that crosses into the other group -- that would leave
+    // the card visually stranded until the next reload re-sorts it
+    // back by pin.
+    const groupSize = ordered.filter((card) => card.pin === moved.pin).length;
+    const groupStart = moved.pin ? 0 : ordered.length - groupSize;
+    const groupEnd = groupStart + groupSize - 1;
+    const clampedIndex = Math.min(Math.max(newIndex, groupStart), groupEnd);
+    if (initialIndex === clampedIndex) return;
+
     const rest = ordered.filter((card) => card.id !== moved.id);
     // The grid is sorted by descending position (see `cards` above),
     // so the card displayed above has the larger position and the
@@ -113,8 +125,8 @@ export default function IssueDetail() {
     // computePosition's (prev, next) argument order, so they're
     // swapped here.
     const position = computePosition(
-      rest[newIndex]?.position,
-      rest[newIndex - 1]?.position,
+      rest[clampedIndex]?.position,
+      rest[clampedIndex - 1]?.position,
     );
 
     // Applied immediately, in step with dnd-kit's own drop animation
