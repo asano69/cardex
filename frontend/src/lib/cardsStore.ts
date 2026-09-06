@@ -1,6 +1,12 @@
 import { createStore, produce } from "solid-js/store";
 import pb from "./pb";
 import type { CardRecord } from "../routes/issues/CardForm";
+import { withCardsFlip, registerCardElement } from "./cardFlip";
+
+// Re-exported so CardItem only needs to import from this module
+// (cardFlip.ts's registration map is an implementation detail of how
+// cards get animated, not something callers need to know about).
+export { registerCardElement };
 
 // Global cache of every "cards" record seen so far, keyed by id. Pages
 // that fetch cards (e.g. IssueDetail) call mergeCards() to seed their
@@ -15,15 +21,19 @@ export { cardsById };
 
 // Merges a freshly fetched batch of cards into the store. Existing
 // entries for the same id are overwritten, so a stale cached copy
-// never wins over a fresh fetch.
+// never wins over a fresh fetch. Wrapped in withCardsFlip so a reorder
+// (e.g. a drag's optimistic position update) animates every affected
+// card into its new grid slot instead of snapping there instantly.
 export function mergeCards(records: CardRecord[]) {
-  setCardsById(
-    produce((store) => {
-      for (const record of records) {
-        store[record.id] = record;
-      }
-    }),
-  );
+  withCardsFlip(() => {
+    setCardsById(
+      produce((store) => {
+        for (const record of records) {
+          store[record.id] = record;
+        }
+      }),
+    );
+  });
 }
 
 // Starts the shared "cards" realtime subscription and returns an
@@ -37,17 +47,22 @@ export function startCardsSubscription(): () => void {
 
   pb.collection("cards")
     .subscribe<CardRecord>("*", (e) => {
-      if (e.action === "delete") {
-        setCardsById(
-          produce((store) => {
-            delete store[e.record.id];
-          }),
-        );
-      } else {
-        // Covers both "create" and "update": either way the latest
-        // record replaces whatever this id currently holds.
-        setCardsById(e.record.id, e.record);
-      }
+      // Wrapped in withCardsFlip so a position change from another
+      // user's drag animates smoothly into place instead of every
+      // card instantly snapping to its new grid slot.
+      withCardsFlip(() => {
+        if (e.action === "delete") {
+          setCardsById(
+            produce((store) => {
+              delete store[e.record.id];
+            }),
+          );
+        } else {
+          // Covers both "create" and "update": either way the latest
+          // record replaces whatever this id currently holds.
+          setCardsById(e.record.id, e.record);
+        }
+      });
     })
     .then((unsub) => {
       // subscribe() is async, so the caller could have already

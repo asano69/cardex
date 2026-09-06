@@ -1,5 +1,7 @@
+import { onCleanup } from "solid-js";
 import { A } from "@solidjs/router";
 import { useSortable } from "@dnd-kit/solid/sortable";
+import { registerCardElement } from "../../lib/cardsStore";
 import type { CardRecord } from "./CardForm";
 
 export interface CardItemProps {
@@ -29,13 +31,21 @@ export default function CardItem(props: CardItemProps) {
     },
   });
 
+  // Registers this card's element so a reorder -- local or from
+  // another user -- can animate it into its new grid slot instead of
+  // snapping there instantly (see withCardsFlip in lib/cardFlip.ts).
+  const setRef = (el: HTMLLIElement) => {
+    ref(el);
+    onCleanup(registerCardElement(props.card.id, el));
+  };
+
   return (
     // The <li> carries the grid item's aspect-ratio; the whole card
     // links to its edit page (CardForm doubles as both the create and
     // edit form) instead of only some inner element, so clicking
     // anywhere on the card opens it.
     <li
-      ref={ref}
+      ref={setRef}
       class="card-grid-item"
       classList={{ "opacity-40": isDragging() }}
     >
