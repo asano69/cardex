@@ -22,8 +22,11 @@ export default function AppRouter() {
       <Route path="/issues/:id" component={IssueDetail} />
       <Route path="/issues/:id/cards/new" component={CardForm} />
       {/* Edit route shares CardForm with the create route above; the
-          presence of :cardId is what switches it into edit mode. */}
-      <Route path="/issues/:id/cards/:cardId" component={CardForm} />
+          presence of :cardTitle is what switches it into edit mode.
+          The card's actual PocketBase id is resolved by matching this
+          (decoded) title within the issue -- see CardForm.tsx and
+          lib/cardSlug.ts. */}
+      <Route path="/issues/:id/:cardTitle" component={CardForm} />
     </Router>
   );
 }

@@ -1,5 +1,5 @@
-import { onMount, createSignal, Show } from "solid-js";
-import { useParams, useNavigate } from "@solidjs/router";
+import { onMount, createSignal, createEffect, Show } from "solid-js";
+import { useParams, useNavigate, A } from "@solidjs/router";
 
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
@@ -7,6 +7,7 @@ import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { POSITION_STEP } from "../../lib/position";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
+import { cardTitleToSegment, segmentToCardTitle } from "../../lib/cardSlug";
 
 // Matches the PocketBase "cards" collection schema. "title" and
 // "preview" are both derived server-side from the card's live Yjs body
@@ -38,11 +39,32 @@ export default function CardForm() {
   const params = useParams();
   const navigate = useNavigate();
 
-  const [recordId, setRecordId] = createSignal(params.cardId ?? "");
-  const [creating, setCreating] = createSignal(!params.cardId);
+  const [recordId, setRecordId] = createSignal("");
+  const [notFound, setNotFound] = createSignal(false);
 
   onMount(async () => {
-    if (params.cardId) return;
+    if (params.cardTitle) {
+      // Editing an existing card: its PocketBase id isn't in the URL
+      // anymore, so it's resolved by matching the decoded title within
+      // this issue. Titles are unique within an issue (enforced at the
+      // database level), so this lookup returns at most one record.
+      try {
+        const record = await pb
+          .collection("cards")
+          .getFirstListItem<CardRecord>(
+            pb.filter("issue = {:issue} && title = {:title}", {
+              issue: params.id,
+              title: segmentToCardTitle(params.cardTitle),
+            }),
+          );
+        mergeCards([record]);
+        setRecordId(record.id);
+      } catch {
+        setNotFound(true);
+      }
+      return;
+    }
+
     // New cards get the current highest position + POSITION_STEP (see
     // lib/position.ts), which puts them first in IssueDetail's
     // descending-sorted card grid. Only the current highest position
@@ -56,15 +78,24 @@ export default function CardForm() {
     const record = await pb
       .collection("cards")
       .create<CardRecord>({ title: "", issue: params.id, position });
+    mergeCards([record]);
     setRecordId(record.id);
-    setCreating(false);
-    // Swap the URL to the edit route so a refresh or the back button
-    // lands on the now-existing card instead of the "new" route. Uses
-    // history.replaceState directly (not solid-router's navigate) so
-    // only the URL bar changes -- navigate() would match a different
-    // Route pattern (see router.tsx) and remount this whole component,
-    // which would tear down and reconnect the Yjs room mid-edit.
-    history.replaceState(null, "", `/issues/${params.id}/cards/${record.id}`);
+  });
+
+  // Keeps the address bar's title segment in sync as the card's title
+  // changes server-side (see internal/serve/ydoc.go, which derives it
+  // from the editor's live content). Only the URL is swapped, the same
+  // way the "new" -> edit transition above used to be -- see that
+  // comment for why history.replaceState is used directly instead of
+  // navigate().
+  let urlSegment = params.cardTitle ?? "";
+  createEffect(() => {
+    const id = recordId();
+    if (!id) return;
+    const segment = cardTitleToSegment(cardsById[id]?.title ?? "");
+    if (segment === urlSegment) return;
+    urlSegment = segment;
+    history.replaceState(null, "", `/issues/${params.id}/${segment}`);
   });
 
   // Cascade deletion of the card's card_blocks/ydoc_updates records and
@@ -99,11 +130,22 @@ export default function CardForm() {
   };
 
   return (
-    <Show when={!creating()} fallback={<Loading />}>
-      {/* Layout for a card-editing screen: pin/delete icons above the
-          editor. NoteEditor itself stays layout-agnostic so it can be
-          reused without this app's card-specific chrome. */}
-      <div class="flex flex-col">
+    <Show
+      when={!notFound()}
+      fallback={
+        <div class="flex flex-col items-center gap-2 py-12 text-text">
+          <p>Card not found.</p>
+          <A href={`/issues/${params.id}`} class="underline">
+            Back to issue
+          </A>
+        </div>
+      }
+    >
+      <Show when={recordId()} fallback={<Loading />}>
+        {/* Layout for a card-editing screen: pin/delete icons above the
+            editor. NoteEditor itself stays layout-agnostic so it can be
+            reused without this app's card-specific chrome. */}
+        <div class="flex flex-col">
         <div class="flex justify-end gap-2">
           <button
             type="button"
@@ -124,8 +166,9 @@ export default function CardForm() {
             <Trash2 size={20} />
           </button>
         </div>
-        <NoteEditor cardId={recordId} />
-      </div>
+          <NoteEditor cardId={recordId} />
+        </div>
+      </Show>
     </Show>
   );
 }

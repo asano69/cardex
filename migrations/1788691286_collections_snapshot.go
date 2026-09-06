@@ -996,19 +996,6 @@ func init() {
 						"type": "bool"
 					},
 					{
-						"help": "",
-						"hidden": false,
-						"id": "number300981383",
-						"max": 9007199254740991,
-						"min": null,
-						"name": "views",
-						"onlyInt": false,
-						"presentable": false,
-						"required": false,
-						"system": false,
-						"type": "number"
-					},
-					{
 						"hidden": false,
 						"id": "autodate2990389176",
 						"name": "created",
@@ -1030,7 +1017,9 @@ func init() {
 					}
 				],
 				"id": "pbc_2527524235",
-				"indexes": [],
+				"indexes": [
+					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
+				],
 				"listRule": null,
 				"name": "cards",
 				"system": false,
