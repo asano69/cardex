@@ -51,7 +51,7 @@ export default function CardItem(props: CardItemProps) {
       classList={{ "opacity-40": isDragging() }}
     >
       <A
-        href={`/issues/${props.card.issue}/${cardTitleToSegment(props.card.title)}`}
+        href={`/${props.card.issue}/${cardTitleToSegment(props.card.title)}`}
       >
         {/* Folded-corner indicator for pinned cards (see
             styles/components.css's .card-grid-item .pin). */}

@@ -95,7 +95,7 @@ export default function CardForm() {
     const segment = cardTitleToSegment(cardsById[id]?.title ?? "");
     if (segment === urlSegment) return;
     urlSegment = segment;
-    history.replaceState(null, "", `/issues/${params.id}/${segment}`);
+    history.replaceState(null, "", `/${params.id}/${segment}`);
   });
 
   // Cascade deletion of the card's card_blocks/ydoc_updates records and
@@ -135,7 +135,7 @@ export default function CardForm() {
       fallback={
         <div class="flex flex-col items-center gap-2 py-12 text-text">
           <p>Card not found.</p>
-          <A href={`/issues/${params.id}`} class="underline">
+          <A href={`/${params.id}`} class="underline">
             Back to issue
           </A>
         </div>

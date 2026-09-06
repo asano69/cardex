@@ -47,7 +47,7 @@ export default function IssueItem(props: IssueItemProps) {
   // the whole row (see the outer <div>'s onClick below); every
   // interactive child (drag handle, toggle, edit, delete) stops this
   // from firing via stopPropagation.
-  const handleOpen = () => navigate(`/issues/${props.issue.id}`);
+  const handleOpen = () => navigate(`/${props.issue.id}`);
 
   const toggleDone = async () => {
     // Captured before the update so the sound only fires on the

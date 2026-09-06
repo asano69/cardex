@@ -157,11 +157,11 @@ export default function IssueDetail() {
   return (
     <div class="flex w-full flex-col gap-4">
       <div class="flex items-center justify-between">
-        <A href="/issues" class="icon-btn" aria-label="Back to issues">
+        <A href="/" class="icon-btn" aria-label="Back to issues">
           <ChevronLeft size={20} />
         </A>
         <A
-          href={`/issues/${params.id}/cards/new`}
+          href={`/${params.id}/cards/new`}
           class="icon-btn"
           aria-label="Add card"
         >

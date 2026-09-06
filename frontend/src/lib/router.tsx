@@ -1,5 +1,5 @@
 // frontend/src/lib/router.tsx
-import { Router, Route, Navigate } from "@solidjs/router";
+import { Router, Route } from "@solidjs/router";
 
 import AppShell from "../components/layout/AppShell";
 
@@ -16,17 +16,15 @@ import CardForm from "../routes/issues/CardForm";
 export default function AppRouter() {
   return (
     <Router root={AppShell}>
-      <Route path="/" component={() => <Navigate href="/issues" />} />
-
-      <Route path="/issues" component={Issues} />
-      <Route path="/issues/:id" component={IssueDetail} />
-      <Route path="/issues/:id/cards/new" component={CardForm} />
+      <Route path="/" component={Issues} />
+      <Route path="/:id" component={IssueDetail} />
+      <Route path="/:id/cards/new" component={CardForm} />
       {/* Edit route shares CardForm with the create route above; the
           presence of :cardTitle is what switches it into edit mode.
           The card's actual PocketBase id is resolved by matching this
           (decoded) title within the issue -- see CardForm.tsx and
           lib/cardSlug.ts. */}
-      <Route path="/issues/:id/:cardTitle" component={CardForm} />
+      <Route path="/:id/:cardTitle" component={CardForm} />
     </Router>
   );
 }
