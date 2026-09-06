@@ -41,12 +41,23 @@ export default function IssueForm(props: IssueFormProps) {
     setError("");
     setSubmitting(true);
     try {
+      // The "slug" field is required and pattern-constrained, but the
+      // real id isn't known until after creation -- so this creates
+      // with a throwaway placeholder value (satisfying both the
+      // required and pattern rules) first, then immediately overwrites
+      // it with the record's own id (see the update call below). No
+      // slug-picking UI exists yet; this can be replaced with a real,
+      // user-chosen slug once that UI exists.
       const record = await pb.collection("issues").create<IssueRecord>({
         title: title().trim(),
         done: false,
         position: props.nextPosition,
+        slug: `tmp-${Date.now()}`,
       });
-      props.onAdded(record);
+      const withSlug = await pb
+        .collection("issues")
+        .update<IssueRecord>(record.id, { slug: record.id });
+      props.onAdded(withSlug);
       setTitle("");
     } catch {
       setError("Failed to add the issue.");
