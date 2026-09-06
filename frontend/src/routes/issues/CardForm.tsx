@@ -228,7 +228,11 @@ export default function CardForm() {
             editor. NoteEditor itself stays layout-agnostic so it can be
             reused without this app's card-specific chrome. */}
         <div class="flex flex-col">
-        <div class="flex justify-end gap-2">
+        {/* min-h-9 keeps this row's height consistent whether or not
+            the pin/delete buttons are rendered, so a draft card (no
+            recordId yet) doesn't lose the gap below TopBar that an
+            existing card gets from these buttons. */}
+        <div class="flex min-h-9 justify-end gap-2">
           {/* Pin/delete only make sense once a record actually exists
               -- an unconfirmed draft has nothing to pin or delete. */}
           <Show when={recordId()}>
