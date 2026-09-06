@@ -1,7 +1,7 @@
 # Overview
 
 - このプロジェクトの目的は、汎用的なカード箱を作ることです。
-- このアプリは、SPA＋CSRの個人向けのアプリです。
+ Cardexは、SPA＋CSRの個人・チーム向けのアプリです。
 
 ## Rules
 
@@ -22,6 +22,7 @@ import math
 from flask import Flask
 >>>>>>> REPLACE
 ```
+- Tailwindを使っている。marginのような外側レイアウトに影響を及ぼすスタイルは親コンポーネントから使うようにする。
 
 ## Tech Stack
 
