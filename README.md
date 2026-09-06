@@ -16,7 +16,7 @@ Cardex is a card box for thinkers.
 - 自分が思いついたこと・考えたことを保存する。
 
 ## Features
-- リアルタイム共同編集
+- Cardexでは同一ページを複数人でリアルタイムに共同編集できます。
 
 ## Tech Stack
 ### backend
