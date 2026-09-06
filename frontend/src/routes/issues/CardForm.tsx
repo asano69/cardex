@@ -5,18 +5,20 @@ import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2 } from "../../lib/icons";
+import { POSITION_STEP } from "../../lib/position";
 
 // Matches the PocketBase "cards" collection schema. "title" and
 // "preview" are both derived server-side from the card's live Yjs body
 // (see internal/serve/ydoc.go) -- the body itself is never stored here,
-// only in the live Yjs room (see components/noteEditor). There is no
-// UI path that sets "title" directly anymore: it's always whatever the
-// first line of the body says.
+// only in the live Yjs room (see components/noteEditor). "position" is
+// a fractional-indexing sort key (see lib/position.ts) used to persist
+// the tile grid's drag-to-reorder order in IssueDetail.
 export interface CardRecord {
   id: string;
   title: string;
   preview: string;
   issue: string;
+  position: number;
   created: string;
   updated: string;
 }
@@ -39,9 +41,18 @@ export default function CardForm() {
 
   onMount(async () => {
     if (params.cardId) return;
+    // New cards are appended after every existing card in this issue
+    // (see lib/position.ts). Only the current highest position is
+    // fetched here -- never the full card list -- so this stays cheap
+    // regardless of how many thousands of cards the issue holds.
+    const existing = await pb.collection("cards").getList<CardRecord>(1, 1, {
+      filter: pb.filter("issue = {:issue}", { issue: params.id }),
+      sort: "-position",
+    });
+    const position = (existing.items[0]?.position ?? 0) + POSITION_STEP;
     const record = await pb
       .collection("cards")
-      .create<CardRecord>({ title: "", issue: params.id });
+      .create<CardRecord>({ title: "", issue: params.id, position });
     setRecordId(record.id);
     setCreating(false);
     // Swap the URL to the edit route so a refresh or the back button

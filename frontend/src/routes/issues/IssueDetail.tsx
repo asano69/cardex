@@ -1,11 +1,13 @@
-import { createResource, createMemo, For, Show } from "solid-js";
+import { createResource, createMemo, For, Show, onCleanup } from "solid-js";
 import { useParams, A } from "@solidjs/router";
 import { ChevronsLeft as ChevronLeft, Plus } from "../../lib/icons";
+import Sortable from "sortablejs";
 
 import pb from "../../lib/pb";
 import Loading from "../../components/Loading";
 import CardItem from "./CardItem";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
+import { computePosition } from "../../lib/position";
 import type { IssueRecord } from "./IssueForm";
 import type { CardRecord } from "./CardForm";
 
@@ -35,15 +37,57 @@ export default function IssueDetail() {
   const [issue] = createResource(() => params.id, fetchIssue);
   const [cardsLoaded] = createResource(() => params.id, fetchCards);
 
-  // Newest first, matching the original getFullList sort. Derived from
-  // the shared store rather than cardsLoaded directly, so this list
-  // reacts to realtime create/update/delete events too, not just the
-  // initial fetch above.
+  // Sorted by the fractional-indexing "position" column (see
+  // lib/position.ts), with id as a tie-breaker for equal positions.
+  // Derived from the shared store rather than cardsLoaded directly, so
+  // this list reacts to realtime create/update/delete events too, not
+  // just the initial fetch above.
   const cards = createMemo(() =>
     Object.values(cardsById)
       .filter((card) => card.issue === params.id)
-      .sort((a, b) => b.created.localeCompare(a.created)),
+      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id)),
   );
+
+  // Persists a drag-to-reorder drop: only the moved card's own
+  // position changes (see lib/position.ts), computed from whichever
+  // two cards now sit on either side of it -- this works the same way
+  // whether `cards()` holds all 10 cards an issue has or one page of a
+  // filtered, paginated view of 3000.
+  const handleSortEnd = async (evt: Sortable.SortableEvent) => {
+    const { oldIndex, newIndex } = evt;
+    if (oldIndex == null || newIndex == null || oldIndex === newIndex) return;
+
+    const ordered = cards();
+    const moved = ordered[oldIndex];
+    if (!moved) return;
+
+    const rest = ordered.filter((card) => card.id !== moved.id);
+    const position = computePosition(
+      rest[newIndex - 1]?.position,
+      rest[newIndex]?.position,
+    );
+
+    try {
+      const updated = await pb
+        .collection("cards")
+        .update<CardRecord>(moved.id, { position });
+      mergeCards([updated]);
+    } catch (err) {
+      console.error("[issues] failed to reorder card:", err);
+    }
+  };
+
+  // Hands DOM drag handling off to SortableJS once the grid is
+  // mounted: a 2D wrapping grid needs proper nearest-cell hit testing
+  // that isn't worth reimplementing (unlike the single-column
+  // pointer-distance approach in routes/issues/IssueItem.tsx).
+  const mountSortableGrid = (el: HTMLUListElement) => {
+    const sortable = Sortable.create(el, {
+      animation: 150,
+      onEnd: handleSortEnd,
+    });
+    onCleanup(() => sortable.destroy());
+  };
 
   return (
     <div class="flex w-full flex-col gap-4">
@@ -63,7 +107,7 @@ export default function IssueDetail() {
         <h1 class="font-sans text-xl">{issue()?.title}</h1>
      
       <Show when={!cardsLoaded.loading} fallback={<Loading />}>
-        <ul class="card-grid">
+        <ul class="card-grid" ref={mountSortableGrid}>
           <For each={cards()}>{(card) => <CardItem card={card} />}</For>
         </ul>
       </Show>
