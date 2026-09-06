@@ -1449,6 +1449,49 @@ func init() {
 						"type": "relation"
 					},
 					{
+						"help": "",
+						"hidden": false,
+						"id": "number1177347317",
+						"max": null,
+						"min": null,
+						"name": "position",
+						"onlyInt": false,
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "number"
+					},
+					{
+						"autogeneratePattern": "",
+						"help": "",
+						"hidden": false,
+						"id": "text4274335913",
+						"max": 0,
+						"min": 0,
+						"name": "content",
+						"pattern": "",
+						"presentable": false,
+						"primaryKey": false,
+						"required": false,
+						"system": false,
+						"type": "text"
+					},
+					{
+						"autogeneratePattern": "",
+						"help": "",
+						"hidden": false,
+						"id": "text2299167369",
+						"max": 0,
+						"min": 0,
+						"name": "content_hash",
+						"pattern": "",
+						"presentable": false,
+						"primaryKey": false,
+						"required": false,
+						"system": false,
+						"type": "text"
+					},
+					{
 						"hidden": false,
 						"id": "autodate2990389176",
 						"name": "created",
@@ -1470,7 +1513,9 @@ func init() {
 					}
 				],
 				"id": "pbc_1277420920",
-				"indexes": [],
+				"indexes": [
+					"CREATE UNIQUE INDEX ` + "`" + `idx_10o0cgo38x` + "`" + ` ON ` + "`" + `card_blocks` + "`" + ` (` + "`" + `uuid` + "`" + `)"
+				],
 				"listRule": null,
 				"name": "card_blocks",
 				"system": false,
@@ -1583,7 +1628,7 @@ func init() {
 						"id": "text1830146365",
 						"max": 0,
 						"min": 0,
-						"name": "sourceHash",
+						"name": "content_hash",
 						"pattern": "",
 						"presentable": false,
 						"primaryKey": false,
