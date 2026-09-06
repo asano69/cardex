@@ -118,7 +118,7 @@ func (p *ydocPersistence) loadUpdates(room string) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Close()
+	defer func() { _ = fs.Close() }()
 
 	updates := make([][]byte, 0, len(records))
 	for _, record := range records {
@@ -131,7 +131,7 @@ func (p *ydocPersistence) loadUpdates(room string) ([][]byte, error) {
 			return nil, err
 		}
 		data, err := io.ReadAll(r)
-		r.Close()
+		_ = r.Close()
 		if err != nil {
 			return nil, err
 		}

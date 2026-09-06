@@ -144,9 +144,14 @@ export default function NoteEditor(props: NoteEditorProps) {
       }),
     );
 
-    // Autofocus straight into the editor -- there's no separate title
-    // field to focus instead anymore.
-    editor.view.focus();
+ // Autofocus into the editor only for a brand-new draft card, so
+    // typing can start immediately. Opening an existing card leaves
+    // focus untouched. Deferred to the next task: right after mount
+    // the editor's DOM element may not be attached to the document
+    // yet, which makes a synchronous focus() call silently do nothing.
+    if (!initialCardId) {
+      setTimeout(() => editor.view.focus(), 0);
+    }
 
     onCleanup(() => {
       provider?.destroy();
