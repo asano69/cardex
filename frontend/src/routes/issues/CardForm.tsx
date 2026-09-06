@@ -100,29 +100,31 @@ export default function CardForm() {
 
   return (
     <Show when={!creating()} fallback={<Loading />}>
-      {/* Layout for a card-editing screen: the editor plus a delete
-          button beside it. NoteEditor itself stays layout-agnostic so
-          it can be reused without this app's card-specific chrome. */}
-      <div class="m-6 flex min-h-0 flex-1 items-start gap-2">
+      {/* Layout for a card-editing screen: pin/delete icons above the
+          editor. NoteEditor itself stays layout-agnostic so it can be
+          reused without this app's card-specific chrome. */}
+      <div class="flex flex-col">
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            aria-label={pinned() ? "Unpin card" : "Pin card"}
+            class="icon-btn shrink-0"
+            onClick={togglePin}
+          >
+            <Show when={pinned()} fallback={<Pin size={20} />}>
+              <PinOff size={20} />
+            </Show>
+          </button>
+          <button
+            type="button"
+            aria-label="Delete card"
+            class="icon-btn shrink-0"
+            onClick={handleDelete}
+          >
+            <Trash2 size={20} />
+          </button>
+        </div>
         <NoteEditor cardId={recordId} />
-        <button
-          type="button"
-          aria-label={pinned() ? "Unpin card" : "Pin card"}
-          class="icon-btn shrink-0"
-          onClick={togglePin}
-        >
-          <Show when={pinned()} fallback={<Pin size={20} />}>
-            <PinOff size={20} />
-          </Show>
-        </button>
-        <button
-          type="button"
-          aria-label="Delete card"
-          class="icon-btn shrink-0"
-          onClick={handleDelete}
-        >
-          <Trash2 size={20} />
-        </button>
       </div>
     </Show>
   );
