@@ -60,8 +60,8 @@ dev-back: clean
 
 .PHONY: test
 test:
-	#cd frontend && bun test
-	go test  ./...
+	cd frontend && bun run test
+	go test ./...
 
 lint: typecheck
 	golangci-lint run

@@ -930,7 +930,7 @@ func init() {
 					},
 					{
 						"autogeneratePattern": "",
-						"help": "One or more characters other than a space.",
+						"help": "The entire string must consist of one or more non-space characters.",
 						"hidden": false,
 						"id": "text724990059",
 						"max": 0,
@@ -1014,6 +1014,19 @@ func init() {
 						"presentable": false,
 						"system": false,
 						"type": "autodate"
+					},
+					{
+						"help": "",
+						"hidden": false,
+						"id": "number300981383",
+						"max": null,
+						"min": null,
+						"name": "views",
+						"onlyInt": false,
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "number"
 					}
 				],
 				"id": "pbc_2527524235",

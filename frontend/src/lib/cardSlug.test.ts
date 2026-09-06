@@ -7,15 +7,13 @@ describe("cardSlug", () => {
     expect(segmentToCardTitle(segment)).toBe("hello world");
   });
 
-  it("keeps a backend dedup suffix literal", () => {
+  it("keeps underscores literal, including a backend dedup suffix", () => {
     // Regression test: resolveUniqueTitle (internal/serve/ydoc.go)
-    // literally appends "_2" to disambiguate a duplicate title, so
-    // opening /issue/a_2 must resolve back to the title "a_2", not
-    // "a 2".
+    // literally appends "_2" to disambiguate a duplicate title, and
+    // buildTitleAndPreview normalizes spaces to underscores before
+    // that -- so a URL segment's underscores are never encoded spaces
+    // and must never be decoded back into spaces.
     expect(segmentToCardTitle("a_2")).toBe("a_2");
-  });
-
-  it("still converts spaces before a dedup suffix", () => {
-    expect(segmentToCardTitle("hello_world_2")).toBe("hello world_2");
+    expect(segmentToCardTitle("hello_world_2")).toBe("hello_world_2");
   });
 });

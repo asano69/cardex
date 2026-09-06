@@ -375,6 +375,15 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	if title == "" {
 		title = defaultTitle
 	}
+	// The "cards" title field must never contain a literal space (see
+	// the "title" field's pattern in the collection schema): spaces
+	// are always normalized to underscores here, so the heading text
+	// itself can still contain spaces freely while the derived title
+	// stays a single unspaced token usable as a URL segment. Collisions
+	// this creates (e.g. "a test" and "a_test" both normalizing to
+	// "a_test") are handled the same way any other collision is, by
+	// resolveUniqueTitle below.
+	title = strings.ReplaceAll(title, " ", "_")
 	title = truncateRunes(title, titleMaxRunes)
 
 	preview = truncateRunes(strings.Join(paragraphs, "\n"), previewMaxRunes)
