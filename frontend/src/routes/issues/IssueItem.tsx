@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { A } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import {
   CircleCheckBig,
@@ -7,7 +7,6 @@ import {
   Trash2,
   GripVertical,
   Pencil,
-  FolderOpen,
 } from "../../lib/icons";
 
 import pb from "../../lib/pb";
@@ -33,15 +32,23 @@ export interface IssueItemProps {
 }
 
 // A single row in the Issues list: a drag handle, a done/not-done
-// toggle, a title, and edit/open/delete buttons. Renaming happens via
-// PromptDialog (not inline) so a click on the row never accidentally
-// starts an edit. Owns its own PocketBase calls and reports the result
-// back to the page (see onChanged/onDeleted), so the page only has to
-// keep its issue list in sync rather than know about individual
-// mutations.
+// toggle, a title, and edit/delete buttons. Clicking anywhere on the
+// row other than those buttons opens the issue's own page (see
+// handleOpen below). Renaming happens via PromptDialog (not inline) so
+// a click on the row never accidentally starts an edit. Owns its own
+// PocketBase calls and reports the result back to the page (see
+// onChanged/onDeleted), so the page only has to keep its issue list in
+// sync rather than know about individual mutations.
 export default function IssueItem(props: IssueItemProps) {
+  const navigate = useNavigate();
   const [editOpen, setEditOpen] = createSignal(false);
   const [error, setError] = createSignal("");
+
+  // Opens the issue's own page, which will list its cards. Bound to
+  // the whole row (see the outer <div>'s onClick below); every
+  // interactive child (drag handle, toggle, edit, delete) stops this
+  // from firing via stopPropagation.
+  const handleOpen = () => navigate(`/issues/${props.issue.id}`);
 
   const toggleDone = async () => {
     // Captured before the update so the sound only fires on the
@@ -86,6 +93,7 @@ export default function IssueItem(props: IssueItemProps) {
         "opacity-40": props.dragging,
         "opacity-50": !props.dragging && props.issue.done,
       }}
+      onClick={handleOpen}
     >
       <div class="flex items-center gap-3">
         {/* Drag handle: pointer events instead of native HTML5
@@ -99,6 +107,7 @@ export default function IssueItem(props: IssueItemProps) {
           aria-label="Drag to reorder"
           class="icon-btn shrink-0 cursor-grab touch-none active:cursor-grabbing"
           onPointerDown={(e) => props.onDragStart(e)}
+          onClick={(e) => e.stopPropagation()}
         >
           <GripVertical size={15} />
         </button>
@@ -109,6 +118,7 @@ export default function IssueItem(props: IssueItemProps) {
             props.issue.done ? "Mark issue as not done" : "Mark issue as done"
           }
           class="flex shrink-0 items-center justify-center text-border transition-colors data-[pressed]:text-[#28a745]"
+          onClick={(e: MouseEvent) => e.stopPropagation()}
         >
           <Show when={props.issue.done} fallback={<Circle size={20} />}>
             <CircleCheckBig size={20} />
@@ -116,29 +126,27 @@ export default function IssueItem(props: IssueItemProps) {
         </ToggleButton>
 
         <span class="flex-1 py-2">{props.issue.title}</span>
-        <A
-          href={`/issues/${props.issue.id}`}
-          aria-label="Open issue"
-          class="icon-btn"
-        >
-          <FolderOpen size={18} />
-        </A>
 
         <button
           type="button"
           aria-label="Edit issue"
           class="icon-btn"
-          onClick={() => setEditOpen(true)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditOpen(true);
+          }}
         >
           <Pencil size={18} />
         </button>
 
-        {/* Opens the issue's own page, which will list its cards. */}
         <button
           type="button"
           aria-label="Delete issue"
           class="icon-btn"
-          onClick={handleDelete}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete();
+          }}
         >
           <Trash2 size={18} />
         </button>

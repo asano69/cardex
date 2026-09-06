@@ -140,7 +140,7 @@ export default function Issues() {
 
   return (
     <div class="flex w-full flex-col gap-4">
-      <h1 class="mb-4 font-sans text-4xl">Issues</h1>
+      <h1 class="mb-4 font-sans text-2xl">Issues</h1>
 
       <IssueForm
         hasExistingIssues={issues().length > 0}
