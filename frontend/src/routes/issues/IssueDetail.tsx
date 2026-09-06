@@ -1,7 +1,8 @@
-import { createResource, createMemo, For, Show, onCleanup } from "solid-js";
+import { createResource, createMemo, For, Show } from "solid-js";
 import { useParams, A } from "@solidjs/router";
 import { ChevronsLeft as ChevronLeft, Plus } from "../../lib/icons";
-import Sortable from "sortablejs";
+import { DragDropProvider } from "@dnd-kit/solid";
+import { isSortable } from "@dnd-kit/solid/sortable";
 
 import pb from "../../lib/pb";
 import Loading from "../../components/Loading";
@@ -53,12 +54,20 @@ export default function IssueDetail() {
   // two cards now sit on either side of it -- this works the same way
   // whether `cards()` holds all 10 cards an issue has or one page of a
   // filtered, paginated view of 3000.
-  const handleSortEnd = async (evt: Sortable.SortableEvent) => {
-    const { oldIndex, newIndex } = evt;
-    if (oldIndex == null || newIndex == null || oldIndex === newIndex) return;
+  //
+  // dnd-kit reports the drop via event.operation.source rather than
+  // SortableJS's oldIndex/newIndex; isSortable narrows that source so
+  // its initialIndex/index can be read instead.
+  const handleDragEnd = async (event) => {
+    if (event.canceled) return;
+    const { source } = event.operation;
+    if (!isSortable(source)) return;
+
+    const { initialIndex, index: newIndex } = source;
+    if (initialIndex === newIndex) return;
 
     const ordered = cards();
-    const moved = ordered[oldIndex];
+    const moved = ordered[initialIndex];
     if (!moved) return;
 
     const rest = ordered.filter((card) => card.id !== moved.id);
@@ -75,18 +84,6 @@ export default function IssueDetail() {
     } catch (err) {
       console.error("[issues] failed to reorder card:", err);
     }
-  };
-
-  // Hands DOM drag handling off to SortableJS once the grid is
-  // mounted: a 2D wrapping grid needs proper nearest-cell hit testing
-  // that isn't worth reimplementing (unlike the single-column
-  // pointer-distance approach in routes/issues/IssueItem.tsx).
-  const mountSortableGrid = (el: HTMLUListElement) => {
-    const sortable = Sortable.create(el, {
-      animation: 150,
-      onEnd: handleSortEnd,
-    });
-    onCleanup(() => sortable.destroy());
   };
 
   return (
@@ -107,9 +104,13 @@ export default function IssueDetail() {
         <h1 class="font-sans text-xl">{issue()?.title}</h1>
      
       <Show when={!cardsLoaded.loading} fallback={<Loading />}>
-        <ul class="card-grid" ref={mountSortableGrid}>
-          <For each={cards()}>{(card) => <CardItem card={card} />}</For>
-        </ul>
+        <DragDropProvider onDragEnd={handleDragEnd}>
+          <ul class="card-grid">
+            <For each={cards()}>
+              {(card, index) => <CardItem card={card} index={index()} />}
+            </For>
+          </ul>
+        </DragDropProvider>
       </Show>
     </div>
   );
