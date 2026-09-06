@@ -19,13 +19,23 @@ import { headingPlaceholderPlugin } from "./headingPlaceholderPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
+import { draftConfirmPlugin } from "./draftConfirmPlugin";
 
 export interface NoteEditorProps {
   // The card's PocketBase record id, doubling as the Yjs room name
-  // (see docs/yjs-design.md). Always defined -- CardForm creates the
-  // record (and therefore the room) before this component is ever
-  // mounted, so there's no "no card yet" state to handle here anymore.
-  cardId: () => string;
+  // (see docs/yjs-design.md). Undefined means "draft": no "cards"
+  // record exists yet, so editing starts on a local-only Y.Doc with no
+  // WebsocketProvider (see connectProvider below). Read once at setup,
+  // not tracked -- draft mode never changes cardId after the fact, it
+  // resolves the real id via onDraftConfirmed instead.
+  cardId: () => string | undefined;
+  // Only meaningful in draft mode. Called exactly once, the moment the
+  // document's first non-empty content is confirmed (see
+  // draftConfirmPlugin.ts); must create the backing "cards" record and
+  // resolve with its id, which is then used to connect the
+  // WebsocketProvider. An abandoned draft that never confirms any
+  // content never calls this, so it never creates an empty card.
+  onDraftConfirmed?: () => Promise<string>;
 }
 
 // A single Yjs-synced ProseKit editor covering both title and body:
@@ -41,16 +51,47 @@ export default function NoteEditor(props: NoteEditorProps) {
   const ydoc = new Y.Doc();
   const fragment = ydoc.getXmlFragment("prosemirror");
 
-  // WebsocketProvider builds the connection URL as `${base}/${room}`.
-  // The "/yjs" prefix is proxied to the Go backend's "/yjs/{room}"
-  // route (see vite.config.ts, which also rewrites the Origin header
-  // so the backend's same-origin websocket check passes).
-  const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const provider = new WebsocketProvider(
-    `${wsProtocol}//${location.host}/yjs`,
-    props.cardId(),
-    ydoc,
-  );
+  // The WebsocketProvider is what actually syncs `ydoc` over the
+  // network -- ySyncPlugin (wired up below) works against `fragment`
+  // regardless of whether a provider is connected, so draft mode can
+  // edit locally from the very first keystroke and only gains network
+  // sync once a real record id exists (see connectProvider/
+  // handleDraftConfirmed below).
+  let provider: WebsocketProvider | undefined;
+
+  // Builds the connection URL as `${base}/${room}`. The "/yjs" prefix
+  // is proxied to the Go backend's "/yjs/{room}" route (see
+  // vite.config.ts, which also rewrites the Origin header so the
+  // backend's same-origin websocket check passes).
+  const connectProvider = (cardId: string) => {
+    const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+    provider = new WebsocketProvider(
+      `${wsProtocol}//${location.host}/yjs`,
+      cardId,
+      ydoc,
+    );
+  };
+
+  const initialCardId = props.cardId();
+  if (initialCardId) {
+    connectProvider(initialCardId);
+  }
+
+  // Fires once draftConfirmPlugin detects the document's first
+  // non-empty content: creates the backing record via
+  // onDraftConfirmed, then connects the provider using its id. Errors
+  // are swallowed here (draft mode has no sync-status UI yet); the
+  // editor just stays local-only if this fails, so the user's typing
+  // isn't lost even though it isn't synced.
+  const handleDraftConfirmed = async () => {
+    if (!props.onDraftConfirmed) return;
+    try {
+      const cardId = await props.onDraftConfirmed();
+      connectProvider(cardId);
+    } catch (err) {
+      console.error("[note-editor] failed to create draft card:", err);
+    }
+  };
 
   // defineNoteExtension() (see basicExtension.ts) is our own copy of
   // prosekit's defineBasicExtension() with prosekit's built-in
@@ -95,6 +136,9 @@ export default function NoteEditor(props: NoteEditorProps) {
           headingPlaceholderPlugin(),
           linkClickPlugin(),
           pasteUrlDecodePlugin(),
+          // Only needed in draft mode -- an already-confirmed card has
+          // nothing left to detect.
+          ...(initialCardId ? [] : [draftConfirmPlugin(handleDraftConfirmed)]),
           ...state.plugins,
         ],
       }),
@@ -105,7 +149,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     editor.view.focus();
 
     onCleanup(() => {
-      provider.destroy();
+      provider?.destroy();
       ydoc.destroy();
       if (typeof unmount === "function") unmount();
     });

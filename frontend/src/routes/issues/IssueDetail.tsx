@@ -169,7 +169,7 @@ export default function IssueDetail() {
           <ChevronLeft size={20} />
         </A>
         <A
-          href={`/${params.slug}/cards/new`}
+          href={`/${params.slug}/new`}
           class="icon-btn"
           aria-label="Add card"
         >

@@ -3,6 +3,7 @@ import { TextField } from "@kobalte/core/text-field";
 import { Plus } from "../../lib/icons";
 
 import pb from "../../lib/pb";
+import { randomKey } from "../../lib/randomKey";
 
 // Matches the PocketBase "issues" collection schema.
 export interface IssueRecord {
@@ -52,7 +53,7 @@ export default function IssueForm(props: IssueFormProps) {
         title: title().trim(),
         done: false,
         position: props.nextPosition,
-        slug: `tmp-${Date.now()}`,
+        slug: randomKey(),
       });
       const withSlug = await pb
         .collection("issues")

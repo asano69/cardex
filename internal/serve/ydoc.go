@@ -25,6 +25,9 @@ package serve
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"regexp"
@@ -253,12 +256,53 @@ func (p *ydocPersistence) updateTitleAndPreview(room string) error {
 	}
 
 	title, preview := buildTitleAndPreview(xml)
+	title = resolveReservedTitle(title)
+	title, err = p.resolveUniqueTitle(record.GetString("issue"), title, room)
+	if err != nil {
+		return err
+	}
 	if record.GetString("title") == title && record.GetString("preview") == preview {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
 	record.Set("title", title)
 	record.Set("preview", preview)
 	return p.app.Save(record)
+}
+
+// reservedTitle can never be reached via URL: "/:slug/new" always
+// opens the draft-creation flow (see frontend/src/lib/router.tsx), so
+// a card whose derived title is exactly this string is renamed with a
+// trailing underscore before the usual uniqueness check runs.
+const reservedTitle = "new"
+const reservedTitleFallback = "new_"
+
+func resolveReservedTitle(title string) string {
+	if title == reservedTitle {
+		return reservedTitleFallback
+	}
+	return title
+}
+
+// resolveUniqueTitle returns `title` unchanged if no other card in
+// `issue` already uses it, or `title` with an incrementing "_N" suffix
+// appended until a free name is found. `excludeID` is the record's own
+// id, so re-saving an unchanged title never collides with itself.
+func (p *ydocPersistence) resolveUniqueTitle(issue, title, excludeID string) (string, error) {
+	candidate := title
+	for suffix := 2; ; suffix++ {
+		_, err := p.app.FindFirstRecordByFilter(
+			"cards",
+			"issue = {:issue} && title = {:title} && id != {:id}",
+			dbx.Params{"issue": issue, "title": candidate, "id": excludeID},
+		)
+		if errors.Is(err, sql.ErrNoRows) {
+			return candidate, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		candidate = fmt.Sprintf("%s_%d", title, suffix)
+	}
 }
 
 // titleMaxRunes and previewMaxRunes cap how much text
@@ -292,6 +336,12 @@ var xmlUnescaper = strings.NewReplacer(
 	"&amp;", "&",
 )
 
+// defaultTitle is used when a card's document has no heading or
+// paragraph text at all -- e.g. every block was cleared after being
+// typed. Duplicate defaults are disambiguated by resolveUniqueTitle
+// the same way any other title is (see updateTitleAndPreview).
+const defaultTitle = "Untitled"
+
 // buildTitleAndPreview turns a card's full ToXML() output into a title
 // and a preview. The document's first-level heading is normally the
 // title (see forceFirstHeadingPlugin for why the first block is always
@@ -302,7 +352,7 @@ var xmlUnescaper = strings.NewReplacer(
 // paragraph is used as the title instead, and only the remaining
 // paragraphs go into the preview. Both are unescaped plain text with no
 // ellipsis; a blank heading or blank paragraphs are dropped before
-// either is built.
+// either is built. If nothing usable remains, defaultTitle is used.
 func buildTitleAndPreview(xml string) (title, preview string) {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
@@ -321,6 +371,9 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	if title == "" && len(paragraphs) > 0 {
 		title = paragraphs[0]
 		paragraphs = paragraphs[1:]
+	}
+	if title == "" {
+		title = defaultTitle
 	}
 	title = truncateRunes(title, titleMaxRunes)
 

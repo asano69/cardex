@@ -16,13 +16,19 @@ import CardForm from "../routes/issues/CardForm";
 export default function AppRouter() {
   return (
     <Router root={AppShell}>
-      <Route path="/" component={Issues} />
+      <Route path="/:slug" component={IssueDetail} />
       {/* The issue segment in the URL is now the issue's unique
           "slug" field, not its PocketBase id (see IssueDetail.tsx
           and CardForm.tsx, which resolve the actual record via
           this slug). */}
-      <Route path="/:slug" component={IssueDetail} />
-      <Route path="/:slug/cards/new" component={CardForm} />
+      {/* "new" is a reserved title: this route always opens the
+          draft-creation flow (see CardForm.tsx), so a real card can
+          never be titled literally "new" and reachable here -- the
+          backend renames any card that would derive that title (see
+          internal/serve/ydoc.go's resolveReservedTitle). Declared
+          before the :cardTitle route below so the static segment
+          wins the match. */}
+      <Route path="/:slug/new" component={CardForm} />
       {/* Edit route shares CardForm with the create route above; the
           presence of :cardTitle is what switches it into edit mode.
           The card's actual PocketBase id is resolved by matching this
