@@ -29,7 +29,7 @@ Cardex is a card box for thinkers.
 - Solid.js v1.9
 - Kobalte v0.13+
 - Tailwind v4
-- ProseKit
+- ProseKit (ProseMirror)
 - yjs
 
 ---
