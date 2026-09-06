@@ -92,6 +92,15 @@ export default function IssueDetail() {
       rest[newIndex]?.position,
     );
 
+    // Apply the new position to the shared store immediately, before
+    // the PocketBase round-trip resolves. dnd-kit resets its own
+    // optimistic DOM order back to whatever `cards()` currently
+    // returns as soon as the drag ends, so without this the grid
+    // visibly snaps back to the old order and then jumps again once
+    // the request completes. Rolled back below if the request fails.
+    const previousPosition = moved.position;
+    mergeCards([{ ...moved, position }]);
+
     try {
       const updated = await pb
         .collection("cards")
@@ -99,6 +108,7 @@ export default function IssueDetail() {
       mergeCards([updated]);
     } catch (err) {
       console.error("[issues] failed to reorder card:", err);
+      mergeCards([{ ...moved, position: previousPosition }]);
     }
   };
 
