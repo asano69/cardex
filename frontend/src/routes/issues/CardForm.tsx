@@ -41,10 +41,11 @@ export default function CardForm() {
 
   onMount(async () => {
     if (params.cardId) return;
-    // New cards are appended after every existing card in this issue
-    // (see lib/position.ts). Only the current highest position is
-    // fetched here -- never the full card list -- so this stays cheap
-    // regardless of how many thousands of cards the issue holds.
+    // New cards get the current highest position + POSITION_STEP (see
+    // lib/position.ts), which puts them first in IssueDetail's
+    // descending-sorted card grid. Only the current highest position
+    // is fetched here -- never the full card list -- so this stays
+    // cheap regardless of how many thousands of cards the issue holds.
     const existing = await pb.collection("cards").getList<CardRecord>(1, 1, {
       filter: pb.filter("issue = {:issue}", { issue: params.id }),
       sort: "-position",

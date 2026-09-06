@@ -54,15 +54,16 @@ export default function IssueDetail() {
   const [issue] = createResource(() => params.id, fetchIssue);
   const [cardsLoaded] = createResource(() => params.id, fetchCards);
 
-  // Sorted by the fractional-indexing "position" column (see
-  // lib/position.ts), with id as a tie-breaker for equal positions.
-  // Derived from the shared store rather than cardsLoaded directly, so
-  // this list reacts to realtime create/update/delete events too, not
-  // just the initial fetch above.
+  // Sorted descending by the fractional-indexing "position" column
+  // (see lib/position.ts), with id as a tie-breaker for equal
+  // positions -- new cards get the highest position (see CardForm),
+  // so this puts the newest card first. Derived from the shared store
+  // rather than cardsLoaded directly, so this list reacts to realtime
+  // create/update/delete events too, not just the initial fetch above.
   const cards = createMemo(() =>
     Object.values(cardsById)
       .filter((card) => card.issue === params.id)
-      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id)),
+      .sort((a, b) => b.position - a.position || a.id.localeCompare(b.id)),
   );
 
   // Persists a drag-to-reorder drop: only the moved card's own
@@ -87,9 +88,14 @@ export default function IssueDetail() {
     if (!moved) return;
 
     const rest = ordered.filter((card) => card.id !== moved.id);
+    // The grid is sorted by descending position (see `cards` above),
+    // so the card displayed above has the larger position and the
+    // card displayed below has the smaller one -- the opposite of
+    // computePosition's (prev, next) argument order, so they're
+    // swapped here.
     const position = computePosition(
-      rest[newIndex - 1]?.position,
       rest[newIndex]?.position,
+      rest[newIndex - 1]?.position,
     );
 
     // Apply the new position to the shared store immediately, before
