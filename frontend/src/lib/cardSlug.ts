@@ -26,11 +26,26 @@ function encodeUnsafeChars(title: string): string {
     .replaceAll(" ", "_");
 }
 
+// Backend-appended dedup suffix for same-titled cards within an issue
+// (see resolveUniqueTitle in internal/serve/ydoc.go, which literally
+// appends "_<n>" to the title on collision). That suffix is a real
+// underscore, not an encoded space, so it must survive decoding
+// unchanged -- otherwise a card disambiguated to e.g. "a_2" can never
+// be looked up again (its segment would decode to "a 2").
+const DEDUP_SUFFIX_RE = /_\d+$/;
+
 function decodeUnsafeChars(segment: string): string {
   // decodeURIComponent alone reverses every %XX escape produced above,
-  // since they're all valid percent-encoding -- only the underscore
-  // swap needs to be done explicitly.
-  return decodeURIComponent(segment).replaceAll("_", " ");
+  // since they're all valid percent-encoding. The "_" -> " " swap only
+  // applies to the part before any trailing dedup suffix; the suffix
+  // itself is left as literal underscores (see DEDUP_SUFFIX_RE above).
+  const decoded = decodeURIComponent(segment);
+  const suffix = decoded.match(DEDUP_SUFFIX_RE);
+  if (!suffix) {
+    return decoded.replaceAll("_", " ");
+  }
+  const base = decoded.slice(0, suffix.index);
+  return base.replaceAll("_", " ") + suffix[0];
 }
 
 export function cardTitleToSegment(title: string): string {
