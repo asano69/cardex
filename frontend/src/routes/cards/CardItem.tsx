@@ -2,7 +2,7 @@ import { onCleanup, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import { useSortable } from "@dnd-kit/solid/sortable";
 import { registerCardElement } from "../../lib/cardsStore";
-import { cardTitleToSegment } from "../../lib/cardSlug";
+import { cardSlugToSegment } from "../../lib/cardSlug";
 import type { CardRecord } from "./CardForm";
 
 export interface CardItemProps {
@@ -56,7 +56,7 @@ export default function CardItem(props: CardItemProps) {
       classList={{ "opacity-40": isDragging() }}
     >
       <A
-        href={`/${props.issueSlug}/${cardTitleToSegment(props.card.title)}`}
+        href={`/${props.issueSlug}/${cardSlugToSegment(props.card.slug)}`}
       >
         {/* Folded-corner indicator for pinned cards (see
             styles/components.css's .card-grid-item .pin). */}

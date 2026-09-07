@@ -1,4 +1,4 @@
-import { onCleanup } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 // Only style.css (structural/functional editor CSS) is needed here.
 // typography.css layers its own opinionated heading/paragraph styles
 // on top, which conflict with this app's own overrides in
@@ -19,7 +19,10 @@ import { headingPlaceholderPlugin } from "./headingPlaceholderPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
-import { draftConfirmPlugin } from "./draftConfirmPlugin";
+import { slugCandidatePlugin } from "./slugCandidatePlugin";
+import { createCard, updateCardSlug } from "../../lib/cardApi";
+import { mergeCards } from "../../lib/cardsStore";
+import type { CardRecord } from "../../routes/cards/CardForm";
 
 export interface NoteEditorProps {
   // The card's PocketBase record id, doubling as the Yjs room name
@@ -27,15 +30,16 @@ export interface NoteEditorProps {
   // record exists yet, so editing starts on a local-only Y.Doc with no
   // WebsocketProvider (see connectProvider below). Read once at setup,
   // not tracked -- draft mode never changes cardId after the fact, it
-  // resolves the real id via onDraftConfirmed instead.
+  // resolves the real id via handleSlugCandidate below instead.
   cardId: () => string | undefined;
-  // Only meaningful in draft mode. Called exactly once, the moment the
-  // document's first non-empty content is confirmed (see
-  // draftConfirmPlugin.ts); must create the backing "cards" record and
-  // resolve with its id, which is then used to connect the
-  // WebsocketProvider. An abandoned draft that never confirms any
-  // content never calls this, so it never creates an empty card.
-  onDraftConfirmed?: () => Promise<string>;
+  // The card's parent issue id, needed in draft mode to create the
+  // backing record (see handleSlugCandidate below). Ignored once
+  // cardId already resolves to a real record.
+  issueId?: () => string | undefined;
+  // Called exactly once, the moment a draft's backing "cards" record
+  // is created, so the caller (CardForm) can start tracking the real
+  // record id (e.g. for its own URL sync).
+  onCardCreated?: (cardId: string) => void;
 }
 
 // A single Yjs-synced ProseKit editor covering both title and body:
@@ -56,7 +60,7 @@ export default function NoteEditor(props: NoteEditorProps) {
   // regardless of whether a provider is connected, so draft mode can
   // edit locally from the very first keystroke and only gains network
   // sync once a real record id exists (see connectProvider/
-  // handleDraftConfirmed below).
+  // sendCandidate below).
   let provider: WebsocketProvider | undefined;
 
   // Builds the connection URL as `${base}/${room}`. The "/yjs" prefix
@@ -72,25 +76,73 @@ export default function NoteEditor(props: NoteEditorProps) {
     );
   };
 
-  const initialCardId = props.cardId();
-  if (initialCardId) {
-    connectProvider(initialCardId);
+  // Read once at setup (like the old initialCardId), but mutable: it
+  // flips from undefined to a real id the moment a draft's backing
+  // record is created (see sendCandidate below), which is also what
+  // switches later slug candidates from createCard to updateCardSlug.
+  let cardId = props.cardId();
+  if (cardId) {
+    connectProvider(cardId);
   }
 
-  // Fires once draftConfirmPlugin detects the document's first
-  // non-empty content: creates the backing record via
-  // onDraftConfirmed, then connects the provider using its id. Errors
-  // are swallowed here (draft mode has no sync-status UI yet); the
-  // editor just stays local-only if this fails, so the user's typing
-  // isn't lost even though it isn't synced.
-  const handleDraftConfirmed = async () => {
-    if (!props.onDraftConfirmed) return;
+  const [slugError, setSlugError] = createSignal(false);
+
+  // In-flight control for slug candidates coming from
+  // slugCandidatePlugin: only one request is ever outstanding at a
+  // time. A candidate that arrives while one is pending replaces
+  // `pendingCandidate` instead of firing its own request; once the
+  // in-flight request settles, the latest pending candidate (if any)
+  // is sent immediately, skipping the debounce window the plugin
+  // already waited out. `sequence` lets a response tell whether a
+  // newer request has since started, so a slow, stale response never
+  // overwrites a newer one's result.
+  let sequence = 0;
+  let inFlight = false;
+  let pendingCandidate: string | null = null;
+  let lastResolvedCandidate: string | null = null;
+
+  const sendCandidate = async (candidate: string) => {
+    inFlight = true;
+    const mySequence = ++sequence;
     try {
-      const cardId = await props.onDraftConfirmed();
-      connectProvider(cardId);
+      const record: CardRecord = cardId
+        ? await updateCardSlug(cardId, candidate)
+        : await createCard(props.issueId?.() ?? "", candidate);
+
+      if (mySequence !== sequence) return; // superseded by a newer request
+
+      setSlugError(false);
+      lastResolvedCandidate = candidate;
+      mergeCards([record]);
+      if (!cardId) {
+        cardId = record.id;
+        connectProvider(cardId);
+        props.onCardCreated?.(cardId);
+      }
     } catch (err) {
-      console.error("[note-editor] failed to create draft card:", err);
+      console.error("[note-editor] failed to resolve card slug:", err);
+      setSlugError(true);
+    } finally {
+      inFlight = false;
+      if (pendingCandidate !== null) {
+        const next = pendingCandidate;
+        pendingCandidate = null;
+        sendCandidate(next);
+      }
     }
+  };
+
+  // Called by slugCandidatePlugin whenever the header (or the body's
+  // first line) is confirmed. Shared by draft creation and
+  // existing-card slug edits -- which one happens is decided purely by
+  // whether `cardId` is already set (see sendCandidate above).
+  const handleSlugCandidate = (candidate: string) => {
+    if (candidate === lastResolvedCandidate) return;
+    if (inFlight) {
+      pendingCandidate = candidate;
+      return;
+    }
+    sendCandidate(candidate);
   };
 
   // defineNoteExtension() (see basicExtension.ts) is our own copy of
@@ -136,9 +188,7 @@ export default function NoteEditor(props: NoteEditorProps) {
           headingPlaceholderPlugin(),
           linkClickPlugin(),
           pasteUrlDecodePlugin(),
-          // Only needed in draft mode -- an already-confirmed card has
-          // nothing left to detect.
-          ...(initialCardId ? [] : [draftConfirmPlugin(handleDraftConfirmed)]),
+          slugCandidatePlugin(handleSlugCandidate),
           ...state.plugins,
         ],
       }),
@@ -149,7 +199,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     // focus untouched. Deferred to the next task: right after mount
     // the editor's DOM element may not be attached to the document
     // yet, which makes a synchronous focus() call silently do nothing.
-    if (!initialCardId) {
+    if (!cardId) {
       setTimeout(() => editor.view.focus(), 0);
     }
 
@@ -160,11 +210,18 @@ export default function NoteEditor(props: NoteEditorProps) {
     });
   };
 
-  // 
+  // Horizontal padding is minimal on narrow screens (phones) since
+  // width is scarce there, but vertical padding stays generous
+  // regardless of screen size.
   return (
     <>
-    {/* *Horizontal padding is minimal on narrow screens (phones) since width is scarce there, but vertical padding stays generous regardless of screen size. */}
     <div class="min-w-0 flex-1 px-2 py-10 sm:px-10 bg-field shadow-md">
+      <Show when={slugError()}>
+        <p class="mb-4 text-sm text-[#dc3545]">
+          Failed to save this card. Your text is still here, but it isn't
+          synced -- try editing the header again once you're back online.
+        </p>
+      </Show>
       <div
         ref={mountEditor}
         class="ProseMirror flex-1 overflow-y-auto text-text outline-none"

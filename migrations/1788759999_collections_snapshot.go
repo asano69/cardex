@@ -953,7 +953,7 @@ func init() {
 						"pattern": "^[^ ]+$",
 						"presentable": false,
 						"primaryKey": false,
-						"required": false,
+						"required": true,
 						"system": false,
 						"type": "text"
 					},
@@ -968,7 +968,7 @@ func init() {
 						"pattern": "^[^ ]+$",
 						"presentable": false,
 						"primaryKey": false,
-						"required": true,
+						"required": false,
 						"system": false,
 						"type": "text"
 					},
@@ -1046,7 +1046,7 @@ func init() {
 				],
 				"id": "pbc_2527524235",
 				"indexes": [
-					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
+					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `slug` + "`" + `\n)"
 				],
 				"listRule": null,
 				"name": "cards",

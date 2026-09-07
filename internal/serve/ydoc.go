@@ -29,9 +29,7 @@ package serve
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -245,53 +243,12 @@ func (p *ydocPersistence) updateTitleAndPreview(room string) error {
 	}
 
 	title, preview := buildTitleAndPreview(xml)
-	title = resolveReservedTitle(title)
-	title, err = p.resolveUniqueTitle(record.GetString("issue"), title, room)
-	if err != nil {
-		return err
-	}
 	if record.GetString("title") == title && record.GetString("preview") == preview {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
 	record.Set("title", title)
 	record.Set("preview", preview)
 	return p.app.Save(record)
-}
-
-// reservedTitle can never be reached via URL: "/:slug/new" always
-// opens the draft-creation flow (see frontend/src/lib/router.tsx), so
-// a card whose derived title is exactly this string is renamed with a
-// trailing underscore before the usual uniqueness check runs.
-const reservedTitle = "new"
-const reservedTitleFallback = "new_"
-
-func resolveReservedTitle(title string) string {
-	if title == reservedTitle {
-		return reservedTitleFallback
-	}
-	return title
-}
-
-// resolveUniqueTitle returns `title` unchanged if no other card in
-// `issue` already uses it, or `title` with an incrementing "_N" suffix
-// appended until a free name is found. `excludeID` is the record's own
-// id, so re-saving an unchanged title never collides with itself.
-func (p *ydocPersistence) resolveUniqueTitle(issue, title, excludeID string) (string, error) {
-	candidate := title
-	for suffix := 2; ; suffix++ {
-		_, err := p.app.FindFirstRecordByFilter(
-			"cards",
-			"issue = {:issue} && title = {:title} && id != {:id}",
-			dbx.Params{"issue": issue, "title": candidate, "id": excludeID},
-		)
-		if errors.Is(err, sql.ErrNoRows) {
-			return candidate, nil
-		}
-		if err != nil {
-			return "", err
-		}
-		candidate = fmt.Sprintf("%s_%d", title, suffix)
-	}
 }
 
 // titleMaxRunes and previewMaxRunes cap how much text
@@ -364,15 +321,6 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	if title == "" {
 		title = defaultTitle
 	}
-	// The "cards" title field must never contain a literal space (see
-	// the "title" field's pattern in the collection schema): spaces
-	// are always normalized to underscores here, so the heading text
-	// itself can still contain spaces freely while the derived title
-	// stays a single unspaced token usable as a URL segment. Collisions
-	// this creates (e.g. "a test" and "a_test" both normalizing to
-	// "a_test") are handled the same way any other collision is, by
-	// resolveUniqueTitle below.
-	title = strings.ReplaceAll(title, " ", "_")
 	title = truncateRunes(title, titleMaxRunes)
 
 	preview = truncateRunes(strings.Join(paragraphs, "\n"), previewMaxRunes)

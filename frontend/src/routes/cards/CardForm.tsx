@@ -5,22 +5,23 @@ import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
-import { POSITION_STEP } from "../../lib/position";
-import { randomKey } from "../../lib/randomKey";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
-import { cardTitleToSegment, segmentToCardTitle } from "../../lib/cardSlug";
+import { cardSlugToSegment, segmentToCardSlug } from "../../lib/cardSlug";
 import { fetchIssueBySlug } from "../../lib/issues";
 import { useTitle } from "../../lib/useTitle";
 
-// Matches the PocketBase "cards" collection schema. "title" and
-// "preview" are both derived server-side from the card's live Yjs body
-// (see internal/serve/ydoc.go) -- the body itself is never stored here,
-// only in the live Yjs room (see components/noteEditor). "position" is
-// a fractional-indexing sort key (see lib/position.ts) used to persist
-// the tile grid's drag-to-reorder order in CardList.
+// Matches the PocketBase "cards" collection schema. "title" is a
+// display label derived server-side from the card's live Yjs body
+// (see internal/serve/ydoc.go); "slug" is the URL identifier, resolved
+// server-side from the same source via a dedicated route (see
+// internal/serve/cards.go and lib/cardApi.ts) instead of doubling as
+// the title. "position" is a fractional-indexing sort key (see
+// lib/position.ts) used to persist the tile grid's drag-to-reorder
+// order in CardList.
 export interface CardRecord {
   id: string;
   title: string;
+  slug: string;
   preview: string;
   issue: string;
   position: number;
@@ -29,60 +30,43 @@ export interface CardRecord {
   updated: string;
 }
 
-// How many times createDraftRecord retries a failed create() call
-// before giving up. There is no sync-status UI yet, so a card the
-// user is actively typing into can silently stay local-only past this
-// point -- see the console.error left behind by NoteEditor.
-const CREATE_MAX_ATTEMPTS = 3;
-const CREATE_RETRY_DELAY_MS = 1000;
-
 // Add/edit page for a single card, reached from CardList's "add card"
 // button (create, at /:slug/new) or by clicking a card (edit, at
-// /:slug/:cardTitle). A brand-new card's PocketBase record is no
-// longer created on mount: the editor starts on a local-only Y.Doc
-// (see NoteEditor's draft mode), and createDraftRecord below only
-// creates the record once the user has actually typed something (see
-// onDraftConfirmed). Leaving /:slug/new without typing anything
-// therefore never leaves behind an empty card.
+// /:slug/:cardTitle -- the param name is a leftover from when title
+// doubled as the URL segment; its value is now the card's slug). A
+// brand-new card's PocketBase record is no longer created on mount:
+// the editor starts on a local-only Y.Doc, and its backing record is
+// only created once the user has actually typed a header/body (see
+// NoteEditor's slugCandidatePlugin and onCardCreated prop). Leaving
+// /:slug/new without typing anything therefore never leaves behind an
+// empty card.
 export default function CardForm() {
   const params = useParams();
   const navigate = useNavigate();
 
-  // The parent issue/pot, used both for the browser tab title (see
-  // useTitle below) and, in draft mode, as createDraftRecord's "issue"
-  // relation.
+  // The parent issue/pot, used for the browser tab title (see
+  // useTitle below) and, in draft mode, as NoteEditor's issueId.
   const [issue] = createResource(() => params.slug, fetchIssueBySlug);
 
   const [recordId, setRecordId] = createSignal("");
   const [notFound, setNotFound] = createSignal(false);
-  // Set if createDraftRecord exhausts its retries. Surfaced as a
-  // small inline message for now; a real sync-status indicator is
-  // future work.
-  const [draftError, setDraftError] = createSignal(false);
-  // The placeholder title createDraftRecord assigns at creation time
-  // (see randomKey.ts), so the URL-sync effect below can tell "not
-  // synced yet" apart from a real (if coincidentally identical)
-  // title. Plain variable, not a signal: only read from inside that
-  // effect and never needs to trigger a re-render itself.
-  let draftPlaceholderTitle: string | null = null;
 
   onMount(async () => {
     if (!params.cardTitle) return; // draft mode -- nothing to resolve eagerly
 
-    // Editing an existing card: its PocketBase id isn't in the URL
-    // anymore, so it's resolved by matching the decoded title within
-    // the issue identified by :slug. Titles are unique within an
-    // issue (enforced at the database level), so this lookup returns
-    // at most one record. Filtering on the related issue's "slug"
-    // directly (dot notation) avoids a separate lookup just to get
-    // the issue's id.
+    // Editing an existing card: its PocketBase id isn't in the URL --
+    // it's resolved by matching the decoded slug within the issue
+    // identified by :slug. Slugs are unique within an issue (enforced
+    // at the database level), so this lookup returns at most one
+    // record. Filtering on the related issue's "slug" directly (dot
+    // notation) avoids a separate lookup just to get the issue's id.
     try {
       const record = await pb
         .collection("cards")
         .getFirstListItem<CardRecord>(
-          pb.filter("issue.slug = {:slug} && title = {:title}", {
+          pb.filter("issue.slug = {:slug} && slug = {:cardSlug}", {
             slug: params.slug,
-            title: segmentToCardTitle(params.cardTitle),
+            cardSlug: segmentToCardSlug(params.cardTitle),
           }),
         );
       mergeCards([record]);
@@ -92,76 +76,19 @@ export default function CardForm() {
     }
   });
 
-  // Creates the backing "cards" record for a draft, called by
-  // NoteEditor once the document's first non-empty content is
-  // confirmed (see NoteEditor's onDraftConfirmed prop). Retries a
-  // few times on failure (e.g. a dropped connection) before giving up.
-  //
-  // The temporary title (see randomKey.ts) only exists to satisfy the
-  // (issue, title) uniqueness constraint until the server derives the
-  // card's real title from its Yjs content shortly after (see
-  // internal/serve/ydoc.go's updateTitleAndPreview) -- the URL-sync
-  // effect below ignores it via draftPlaceholderTitle so the address
-  // bar never flashes a random string.
-  const createDraftRecord = async (): Promise<string> => {
-    const issueRecordId = issue()?.id ?? "";
-    let lastErr: unknown;
-    for (let attempt = 0; attempt < CREATE_MAX_ATTEMPTS; attempt++) {
-      try {
-        // New cards get the current highest position + POSITION_STEP
-        // (see lib/position.ts), which puts them first in
-        // CardList's descending-sorted card grid. Only the current
-        // highest position is fetched here -- never the full card
-        // list -- so this stays cheap regardless of how many
-        // thousands of cards the issue holds.
-        const existing = await pb
-          .collection("cards")
-          .getList<CardRecord>(1, 1, {
-            filter: pb.filter("issue = {:issue}", { issue: issueRecordId }),
-            sort: "-position",
-          });
-        const position = (existing.items[0]?.position ?? 0) + POSITION_STEP;
-        const placeholderTitle = randomKey();
-        const record = await pb.collection("cards").create<CardRecord>({
-          title: placeholderTitle,
-          issue: issueRecordId,
-          position,
-        });
-        draftPlaceholderTitle = placeholderTitle;
-        mergeCards([record]);
-        setRecordId(record.id);
-        return record.id;
-      } catch (err) {
-        lastErr = err;
-        if (attempt < CREATE_MAX_ATTEMPTS - 1) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, CREATE_RETRY_DELAY_MS),
-          );
-        }
-      }
-    }
-    setDraftError(true);
-    throw lastErr;
-  };
-
-  // Keeps the address bar's title segment in sync as the card's title
-  // changes server-side (see internal/serve/ydoc.go, which derives it
-  // from the editor's live content). Only the URL is swapped, using
+  // Keeps the address bar's slug segment in sync as the card's slug
+  // changes server-side (see internal/serve/cards.go's
+  // updateCardSlugHandler). Only the URL is swapped, using
   // history.replaceState directly instead of navigate() so this never
   // adds a back-button entry or remounts the component -- important
-  // now that a draft can silently become a real card mid-edit (e.g.
-  // typing "a" when a card named "a" already exists lands on "a_2"
-  // without the editor ever re-mounting). Skipped entirely while the
-  // stored title still matches the draft's temporary placeholder (see
-  // createDraftRecord), so the URL never flashes a random string
-  // before the real title arrives.
+  // now that a draft can silently become a real card mid-edit.
   let urlSegment = params.cardTitle ?? "";
   createEffect(() => {
     const id = recordId();
     if (!id) return;
-    const title = cardsById[id]?.title ?? "";
-    if (title === draftPlaceholderTitle) return;
-    const segment = cardTitleToSegment(title);
+    const slug = cardsById[id]?.slug ?? "";
+    if (!slug) return;
+    const segment = cardSlugToSegment(slug);
     if (segment === urlSegment) return;
     urlSegment = segment;
     history.replaceState(null, "", `/${params.slug}/${segment}`);
@@ -258,15 +185,10 @@ export default function CardForm() {
             </button>
           </Show>
         </div>
-          {draftError() && (
-            <p class="text-sm text-[#dc3545]">
-              Failed to save this card. Your text is still here, but it
-              isn't synced -- try reloading once you're back online.
-            </p>
-          )}
           <NoteEditor
             cardId={() => recordId() || undefined}
-            onDraftConfirmed={recordId() ? undefined : createDraftRecord}
+            issueId={() => issue()?.id}
+            onCardCreated={setRecordId}
           />
         </div>
       </Show>
