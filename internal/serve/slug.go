@@ -43,6 +43,31 @@ func normalizeSlugCandidate(candidate string) string {
 	return strings.ReplaceAll(candidate, " ", "_")
 }
 
+// resolveUniqueInIssue returns a value derived from base that is unique
+// among "cards" records where `field` matches, scoped to issue.
+// excludeID lets a record keep resolving against its own current value
+// without colliding with itself (pass "" for a brand-new record).
+// Collisions are disambiguated with a numeric suffix ("_2", "_3", ...),
+// shared by resolveCardSlug and resolveCardTitle below since both
+// fields are unique per-issue and use the same disambiguation scheme.
+func resolveUniqueInIssue(app core.App, issue, field, base, excludeID string) (string, error) {
+	value := base
+	for suffix := 2; ; suffix++ {
+		_, err := app.FindFirstRecordByFilter(
+			"cards",
+			fmt.Sprintf("issue = {:issue} && %s = {:value} && id != {:id}", field),
+			dbx.Params{"issue": issue, "value": value, "id": excludeID},
+		)
+		if errors.Is(err, sql.ErrNoRows) {
+			return value, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		value = fmt.Sprintf("%s_%d", base, suffix)
+	}
+}
+
 // resolveCardSlug returns a slug derived from candidate that is unique
 // within issue. excludeID lets a record keep resolving against its own
 // current slug without colliding with itself (pass "" for a brand-new
@@ -57,20 +82,18 @@ func resolveCardSlug(app core.App, issue, candidate, excludeID string) (string, 
 	if base == reservedSlug {
 		base = reservedSlugFallback
 	}
+	return resolveUniqueInIssue(app, issue, "slug", base, excludeID)
+}
 
-	slug := base
-	for suffix := 2; ; suffix++ {
-		_, err := app.FindFirstRecordByFilter(
-			"cards",
-			"issue = {:issue} && slug = {:slug} && id != {:id}",
-			dbx.Params{"issue": issue, "slug": slug, "id": excludeID},
-		)
-		if errors.Is(err, sql.ErrNoRows) {
-			return slug, nil
-		}
-		if err != nil {
-			return "", err
-		}
-		slug = fmt.Sprintf("%s_%d", base, suffix)
+// resolveCardTitle returns a title derived from rawTitle that is unique
+// within issue, matching the "cards" collection's unique (issue, title)
+// index. Unlike resolveCardSlug, spaces are kept as-is and there is no
+// reserved-word fallback -- the title is a display label, not a URL
+// segment. excludeID lets a card keep resolving against its own current
+// title without colliding with itself.
+func resolveCardTitle(app core.App, issue, rawTitle, excludeID string) (string, error) {
+	if rawTitle == "" {
+		rawTitle = defaultTitle
 	}
+	return resolveUniqueInIssue(app, issue, "title", rawTitle, excludeID)
 }

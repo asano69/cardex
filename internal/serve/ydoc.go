@@ -242,10 +242,22 @@ func (p *ydocPersistence) updateTitleAndPreview(room string) error {
 		return nil // card may have been deleted concurrently -- skip
 	}
 
-	title, preview := buildTitleAndPreview(xml)
+	rawTitle, preview := buildTitleAndPreview(xml)
+
+	// Titles are unique per issue (same as slugs), so a collision with
+	// another card's title is disambiguated with a numeric suffix
+	// (e.g. "a_2"), matching resolveCardSlug's own scheme.
+	title, err := resolveCardTitle(p.app, record.GetString("issue"), rawTitle, record.Id)
+	if err != nil {
+		return fmt.Errorf("resolve title: %w", err)
+	}
+
 	if record.GetString("title") == title && record.GetString("preview") == preview {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
+	// title and preview are set on the same record and saved together
+	// in one call, so this produces a single row write (and a single
+	// realtime event) instead of two separate saves.
 	record.Set("title", title)
 	record.Set("preview", preview)
 	return p.app.Save(record)
