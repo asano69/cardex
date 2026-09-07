@@ -52,17 +52,19 @@ func nextCardPosition(app core.App, issue string) (float64, error) {
 	return records[0].GetFloat("position") + positionStep, nil
 }
 
-// createCardHandler creates a new "cards" record with a slug resolved
-// from the client-supplied candidate. Used by the note editor's draft
-// mode (see frontend/src/components/noteEditor/index.tsx), which needs
-// a real record id before Yjs sync can start.
+// createCardHandler creates a new "cards" record with a slug and title
+// resolved from the client-supplied candidate (falling back to
+// "Untitled" when the candidate is empty -- see resolveCardSlug/
+// resolveCardTitle). Used by the note editor's draft mode (see
+// frontend/src/components/noteEditor/index.tsx), which needs a real
+// record id before Yjs sync can start.
 func createCardHandler(e *core.RequestEvent) error {
 	var req createCardRequest
 	if err := e.BindBody(&req); err != nil {
 		return e.BadRequestError("invalid request body", err)
 	}
-	if req.Issue == "" || req.SlugCandidate == "" {
-		return e.BadRequestError("issue and slugCandidate are required", nil)
+	if req.Issue == "" {
+		return e.BadRequestError("issue is required", nil)
 	}
 
 	collection, err := e.App.FindCollectionByNameOrId("cards")
@@ -81,10 +83,21 @@ func createCardHandler(e *core.RequestEvent) error {
 		if err != nil {
 			return e.InternalServerError("resolve slug", err)
 		}
+		// A card that never got any header text (e.g. an empty draft
+		// confirmed with Enter) would otherwise sit with no title at
+		// all until its first real edit -- resolve it here too, using
+		// the same "Untitled" fallback and per-issue disambiguation as
+		// the slug above. Any later edit still overwrites this via
+		// ydoc.go's updateTitleAndPreview.
+		title, err := resolveCardTitle(e.App, req.Issue, req.SlugCandidate, "")
+		if err != nil {
+			return e.InternalServerError("resolve title", err)
+		}
 
 		record := core.NewRecord(collection)
 		record.Set("issue", req.Issue)
 		record.Set("slug", slug)
+		record.Set("title", title)
 		record.Set("position", position)
 		if err := e.App.Save(record); err != nil {
 			if attempt < maxSlugRetries-1 {

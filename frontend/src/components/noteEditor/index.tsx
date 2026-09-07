@@ -138,6 +138,11 @@ export default function NoteEditor(props: NoteEditorProps) {
   // whether `cardId` is already set (see sendCandidate above).
   const handleSlugCandidate = (candidate: string) => {
     if (candidate === lastResolvedCandidate) return;
+    // An empty candidate is only meaningful for a brand-new draft --
+    // confirming with no header falls back to "Untitled" server-side
+    // (see cards.go's createCardHandler). An existing card's slug/
+    // title should never be reset just because its header was cleared.
+    if (!candidate && cardId) return;
     if (inFlight) {
       pendingCandidate = candidate;
       return;

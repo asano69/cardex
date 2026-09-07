@@ -53,7 +53,11 @@ export function slugCandidatePlugin(onConfirmed: (candidate: string) => void) {
   let lastFired: string | null = null;
 
   const fire = (candidate: string) => {
-    if (!candidate || candidate === lastFired) return;
+    // Empty candidates are allowed through too -- an empty header
+    // confirmed via Enter or the debounce below resolves to
+    // "Untitled" server-side (see cards.go's createCardHandler). Only
+    // a repeat of the same value is skipped.
+    if (candidate === lastFired) return;
     lastFired = candidate;
     onConfirmed(candidate);
   };
