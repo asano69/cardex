@@ -8,21 +8,32 @@ import type { Node as PMNode } from "prosemirror-model";
 // headerJustCommitted below).
 const DEBOUNCE_MS = 2000;
 
-// Extracts the slug candidate text: the document's first block (always
-// a level-1 heading, see forceFirstHeadingPlugin) if it has any text,
-// otherwise the first paragraph's text. Mirrors the title/description
-// split in internal/serve/ydoc.go's buildTitleAndPreview, minus the
-// XML parsing since this reads the live ProseMirror doc directly.
+// Extracts the slug candidate text: the first textblock (paragraph,
+// heading, codeBlock, ...) anywhere in the document -- at any depth
+// and any position -- whose trimmed text content is non-empty. What
+// matters is "first line with actual text", not whether that line
+// happens to be a heading or a paragraph, and not whether it's the
+// document's 0th or 1st top-level child: a document whose first 19
+// lines are blank still resolves its candidate from line 20. Uses
+// ProseMirror's own `isTextblock` rather than a hardcoded tag list, so
+// this stays in sync with the schema automatically. Mirrors the
+// title/description split in internal/serve/ydoc.go's
+// buildTitleAndPreview, minus the XML parsing since this reads the
+// live ProseMirror doc directly.
 function extractCandidate(doc: PMNode): string {
-  const heading = doc.firstChild;
-  if (heading && heading.textContent.trim() !== "") {
-    return heading.textContent.trim();
-  }
-  const second = doc.maybeChild(1);
-  if (second && second.textContent.trim() !== "") {
-    return second.textContent.trim();
-  }
-  return "";
+  let candidate = "";
+  doc.descendants((node) => {
+    if (candidate !== "") return false; // already found -- stop descending further
+    if (node.isTextblock) {
+      const text = node.textContent.trim();
+      if (text !== "") {
+        candidate = text;
+        return false; // no need to descend into a textblock's own children
+      }
+    }
+    return true; // keep looking through this node's children
+  });
+  return candidate;
 }
 
 // True the moment a transaction grows the document from a single block
