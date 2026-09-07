@@ -26,33 +26,32 @@ import (
 const reservedSlug = "new"
 const reservedSlugFallback = "new_"
 
-// multiSpaceRe collapses runs of whitespace to a single space (see
-// normalizeCandidateText below), so e.g. "a   b" and "a b" resolve to
-// the same slug/title instead of leaving stray underscores or spaces.
-var multiSpaceRe = regexp.MustCompile(`\s+`)
-
 // bracketReplacer turns "[" and "]" in a candidate into a plain space.
 // These commonly show up in text imported from bracket-link wikis
 // (e.g. "[some page]") and would otherwise leak into the slug/title as
 // stray punctuation instead of reading as a word separator.
 var bracketReplacer = strings.NewReplacer("[", " ", "]", " ")
 
-// normalizeCandidateText replaces "[" / "]" with a space, collapses
-// any run of whitespace into a single space, and trims leading/
-// trailing whitespace. This is the shared first step for both slug
-// and title resolution (see normalizeSlugCandidate below and
+// normalizeCandidateText replaces "[" / "]" with a space and trims
+// leading/trailing whitespace. This is the shared first step for both
+// slug and title resolution (see normalizeSlugCandidate below and
 // buildTitleAndPreview in ydoc.go) -- both start from the same raw
 // header/paragraph text, so keeping this in one place is what lets
-// them eventually collapse into a single field.
+// them eventually collapse into a single field. Interior whitespace,
+// including runs of consecutive spaces, is left untouched -- only the
+// outer edges are trimmed.
 func normalizeCandidateText(s string) string {
 	s = bracketReplacer.Replace(s)
-	s = multiSpaceRe.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
 }
 
 // normalizeSlugCandidate normalizes candidate (see
-// normalizeCandidateText), then replaces remaining spaces with
-// underscores so the result is safe as a single URL path segment.
+// normalizeCandidateText), then replaces every remaining space with an
+// underscore so the result is safe as a single URL path segment. This
+// space-to-underscore substitution is intentionally the last step, so
+// normalizeCandidateText itself stays free of any slug-specific
+// behavior and can be shared as-is with title resolution (see
+// buildTitleAndPreview in ydoc.go), which keeps spaces literal.
 // Non-ASCII characters (e.g. Japanese) are left as-is --
 // percent-encoding the handful of characters that are actually unsafe
 // in a path segment (% / # ?) is the frontend's job (see

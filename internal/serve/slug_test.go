@@ -47,9 +47,13 @@ func TestNormalizeSlugCandidate_BracketsBecomeSpaces(t *testing.T) {
 	}
 }
 
-func TestNormalizeSlugCandidate_CollapsesAndTrimsWhitespace(t *testing.T) {
+func TestNormalizeSlugCandidate_TrimsOuterWhitespaceOnly(t *testing.T) {
+	// Regression test: interior whitespace is no longer collapsed --
+	// each space (including runs created by adjacent brackets) becomes
+	// its own underscore. Only the leading/trailing whitespace is
+	// trimmed.
 	got := normalizeSlugCandidate("  [a][b]  c   d  ")
-	want := "a_b_c_d"
+	want := "a__b___c___d"
 	if got != want {
 		t.Errorf("normalizeSlugCandidate(...) = %q, want %q", got, want)
 	}
