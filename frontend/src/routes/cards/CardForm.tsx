@@ -9,7 +9,7 @@ import { POSITION_STEP } from "../../lib/position";
 import { randomKey } from "../../lib/randomKey";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { cardTitleToSegment, segmentToCardTitle } from "../../lib/cardSlug";
-import type { IssueRecord } from "./IssueForm";
+import type { IssueRecord } from "../issues/IssueForm";
 
 // Matches the PocketBase "cards" collection schema. "title" and
 // "preview" are both derived server-side from the card's live Yjs body

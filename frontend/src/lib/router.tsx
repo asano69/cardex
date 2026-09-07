@@ -4,8 +4,8 @@ import { Router, Route } from "@solidjs/router";
 import AppShell from "../components/layout/AppShell";
 
 import Issues from "../routes/issues";
-import CardList from "../routes/issues/CardList";
-import CardForm from "../routes/issues/CardForm";
+import CardList from "../routes/cards/CardList";
+import CardForm from "../routes/cards/CardForm";
 
 // All top-level routes in one place, so adding or removing a page never
 // requires touching main.tsx.

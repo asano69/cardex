@@ -1,6 +1,6 @@
 import { createStore, produce } from "solid-js/store";
 import pb from "./pb";
-import type { CardRecord } from "../routes/issues/CardForm";
+import type { CardRecord } from "../routes/cards/CardForm";
 import { withCardsFlip, registerCardElement } from "./cardFlip";
 
 // Re-exported so CardItem only needs to import from this module
