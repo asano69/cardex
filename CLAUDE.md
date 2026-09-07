@@ -1,7 +1,7 @@
 # Overview
 
 - このプロジェクトの目的は、汎用的なカード箱を作ることです。
- Cardexは、SPA＋CSRの個人・チーム向けのアプリです。
+- Cardexは、SPA＋CSRの個人・チーム向けのWiki兼カード型DBです。
 
 ## Rules
 
@@ -26,5 +26,22 @@ from flask import Flask
 - jsxにおいて、return の先頭にコメント（{/*...*/} ）を置く場合は Fragment （<>...</>）で囲まなければならない。
 
 
+## Tech Stack
+### backend
+- Go
+- PocketBase v0.39+
+- reearth/ygo v1.49.5
+- blevesearch/bleve
+
+### frontend
+- Solid.js v1.9
+- Kobalte v0.13+
+- Tailwind v4
+- clauderic/dnd-kit v0.5.0
+- ProseKit (ProseMirror)
+- yjs
+
+
 ## Work in progress
+
 
