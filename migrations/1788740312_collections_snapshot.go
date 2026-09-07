@@ -1254,19 +1254,19 @@ func init() {
 						"type": "relation"
 					},
 					{
+						"autogeneratePattern": "",
 						"help": "",
 						"hidden": false,
-						"id": "file2918445923",
-						"maxSelect": 0,
-						"maxSize": 0,
-						"mimeTypes": null,
-						"name": "data",
+						"id": "text1110206997",
+						"max": 0,
+						"min": 0,
+						"name": "payload",
+						"pattern": "",
 						"presentable": false,
-						"protected": false,
+						"primaryKey": false,
 						"required": true,
 						"system": false,
-						"thumbs": null,
-						"type": "file"
+						"type": "text"
 					},
 					{
 						"hidden": false,
@@ -1292,7 +1292,7 @@ func init() {
 				"id": "pbc_1686311694",
 				"indexes": [],
 				"listRule": null,
-				"name": "ydoc_updates",
+				"name": "cards_ydoc",
 				"system": false,
 				"type": "base",
 				"updateRule": null,

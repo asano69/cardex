@@ -1,7 +1,11 @@
 // ydoc.go persists each card's Yjs body content as an append-only log
-// of updates in the "ydoc_updates" collection, one record per
-// increment (see the "card" relation field there), following the same
-// pattern as y-leveldb and other standard Yjs persistence adapters.
+// of updates in the "cards_ydoc" collection, one record per increment
+// (see the "card" relation field there), following the same pattern
+// as y-leveldb and other standard Yjs persistence adapters. Each
+// increment is stored as a base64 string in the "payload" text field
+// rather than a file, since a single increment is typically only a
+// few hundred bytes -- too small for a file field's filesystem
+// round-trip and orphan-cleanup cost to be worth it.
 // ydocPersistence plugs into ygo's PersistenceAdapter (LoadDoc/
 // StoreUpdate) and its context-aware extension
 // PersistenceAdapterContext (StoreUpdateContext) so that log seeds a
@@ -26,9 +30,9 @@ package serve
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -37,7 +41,6 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/reearth/ygo/crdt"
 	yjsws "github.com/reearth/ygo/provider/websocket"
 )
@@ -95,7 +98,7 @@ type ydocPersistence struct {
 // written.
 func (p *ydocPersistence) findUpdateRecords(room string) ([]*core.Record, error) {
 	return p.app.FindRecordsByFilter(
-		"ydoc_updates",
+		"cards_ydoc",
 		"card = {:card}",
 		"created",
 		0, 0,
@@ -104,7 +107,8 @@ func (p *ydocPersistence) findUpdateRecords(room string) ([]*core.Record, error)
 }
 
 // loadUpdates reads the raw update bytes off every stored increment
-// for room, oldest first.
+// for room, oldest first. Each increment is a base64 string in the
+// "payload" text field, so no filesystem access is needed anymore.
 func (p *ydocPersistence) loadUpdates(room string) ([][]byte, error) {
 	records, err := p.findUpdateRecords(room)
 	if err != nil {
@@ -114,26 +118,15 @@ func (p *ydocPersistence) loadUpdates(room string) ([][]byte, error) {
 		return nil, nil
 	}
 
-	fs, err := p.app.NewFilesystem()
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = fs.Close() }()
-
 	updates := make([][]byte, 0, len(records))
 	for _, record := range records {
-		filename := record.GetString("data")
-		if filename == "" {
+		encoded := record.GetString("payload")
+		if encoded == "" {
 			continue
 		}
-		r, err := fs.GetReader(record.BaseFilesPath() + "/" + filename)
+		data, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {
-			return nil, err
-		}
-		data, err := io.ReadAll(r)
-		_ = r.Close()
-		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("decode payload for record %s: %w", record.Id, err)
 		}
 		updates = append(updates, data)
 	}
@@ -202,17 +195,13 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		return err // shutting down -- abort before touching the DB
 	}
 
-	collection, err := p.app.FindCollectionByNameOrId("ydoc_updates")
+	collection, err := p.app.FindCollectionByNameOrId("cards_ydoc")
 	if err != nil {
 		return err
 	}
 	record := core.NewRecord(collection)
 	record.Set("card", room)
-	file, err := filesystem.NewFileFromBytes(update, "update.bin")
-	if err != nil {
-		return err
-	}
-	record.Set("data", file)
+	record.Set("payload", base64.StdEncoding.EncodeToString(update))
 	if err := p.app.Save(record); err != nil {
 		return err
 	}
@@ -421,17 +410,13 @@ func (p *ydocPersistence) compactIfNeeded(room string) error {
 		return nil // room isn't loaded right now -- compact next time instead
 	}
 
-	collection, err := p.app.FindCollectionByNameOrId("ydoc_updates")
+	collection, err := p.app.FindCollectionByNameOrId("cards_ydoc")
 	if err != nil {
 		return err
 	}
 	compacted := core.NewRecord(collection)
 	compacted.Set("card", room)
-	file, err := filesystem.NewFileFromBytes(doc.EncodeStateAsUpdate(), "update.bin")
-	if err != nil {
-		return err
-	}
-	compacted.Set("data", file)
+	compacted.Set("payload", base64.StdEncoding.EncodeToString(doc.EncodeStateAsUpdate()))
 	if err := p.app.Save(compacted); err != nil {
 		return err
 	}
