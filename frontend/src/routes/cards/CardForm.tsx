@@ -17,6 +17,7 @@ import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { cardSlugToSegment, segmentToCardSlug } from "../../lib/cardSlug";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
+import { computePosition } from "../../lib/position";
 
 // Matches the PocketBase "cards" collection schema. "title" is a
 // display label derived server-side from the card's live Yjs body
@@ -125,13 +126,33 @@ export default function CardForm() {
   // separate local copy.
   const pinned = () => cardsById[recordId()]?.pin ?? false;
 
+  // Position that sorts right after every other pinned card in this
+  // pot, so a newly pinned card lands at the bottom of the pinned
+  // group instead of keeping whatever position it had while unpinned.
+  const nextPinnedPosition = (excludeId: string): number => {
+    const potId = cardsById[excludeId]?.pot;
+    const pinnedPositions = Object.values(cardsById)
+      .filter(
+        (card) => card.pot === potId && card.pin && card.id !== excludeId,
+      )
+      .map((card) => card.position);
+    const lowestPinned =
+      pinnedPositions.length > 0 ? Math.min(...pinnedPositions) : undefined;
+    return computePosition(undefined, lowestPinned);
+  };
+
   const togglePin = async () => {
     const id = recordId();
     if (!id) return;
+    const nowPinning = !pinned();
+    // Only pinning repositions the card (to the bottom of the pinned
+    // group); unpinning leaves its position untouched.
+    const position = nowPinning ? nextPinnedPosition(id) : undefined;
     try {
-      const updated = await pb
-        .collection("cards")
-        .update<CardRecord>(id, { pin: !pinned() });
+      const updated = await pb.collection("cards").update<CardRecord>(id, {
+        pin: nowPinning,
+        ...(position !== undefined ? { position } : {}),
+      });
       mergeCards([updated]);
     } catch {
       // Best-effort: if this fails the pin state simply doesn't change.
