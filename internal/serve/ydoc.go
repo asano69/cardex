@@ -1,5 +1,5 @@
 // ydoc.go persists each card's Yjs body content as an append-only log
-// of updates in the "cards_ydoc" collection, one record per increment
+// of updates in the "card_ydoc" collection, one record per increment
 // (see the "card" relation field there), following the same pattern
 // as y-leveldb and other standard Yjs persistence adapters. Each
 // increment is stored as a base64 string in the "payload" text field
@@ -98,7 +98,7 @@ type ydocPersistence struct {
 // written.
 func (p *ydocPersistence) findUpdateRecords(room string) ([]*core.Record, error) {
 	return p.app.FindRecordsByFilter(
-		"cards_ydoc",
+		"card_ydoc",
 		"card = {:card}",
 		"created",
 		0, 0,
@@ -195,7 +195,7 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		return err // shutting down -- abort before touching the DB
 	}
 
-	collection, err := p.app.FindCollectionByNameOrId("cards_ydoc")
+	collection, err := p.app.FindCollectionByNameOrId("card_ydoc")
 	if err != nil {
 		return err
 	}
@@ -410,7 +410,7 @@ func (p *ydocPersistence) compactIfNeeded(room string) error {
 		return nil // room isn't loaded right now -- compact next time instead
 	}
 
-	collection, err := p.app.FindCollectionByNameOrId("cards_ydoc")
+	collection, err := p.app.FindCollectionByNameOrId("card_ydoc")
 	if err != nil {
 		return err
 	}

@@ -1287,12 +1287,27 @@ func init() {
 						"presentable": false,
 						"system": false,
 						"type": "autodate"
+					},
+					{
+						"help": "",
+						"hidden": false,
+						"id": "file2918445923",
+						"maxSelect": 0,
+						"maxSize": 0,
+						"mimeTypes": null,
+						"name": "data",
+						"presentable": false,
+						"protected": false,
+						"required": true,
+						"system": false,
+						"thumbs": null,
+						"type": "file"
 					}
 				],
 				"id": "pbc_1686311694",
 				"indexes": [],
 				"listRule": null,
-				"name": "cards_ydoc",
+				"name": "card_ydoc",
 				"system": false,
 				"type": "base",
 				"updateRule": null,
