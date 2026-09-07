@@ -22,20 +22,20 @@ export default function AppRouter() {
           "slug" field, not its PocketBase id (see CardList.tsx
           and CardForm.tsx, which resolve the actual record via
           this slug). */}
-      {/* "new" is a reserved title: this route always opens the
+      {/* "new" is a reserved slug: this route always opens the
           draft-creation flow (see CardForm.tsx), so a real card can
-          never be titled literally "new" and reachable here -- the
-          backend renames any card that would derive that title (see
-          internal/serve/ydoc.go's resolveReservedTitle). Declared
-          before the :cardTitle route below so the static segment
+          never resolve to the slug "new" and be reachable here -- the
+          backend renames any card that would derive that slug (see
+          internal/serve/slug.go's reservedSlug handling). Declared
+          before the :cardSlug route below so the static segment
           wins the match. */}
       <Route path="/:slug/new" component={CardForm} />
       {/* Edit route shares CardForm with the create route above; the
-          presence of :cardTitle is what switches it into edit mode.
+          presence of :cardSlug is what switches it into edit mode.
           The card's actual PocketBase id is resolved by matching this
-          (decoded) title within the issue identified by :slug -- see
+          (decoded) slug within the issue identified by :slug -- see
           CardForm.tsx and lib/cardSlug.ts. */}
-      <Route path="/:slug/:cardTitle" component={CardForm} />
+      <Route path="/:slug/:cardSlug" component={CardForm} />
     </Router>
   );
 }

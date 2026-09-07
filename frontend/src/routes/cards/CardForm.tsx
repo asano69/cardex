@@ -32,9 +32,7 @@ export interface CardRecord {
 
 // Add/edit page for a single card, reached from CardList's "add card"
 // button (create, at /:slug/new) or by clicking a card (edit, at
-// /:slug/:cardTitle -- the param name is a leftover from when title
-// doubled as the URL segment; its value is now the card's slug). A
-// brand-new card's PocketBase record is no longer created on mount:
+// /:slug/:cardSlug). A brand-new card's PocketBase record is no longer created on mount:
 // the editor starts on a local-only Y.Doc, and its backing record is
 // only created once the user has actually typed a header/body (see
 // NoteEditor's slugCandidatePlugin and onCardCreated prop). Leaving
@@ -52,7 +50,7 @@ export default function CardForm() {
   const [notFound, setNotFound] = createSignal(false);
 
   onMount(async () => {
-    if (!params.cardTitle) return; // draft mode -- nothing to resolve eagerly
+    if (!params.cardSlug) return; // draft mode -- nothing to resolve eagerly
 
     // Editing an existing card: its PocketBase id isn't in the URL --
     // it's resolved by matching the decoded slug within the issue
@@ -66,7 +64,7 @@ export default function CardForm() {
         .getFirstListItem<CardRecord>(
           pb.filter("issue.slug = {:slug} && slug = {:cardSlug}", {
             slug: params.slug,
-            cardSlug: segmentToCardSlug(params.cardTitle),
+            cardSlug: segmentToCardSlug(params.cardSlug),
           }),
         );
       mergeCards([record]);
@@ -82,7 +80,7 @@ export default function CardForm() {
   // history.replaceState directly instead of navigate() so this never
   // adds a back-button entry or remounts the component -- important
   // now that a draft can silently become a real card mid-edit.
-  let urlSegment = params.cardTitle ?? "";
+  let urlSegment = params.cardSlug ?? "";
   createEffect(() => {
     const id = recordId();
     if (!id) return;
@@ -152,7 +150,7 @@ export default function CardForm() {
           for: the editor starts immediately on a local-only Y.Doc, and
           recordId only appears once the user has typed something (see
           createDraftRecord). */}
-      <Show when={params.cardTitle ? recordId() : true} fallback={<Loading />}>
+      <Show when={params.cardSlug ? recordId() : true} fallback={<Loading />}>
         {/* Layout for a card-editing screen: pin/delete icons above the
             editor. NoteEditor itself stays layout-agnostic so it can be
             reused without this app's card-specific chrome. */}
