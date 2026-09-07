@@ -33,3 +33,4 @@ export { default as Italic } from "lucide-solid/icons/italic";
 export { default as Underline } from "lucide-solid/icons/underline";
 export { default as Strikethrough } from "lucide-solid/icons/strikethrough";
 export { default as List } from "lucide-solid/icons/list";
+export { default as Settings } from "lucide-solid/icons/settings";
