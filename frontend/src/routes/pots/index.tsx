@@ -1,60 +1,60 @@
 import { createSignal, onMount, onCleanup, For } from "solid-js";
 
 import pb from "../../lib/pb";
-import IssueItem from "./IssueItem";
-import IssueForm from "./IssueForm";
-import type { IssueRecord } from "./IssueForm";
+import PotItem from "./PotItem";
+import PotForm from "./PotForm";
+import type { PotRecord } from "./PotForm";
 
-// Issues is a list of topics the user wants to think about: an
-// add-issue input followed by the list, each with a done/not-done
+// Pots is a list of topics the user wants to think about: an
+// add-pot input followed by the list, each with a done/not-done
 // state, inline rename, drag-to-reorder, and delete. Every mutation
 // (add/toggle/rename/delete/reorder) is owned by the component that
-// triggers it (IssueForm/IssueItem/this page); this page only holds
+// triggers it (PotForm/PotItem/this page); this page only holds
 // the loaded list and re-syncs it from whatever record each mutation
 // reports back.
-export default function Issues() {
-  const [issues, setIssues] = createSignal<IssueRecord[]>([]);
-  // Issue id currently being dragged, or null when nothing is dragging.
-  // Drives each row's dimmed styling (see IssueItem's `dragging` prop)
-  // and lets handlePointerMove know which issue to move.
+export default function Pots() {
+  const [pots, setPots] = createSignal<PotRecord[]>([]);
+  // Pot id currently being dragged, or null when nothing is dragging.
+  // Drives each row's dimmed styling (see PotItem's `dragging` prop)
+  // and lets handlePointerMove know which pot to move.
   const [draggingId, setDraggingId] = createSignal<string | null>(null);
-  // Plain (non-reactive) map of issue id -> row element, populated via
-  // IssueItem's rowRef prop. Only used to measure row positions during
+  // Plain (non-reactive) map of pot id -> row element, populated via
+  // PotItem's rowRef prop. Only used to measure row positions during
   // a drag, so it doesn't need to be a Solid store.
   const rowRefs = new Map<string, HTMLDivElement>();
 
-  const loadIssues = async () => {
+  const loadPots = async () => {
     try {
       const result = await pb
-        .collection("issues")
-        .getFullList<IssueRecord>({ sort: "position" });
-      setIssues(result);
+        .collection("pots")
+        .getFullList<PotRecord>({ sort: "position" });
+      setPots(result);
     } catch (err) {
-      console.error("[issues] failed to load issues:", err);
+      console.error("[pots] failed to load pots:", err);
     }
   };
 
-  onMount(loadIssues);
+  onMount(loadPots);
 
-  // Position for a newly created issue: one past the current highest
+  // Position for a newly created pot: one past the current highest
   // position, so it's always appended at the end regardless of any
   // gaps left by earlier deletes or reorders.
   const nextPosition = () =>
-    issues().length === 0
+    pots().length === 0
       ? 0
-      : Math.max(...issues().map((t) => t.position)) + 1;
+      : Math.max(...pots().map((t) => t.position)) + 1;
 
-  const handleAdded = (record: IssueRecord) => {
-    setIssues((prev) => [...prev, record]);
+  const handleAdded = (record: PotRecord) => {
+    setPots((prev) => [...prev, record]);
   };
 
-  const handleChanged = (record: IssueRecord) => {
-    setIssues((prev) => prev.map((t) => (t.id === record.id ? record : t)));
+  const handleChanged = (record: PotRecord) => {
+    setPots((prev) => prev.map((t) => (t.id === record.id ? record : t)));
   };
 
-  const handleDeleted = (issue: IssueRecord) => {
-    rowRefs.delete(issue.id);
-    setIssues((prev) => prev.filter((t) => t.id !== issue.id));
+  const handleDeleted = (pot: PotRecord) => {
+    rowRefs.delete(pot.id);
+    setPots((prev) => prev.filter((t) => t.id !== pot.id));
   };
 
   // Drag-to-reorder: pointer events instead of native HTML5
@@ -62,9 +62,9 @@ export default function Issues() {
   // (desktop). While dragging, the list is reordered live by finding
   // the row whose current midpoint is closest to the pointer. The new
   // order is only persisted to PocketBase once the drag ends.
-  const handleDragStart = (issueId: string) => (event: PointerEvent) => {
+  const handleDragStart = (potId: string) => (event: PointerEvent) => {
     event.preventDefault();
-    setDraggingId(issueId);
+    setDraggingId(potId);
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
   };
@@ -72,12 +72,12 @@ export default function Issues() {
   const handlePointerMove = (event: PointerEvent) => {
     const draggedId = draggingId();
     if (!draggedId) return;
-    const currentIndex = issues().findIndex((t) => t.id === draggedId);
+    const currentIndex = pots().findIndex((t) => t.id === draggedId);
     if (currentIndex === -1) return;
 
     let targetIndex = currentIndex;
     let closestDistance = Infinity;
-    issues().forEach((t, i) => {
+    pots().forEach((t, i) => {
       const el = rowRefs.get(t.id);
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -90,7 +90,7 @@ export default function Issues() {
     });
 
     if (targetIndex !== currentIndex) {
-      setIssues((prev) => {
+      setPots((prev) => {
         const next = [...prev];
         const [dragged] = next.splice(currentIndex, 1);
         next.splice(targetIndex, 0, dragged);
@@ -106,30 +106,30 @@ export default function Issues() {
     persistOrder();
   };
 
-  // Renumbers every issue's position to match its current index and
+  // Renumbers every pot's position to match its current index and
   // saves only the ones that actually changed, so a drag that ends up
   // back in its original order makes no requests at all.
   const persistOrder = async () => {
-    const current = issues();
+    const current = pots();
     const updates = current
-      .map((issue, index) => ({ issue, index }))
-      .filter(({ issue, index }) => issue.position !== index);
+      .map((pot, index) => ({ pot, index }))
+      .filter(({ pot, index }) => pot.position !== index);
 
     if (updates.length === 0) return;
 
     try {
       await Promise.all(
-        updates.map(({ issue, index }) =>
+        updates.map(({ pot, index }) =>
           pb
-            .collection("issues")
-            .update<IssueRecord>(issue.id, { position: index }),
+            .collection("pots")
+            .update<PotRecord>(pot.id, { position: index }),
         ),
       );
-      setIssues((prev) =>
-        prev.map((issue, index) => ({ ...issue, position: index })),
+      setPots((prev) =>
+        prev.map((pot, index) => ({ ...pot, position: index })),
       );
     } catch (err) {
-      console.error("[issues] failed to save issue order:", err);
+      console.error("[pots] failed to save pot order:", err);
     }
   };
 
@@ -140,23 +140,23 @@ export default function Issues() {
 
   return (
     <div class="flex w-full flex-col gap-4">
-      <h1 class="mb-4 font-sans text-2xl">Issues</h1>
+      <h1 class="mb-4 font-sans text-2xl">Pots</h1>
 
-      <IssueForm
-        hasExistingIssues={issues().length > 0}
+      <PotForm
+        hasExistingPots={pots().length > 0}
         nextPosition={nextPosition()}
         onAdded={handleAdded}
       />
       <div class="flex flex-col gap-2">
-        <For each={issues()}>
-          {(issue) => (
-            <IssueItem
-              issue={issue}
+        <For each={pots()}>
+          {(pot) => (
+            <PotItem
+              pot={pot}
               onChanged={handleChanged}
               onDeleted={handleDeleted}
-              rowRef={(el) => rowRefs.set(issue.id, el)}
-              dragging={draggingId() === issue.id}
-              onDragStart={handleDragStart(issue.id)}
+              rowRef={(el) => rowRefs.set(pot.id, el)}
+              dragging={draggingId() === pot.id}
+              onDragStart={handleDragStart(pot.id)}
             />
           )}
         </For>

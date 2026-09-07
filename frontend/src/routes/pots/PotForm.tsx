@@ -5,8 +5,8 @@ import { Plus } from "../../lib/icons";
 import pb from "../../lib/pb";
 import { randomKey } from "../../lib/randomKey";
 
-// Matches the PocketBase "issues" collection schema.
-export interface IssueRecord {
+// Matches the PocketBase "pots" collection schema.
+export interface PotRecord {
   id: string;
   slug: string;
   title: string;
@@ -16,22 +16,22 @@ export interface IssueRecord {
   updated: string;
 }
 
-export interface IssueFormProps {
-  // Whether at least one issue already exists -- tones down the
+export interface PotFormProps {
+  // Whether at least one pot already exists -- tones down the
   // input's styling once the list isn't empty, so it reads as an
   // optional affordance rather than a prompt nagging the user to fill
   // the list.
-  hasExistingIssues: boolean;
-  // Position to store on the new issue, so it's appended after every
-  // existing issue regardless of any gaps left by earlier deletes.
+  hasExistingPots: boolean;
+  // Position to store on the new pot, so it's appended after every
+  // existing pot regardless of any gaps left by earlier deletes.
   nextPosition: number;
-  onAdded: (record: IssueRecord) => void;
+  onAdded: (record: PotRecord) => void;
 }
 
-// Add-issue input for the Issues page. Saves directly to PocketBase's
-// "issues" collection and reports the created record back via onAdded,
-// since the page owns the actual issue list.
-export default function IssueForm(props: IssueFormProps) {
+// Add-pot input for the Pots page. Saves directly to PocketBase's
+// "pots" collection and reports the created record back via onAdded,
+// since the page owns the actual pot list.
+export default function PotForm(props: PotFormProps) {
   const [title, setTitle] = createSignal("");
   const [submitting, setSubmitting] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -49,19 +49,19 @@ export default function IssueForm(props: IssueFormProps) {
       // it with the record's own id (see the update call below). No
       // slug-picking UI exists yet; this can be replaced with a real,
       // user-chosen slug once that UI exists.
-      const record = await pb.collection("issues").create<IssueRecord>({
+      const record = await pb.collection("pots").create<PotRecord>({
         title: title().trim(),
         done: false,
         position: props.nextPosition,
         slug: randomKey(),
       });
       const withSlug = await pb
-        .collection("issues")
-        .update<IssueRecord>(record.id, { slug: record.id });
+        .collection("pots")
+        .update<PotRecord>(record.id, { slug: record.id });
       props.onAdded(withSlug);
       setTitle("");
     } catch {
-      setError("Failed to add the issue.");
+      setError("Failed to add the pot.");
     } finally {
       setSubmitting(false);
     }
@@ -73,22 +73,22 @@ export default function IssueForm(props: IssueFormProps) {
       <form
         onSubmit={handleSubmit}
         class="flex items-center gap-2 transition-opacity focus-within:opacity-100"
-        classList={{ "opacity-50": props.hasExistingIssues }}
+        classList={{ "opacity-50": props.hasExistingPots }}
       >
         <TextField value={title()} onChange={setTitle} class="flex-1">
           <TextField.Input
-            placeholder="What issue do you want to think about?"
+            placeholder="What pot do you want to think about?"
             class="w-full rounded-md border border-border bg-field px-3 py-2 text-text"
             classList={{
-              "border-transparent bg-transparent px-0": props.hasExistingIssues,
+              "border-transparent bg-transparent px-0": props.hasExistingPots,
             }}
           />
         </TextField>
         {/* Plus icon instead of an "Add" label, matching the delete
-            icon on each issue row. */}
+            icon on each pot row. */}
         <button
           type="submit"
-          aria-label={submitting() ? "Adding…" : "Add issue"}
+          aria-label={submitting() ? "Adding…" : "Add pot"}
           class="icon-btn shrink-0"
           disabled={submitting()}
         >

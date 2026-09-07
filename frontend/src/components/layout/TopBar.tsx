@@ -45,7 +45,7 @@ export default function TopBar(props: TopBarProps) {
           {/* Themes is the app's only top-level nav item now that
               Sidebar holds just Diary, so it lives here next to the
               logo instead of behind the sidebar toggle. `end` limits
-              the active state to the list itself: issue/card pages
+              the active state to the list itself: pot/card pages
               now live at "/:id" and "/:id/...", not nested under "/"
               in a way the router would otherwise treat as a match. */}
           <A

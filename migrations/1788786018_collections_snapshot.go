@@ -936,7 +936,7 @@ func init() {
 						"id": "relation2541086472",
 						"maxSelect": 0,
 						"minSelect": 0,
-						"name": "issue",
+						"name": "pot",
 						"presentable": false,
 						"required": false,
 						"system": false,
@@ -1046,8 +1046,8 @@ func init() {
 				],
 				"id": "pbc_2527524235",
 				"indexes": [
-					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `slug` + "`" + `\n)",
-					"CREATE UNIQUE INDEX ` + "`" + `idx_r30t04lu5q` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
+					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `pot` + "`" + `,\n  ` + "`" + `slug` + "`" + `\n)",
+					"CREATE UNIQUE INDEX ` + "`" + `idx_r30t04lu5q` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `pot` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
 				],
 				"listRule": null,
 				"name": "cards",
@@ -1230,7 +1230,7 @@ func init() {
 				"id": "pbc_575754128",
 				"indexes": [],
 				"listRule": null,
-				"name": "issues",
+				"name": "pots",
 				"system": false,
 				"type": "base",
 				"updateRule": null,

@@ -31,10 +31,10 @@ export interface NoteEditorProps {
   // not tracked -- draft mode never changes cardId after the fact, it
   // resolves the real id via handleSlugCandidate below instead.
   cardId: () => string | undefined;
-  // The card's parent issue id, needed in draft mode to create the
+  // The card's parent pot id, needed in draft mode to create the
   // backing record (see handleSlugCandidate below). Ignored once
   // cardId already resolves to a real record.
-  issueId?: () => string | undefined;
+  potId?: () => string | undefined;
   // Called exactly once, the moment a draft's backing "cards" record
   // is created, so the caller (CardForm) can start tracking the real
   // record id (e.g. for its own URL sync).
@@ -122,7 +122,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     try {
       const result = cardId
         ? await updateCardSlug(cardId, candidate)
-        : await createCard(props.issueId?.() ?? "", candidate);
+        : await createCard(props.potId?.() ?? "", candidate);
 
       if (mySequence !== sequence) return; // superseded by a newer request
 

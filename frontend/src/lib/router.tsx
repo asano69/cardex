@@ -3,7 +3,7 @@ import { Router, Route } from "@solidjs/router";
 
 import AppShell from "../components/layout/AppShell";
 
-import Issues from "../routes/issues";
+import Pots from "../routes/pots";
 import CardList from "../routes/cards/CardList";
 import CardForm from "../routes/cards/CardForm";
 
@@ -16,9 +16,9 @@ import CardForm from "../routes/cards/CardForm";
 export default function AppRouter() {
   return (
     <Router root={AppShell}>
-      <Route path="/" component={Issues} />
+      <Route path="/" component={Pots} />
       <Route path="/:slug" component={CardList} />
-      {/* The issue segment in the URL is now the issue's unique
+      {/* The pot segment in the URL is now the pot's unique
           "slug" field, not its PocketBase id (see CardList.tsx
           and CardForm.tsx, which resolve the actual record via
           this slug). */}
@@ -33,7 +33,7 @@ export default function AppRouter() {
       {/* Edit route shares CardForm with the create route above; the
           presence of :cardSlug is what switches it into edit mode.
           The card's actual PocketBase id is resolved by matching this
-          (decoded) slug within the issue identified by :slug -- see
+          (decoded) slug within the pot identified by :slug -- see
           CardForm.tsx and lib/cardSlug.ts. */}
       <Route path="/:slug/:cardSlug" component={CardForm} />
     </Router>

@@ -2,7 +2,7 @@
 // Regression tests for the merge-alert spec:
 //   - the card's slug has a trailing "_<number>" suffix, AND
 //   - stripping that suffix yields a slug that another card in the
-//     same issue already has, AND
+//     same pot already has, AND
 //   - both cards' headers (card_lines position 0) are the same once
 //     whitespace-trimmed.
 // All three conditions must hold for findMergeTarget to return a
@@ -90,7 +90,7 @@ func newSlugTestApp(t *testing.T) core.App {
 
 	cards := core.NewBaseCollection("cards")
 	cards.Fields.Add(
-		&core.TextField{Name: "issue"},
+		&core.TextField{Name: "pot"},
 		&core.TextField{Name: "slug"},
 		&core.TextField{Name: "title"},
 	)
@@ -112,14 +112,14 @@ func newSlugTestApp(t *testing.T) core.App {
 }
 
 // createCard inserts a "cards" record and returns it.
-func createCard(t *testing.T, app core.App, issue, slug, title string) *core.Record {
+func createCard(t *testing.T, app core.App, pot, slug, title string) *core.Record {
 	t.Helper()
 	collection, err := app.FindCollectionByNameOrId("cards")
 	if err != nil {
 		t.Fatalf("find cards collection: %v", err)
 	}
 	record := core.NewRecord(collection)
-	record.Set("issue", issue)
+	record.Set("pot", pot)
 	record.Set("slug", slug)
 	record.Set("title", title)
 	if err := app.Save(record); err != nil {
@@ -148,13 +148,13 @@ func setFirstLine(t *testing.T, app core.App, cardID, content string) {
 func TestFindMergeTarget_AllConditionsMet(t *testing.T) {
 	app := newSlugTestApp(t)
 
-	original := createCard(t, app, "issue1", "p", "p")
+	original := createCard(t, app, "pot1", "p", "p")
 	setFirstLine(t, app, original.Id, "Hello")
 
-	dup := createCard(t, app, "issue1", "p_2", "p_2")
+	dup := createCard(t, app, "pot1", "p_2", "p_2")
 	setFirstLine(t, app, dup.Id, "Hello")
 
-	got, err := findMergeTarget(app, "issue1", "p_2", "Hello", dup.Id)
+	got, err := findMergeTarget(app, "pot1", "p_2", "Hello", dup.Id)
 	if err != nil {
 		t.Fatalf("findMergeTarget: %v", err)
 	}
@@ -167,13 +167,13 @@ func TestFindMergeTarget_NoSuffix_NoAlert(t *testing.T) {
 	// Condition 1 (slug has a "_<number>" suffix) is false.
 	app := newSlugTestApp(t)
 
-	original := createCard(t, app, "issue1", "p", "p")
+	original := createCard(t, app, "pot1", "p", "p")
 	setFirstLine(t, app, original.Id, "Hello")
 
-	self := createCard(t, app, "issue1", "p2", "p2")
+	self := createCard(t, app, "pot1", "p2", "p2")
 	setFirstLine(t, app, self.Id, "Hello")
 
-	got, err := findMergeTarget(app, "issue1", "p2", "Hello", self.Id)
+	got, err := findMergeTarget(app, "pot1", "p2", "Hello", self.Id)
 	if err != nil {
 		t.Fatalf("findMergeTarget: %v", err)
 	}
@@ -183,13 +183,13 @@ func TestFindMergeTarget_NoSuffix_NoAlert(t *testing.T) {
 }
 
 func TestFindMergeTarget_StrippedSlugDoesNotExist_NoAlert(t *testing.T) {
-	// Condition 2 (stripped slug exists in the same issue) is false.
+	// Condition 2 (stripped slug exists in the same pot) is false.
 	app := newSlugTestApp(t)
 
-	self := createCard(t, app, "issue1", "p_2", "p_2")
+	self := createCard(t, app, "pot1", "p_2", "p_2")
 	setFirstLine(t, app, self.Id, "Hello")
 
-	got, err := findMergeTarget(app, "issue1", "p_2", "Hello", self.Id)
+	got, err := findMergeTarget(app, "pot1", "p_2", "Hello", self.Id)
 	if err != nil {
 		t.Fatalf("findMergeTarget: %v", err)
 	}
@@ -198,23 +198,23 @@ func TestFindMergeTarget_StrippedSlugDoesNotExist_NoAlert(t *testing.T) {
 	}
 }
 
-func TestFindMergeTarget_StrippedSlugExistsInOtherIssue_NoAlert(t *testing.T) {
-	// Condition 2 is scoped to the same issue -- a same-slug card in a
-	// different issue must not trigger the alert.
+func TestFindMergeTarget_StrippedSlugExistsInOtherPot_NoAlert(t *testing.T) {
+	// Condition 2 is scoped to the same pot -- a same-slug card in a
+	// different pot must not trigger the alert.
 	app := newSlugTestApp(t)
 
-	other := createCard(t, app, "issue2", "p", "p")
+	other := createCard(t, app, "pot2", "p", "p")
 	setFirstLine(t, app, other.Id, "Hello")
 
-	self := createCard(t, app, "issue1", "p_2", "p_2")
+	self := createCard(t, app, "pot1", "p_2", "p_2")
 	setFirstLine(t, app, self.Id, "Hello")
 
-	got, err := findMergeTarget(app, "issue1", "p_2", "Hello", self.Id)
+	got, err := findMergeTarget(app, "pot1", "p_2", "Hello", self.Id)
 	if err != nil {
 		t.Fatalf("findMergeTarget: %v", err)
 	}
 	if got != "" {
-		t.Errorf("mergeTarget = %q, want empty (different issue)", got)
+		t.Errorf("mergeTarget = %q, want empty (different pot)", got)
 	}
 }
 
@@ -222,13 +222,13 @@ func TestFindMergeTarget_HeadersDiffer_NoAlert(t *testing.T) {
 	// Condition 3 (headers match) is false.
 	app := newSlugTestApp(t)
 
-	original := createCard(t, app, "issue1", "p", "p")
+	original := createCard(t, app, "pot1", "p", "p")
 	setFirstLine(t, app, original.Id, "Hello")
 
-	dup := createCard(t, app, "issue1", "p_2", "p_2")
+	dup := createCard(t, app, "pot1", "p_2", "p_2")
 	setFirstLine(t, app, dup.Id, "World")
 
-	got, err := findMergeTarget(app, "issue1", "p_2", "World", dup.Id)
+	got, err := findMergeTarget(app, "pot1", "p_2", "World", dup.Id)
 	if err != nil {
 		t.Fatalf("findMergeTarget: %v", err)
 	}
@@ -242,13 +242,13 @@ func TestFindMergeTarget_HeadersMatchIgnoringWhitespace(t *testing.T) {
 	// whitespace (half-width or full-width).
 	app := newSlugTestApp(t)
 
-	original := createCard(t, app, "issue1", "p", "p")
+	original := createCard(t, app, "pot1", "p", "p")
 	setFirstLine(t, app, original.Id, "Hello")
 
-	dup := createCard(t, app, "issue1", "p_2", "p_2")
+	dup := createCard(t, app, "pot1", "p_2", "p_2")
 	setFirstLine(t, app, dup.Id, "Hello\u3000")
 
-	got, err := findMergeTarget(app, "issue1", "p_2", "  Hello  ", dup.Id)
+	got, err := findMergeTarget(app, "pot1", "p_2", "  Hello  ", dup.Id)
 	if err != nil {
 		t.Fatalf("findMergeTarget: %v", err)
 	}

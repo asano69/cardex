@@ -4,7 +4,7 @@ import type { CardRecord } from "../routes/cards/CardForm";
 // Response shape shared by createCard/updateCardSlug: the saved card,
 // plus a merge-alert target computed server-side (see findMergeTarget
 // in internal/serve/slug.go) -- the slug of another card in the same
-// issue whose header this one's header appears to duplicate, or null.
+// pot whose header this one's header appears to duplicate, or null.
 export interface CardMutationResult {
   card: CardRecord;
   mergeTarget: string | null;
@@ -15,12 +15,12 @@ export interface CardMutationResult {
 // Used by NoteEditor's draft mode, which needs a real record id before
 // Yjs sync can start.
 export async function createCard(
-  issue: string,
+  pot: string,
   slugCandidate: string,
 ): Promise<CardMutationResult> {
   return await pb.send<CardMutationResult>("/api/admin/cards", {
     method: "POST",
-    body: { issue, slugCandidate },
+    body: { pot, slugCandidate },
   });
 }
 

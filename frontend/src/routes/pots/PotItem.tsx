@@ -6,18 +6,18 @@ import { CircleCheckBig, Circle, GripVertical, Pencil } from "../../lib/icons";
 import pb from "../../lib/pb";
 import { playCompletionSound } from "../../lib/completionSound";
 import PromptDialog from "../../components/dialogs/PromptDialog";
-import type { IssueRecord } from "./IssueForm";
+import type { PotRecord } from "./PotForm";
 
-export interface IssueItemProps {
-  issue: IssueRecord;
+export interface PotItemProps {
+  pot: PotRecord;
   // Called with the updated record after a successful toggle or rename.
-  onChanged: (record: IssueRecord) => void;
-  // Called with the (now-deleted) issue after a successful delete.
-  onDeleted: (issue: IssueRecord) => void;
+  onChanged: (record: PotRecord) => void;
+  // Called with the (now-deleted) pot after a successful delete.
+  onDeleted: (pot: PotRecord) => void;
   // Registers this row's DOM element with the parent, so it can measure
-  // row positions during drag-to-reorder (see routes/issues/index.tsx).
+  // row positions during drag-to-reorder (see routes/pots/index.tsx).
   rowRef: (el: HTMLDivElement) => void;
-  // Whether this issue is the one currently being dragged.
+  // Whether this pot is the one currently being dragged.
   dragging: boolean;
   // Starts a drag-to-reorder gesture on pointerdown on the handle. The
   // parent owns the actual reordering logic, since it needs to compare
@@ -25,55 +25,55 @@ export interface IssueItemProps {
   onDragStart: (event: PointerEvent) => void;
 }
 
-// A single row in the Issues list: a drag handle, a done/not-done
+// A single row in the Pots list: a drag handle, a done/not-done
 // toggle, a title, and edit/delete buttons. Clicking anywhere on the
-// row other than those buttons opens the issue's own page (see
+// row other than those buttons opens the pot's own page (see
 // handleOpen below). Renaming happens via PromptDialog (not inline) so
 // a click on the row never accidentally starts an edit. Owns its own
 // PocketBase calls and reports the result back to the page (see
-// onChanged/onDeleted), so the page only has to keep its issue list in
+// onChanged/onDeleted), so the page only has to keep its pot list in
 // sync rather than know about individual mutations.
-export default function IssueItem(props: IssueItemProps) {
+export default function PotItem(props: PotItemProps) {
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = createSignal(false);
   const [error, setError] = createSignal("");
 
-  // Opens the issue's own page, which will list its cards. Bound to
+  // Opens the pot's own page, which will list its cards. Bound to
   // the whole row (see the outer <div>'s onClick below); every
   // interactive child (drag handle, toggle, edit, delete) stops this
   // from firing via stopPropagation.
-  const handleOpen = () => navigate(`/${props.issue.slug}`);
+  const handleOpen = () => navigate(`/${props.pot.slug}`);
 
   const toggleDone = async () => {
     // Captured before the update so the sound only fires on the
-    // not-done -> done transition, not when un-checking a issue.
-    const markingDone = !props.issue.done;
+    // not-done -> done transition, not when un-checking a pot.
+    const markingDone = !props.pot.done;
     try {
       const record = await pb
-        .collection("issues")
-        .update<IssueRecord>(props.issue.id, { done: markingDone });
+        .collection("pots")
+        .update<PotRecord>(props.pot.id, { done: markingDone });
       props.onChanged(record);
       if (markingDone) {
         playCompletionSound();
       }
     } catch {
-      setError("Failed to update the issue.");
+      setError("Failed to update the pot.");
     }
   };
 
   const handleDelete = async () => {
     try {
-      await pb.collection("issues").delete(props.issue.id);
-      props.onDeleted(props.issue);
+      await pb.collection("pots").delete(props.pot.id);
+      props.onDeleted(props.pot);
     } catch {
-      setError("Failed to delete the issue.");
+      setError("Failed to delete the pot.");
     }
   };
 
   const handleEditSubmit = async (title: string) => {
     const record = await pb
-      .collection("issues")
-      .update<IssueRecord>(props.issue.id, { title });
+      .collection("pots")
+      .update<PotRecord>(props.pot.id, { title });
     props.onChanged(record);
   };
 
@@ -85,7 +85,7 @@ export default function IssueItem(props: IssueItemProps) {
       // out more sharply than the milder "done" fade (opacity-50).
       classList={{
         "opacity-40": props.dragging,
-        "opacity-50": !props.dragging && props.issue.done,
+        "opacity-50": !props.dragging && props.pot.done,
       }}
       onClick={handleOpen}
     >
@@ -106,24 +106,24 @@ export default function IssueItem(props: IssueItemProps) {
           <GripVertical size={15} />
         </button>
         <ToggleButton
-          pressed={props.issue.done}
+          pressed={props.pot.done}
           onChange={toggleDone}
           aria-label={
-            props.issue.done ? "Mark issue as not done" : "Mark issue as done"
+            props.pot.done ? "Mark pot as not done" : "Mark pot as done"
           }
           class="flex shrink-0 items-center justify-center text-border transition-colors data-[pressed]:text-[#28a745]"
           onClick={(e: MouseEvent) => e.stopPropagation()}
         >
-          <Show when={props.issue.done} fallback={<Circle size={20} />}>
+          <Show when={props.pot.done} fallback={<Circle size={20} />}>
             <CircleCheckBig size={20} />
           </Show>
         </ToggleButton>
 
-        <span class="flex-1 py-2">{props.issue.title}</span>
+        <span class="flex-1 py-2">{props.pot.title}</span>
 
         <button
           type="button"
-          aria-label="Edit issue"
+          aria-label="Edit pot"
           class="icon-btn"
           onClick={(e) => {
             e.stopPropagation();
@@ -138,11 +138,11 @@ export default function IssueItem(props: IssueItemProps) {
       <PromptDialog
         open={editOpen()}
         onOpenChange={setEditOpen}
-        title="Edit issue"
+        title="Edit pot"
         label="Title"
-        initialValue={props.issue.title}
+        initialValue={props.pot.title}
         onSubmit={handleEditSubmit}
-        errorMessage="Failed to update the issue."
+        errorMessage="Failed to update the pot."
       />
     </div>
   );

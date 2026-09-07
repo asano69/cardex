@@ -18,18 +18,18 @@ import (
 
 // positionStep matches the frontend's own POSITION_STEP (see
 // frontend/src/lib/position.ts): a new card starts POSITION_STEP past
-// its issue's current highest position, so it sorts first in
+// its pot's current highest position, so it sorts first in
 // CardList's descending grid without needing a full renumber later.
 const positionStep = 1000
 
 // maxSlugRetries bounds how many times a create/update retries after a
-// database-level unique constraint violation on (issue, slug) -- the
+// database-level unique constraint violation on (pot, slug) -- the
 // final defense against a TOCTOU race between resolveCardSlug's
 // existence check and the actual save (see slug.go).
 const maxSlugRetries = 3
 
 type createCardRequest struct {
-	Issue         string `json:"issue"`
+	Pot         string `json:"pot"`
 	SlugCandidate string `json:"slugCandidate"`
 }
 
@@ -37,11 +37,11 @@ type updateCardSlugRequest struct {
 	SlugCandidate string `json:"slugCandidate"`
 }
 
-// nextCardPosition returns the position for a new card in `issue`.
-func nextCardPosition(app core.App, issue string) (float64, error) {
+// nextCardPosition returns the position for a new card in `pot`.
+func nextCardPosition(app core.App, pot string) (float64, error) {
 	records, err := app.FindRecordsByFilter(
-		"cards", "issue = {:issue}", "-position", 1, 0,
-		dbx.Params{"issue": issue},
+		"cards", "pot = {:pot}", "-position", 1, 0,
+		dbx.Params{"pot": pot},
 	)
 	if err != nil {
 		return 0, err
@@ -63,8 +63,8 @@ func createCardHandler(e *core.RequestEvent) error {
 	if err := e.BindBody(&req); err != nil {
 		return e.BadRequestError("invalid request body", err)
 	}
-	if req.Issue == "" {
-		return e.BadRequestError("issue is required", nil)
+	if req.Pot == "" {
+		return e.BadRequestError("pot is required", nil)
 	}
 
 	collection, err := e.App.FindCollectionByNameOrId("cards")
@@ -72,30 +72,30 @@ func createCardHandler(e *core.RequestEvent) error {
 		return e.InternalServerError("load cards collection", err)
 	}
 
-	position, err := nextCardPosition(e.App, req.Issue)
+	position, err := nextCardPosition(e.App, req.Pot)
 	if err != nil {
 		return e.InternalServerError("compute card position", err)
 	}
 
 	candidate := req.SlugCandidate
 	for attempt := 0; attempt < maxSlugRetries; attempt++ {
-		slug, err := resolveCardSlug(e.App, req.Issue, candidate, "")
+		slug, err := resolveCardSlug(e.App, req.Pot, candidate, "")
 		if err != nil {
 			return e.InternalServerError("resolve slug", err)
 		}
 		// A card that never got any header text (e.g. an empty draft
 		// confirmed with Enter) would otherwise sit with no title at
 		// all until its first real edit -- resolve it here too, using
-		// the same "Untitled" fallback and per-issue disambiguation as
+		// the same "Untitled" fallback and per-pot disambiguation as
 		// the slug above. Any later edit still overwrites this via
 		// ydoc.go's updateTitleAndPreview.
-		title, err := resolveCardTitle(e.App, req.Issue, req.SlugCandidate, "")
+		title, err := resolveCardTitle(e.App, req.Pot, req.SlugCandidate, "")
 		if err != nil {
 			return e.InternalServerError("resolve title", err)
 		}
 
 		record := core.NewRecord(collection)
-		record.Set("issue", req.Issue)
+		record.Set("pot", req.Pot)
 		record.Set("slug", slug)
 		record.Set("title", title)
 		record.Set("position", position)
@@ -109,7 +109,7 @@ func createCardHandler(e *core.RequestEvent) error {
 			}
 			return e.InternalServerError("save card", err)
 		}
-		return jsonWithMergeTarget(e, e.App, req.Issue, slug, req.SlugCandidate, "", record)
+		return jsonWithMergeTarget(e, e.App, req.Pot, slug, req.SlugCandidate, "", record)
 	}
 	return e.InternalServerError("failed to create card after retries", nil)
 }
@@ -133,11 +133,11 @@ func updateCardSlugHandler(e *core.RequestEvent) error {
 	if err != nil {
 		return e.NotFoundError("card not found", err)
 	}
-	issue := record.GetString("issue")
+	pot := record.GetString("pot")
 
 	candidate := req.SlugCandidate
 	for attempt := 0; attempt < maxSlugRetries; attempt++ {
-		slug, err := resolveCardSlug(e.App, issue, candidate, id)
+		slug, err := resolveCardSlug(e.App, pot, candidate, id)
 		if err != nil {
 			return e.InternalServerError("resolve slug", err)
 		}
@@ -150,17 +150,17 @@ func updateCardSlugHandler(e *core.RequestEvent) error {
 			}
 			return e.InternalServerError("save card", err)
 		}
-		return jsonWithMergeTarget(e, e.App, issue, slug, req.SlugCandidate, id, record)
+		return jsonWithMergeTarget(e, e.App, pot, slug, req.SlugCandidate, id, record)
 	}
 	return e.InternalServerError("failed to update slug after retries", nil)
 }
 
 // jsonWithMergeTarget writes record as JSON alongside a "mergeTarget"
-// field: the slug of another card in the same issue whose header text
+// field: the slug of another card in the same pot whose header text
 // this save's header appears to duplicate (see findMergeTarget in
 // slug.go), or null when there's no such duplicate.
-func jsonWithMergeTarget(e *core.RequestEvent, app core.App, issue, slug, rawHeader, excludeID string, record *core.Record) error {
-	mergeTarget, err := findMergeTarget(app, issue, slug, rawHeader, excludeID)
+func jsonWithMergeTarget(e *core.RequestEvent, app core.App, pot, slug, rawHeader, excludeID string, record *core.Record) error {
+	mergeTarget, err := findMergeTarget(app, pot, slug, rawHeader, excludeID)
 	if err != nil {
 		return e.InternalServerError("find merge target", err)
 	}

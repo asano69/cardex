@@ -15,7 +15,7 @@ import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { cardSlugToSegment, segmentToCardSlug } from "../../lib/cardSlug";
-import { fetchIssueBySlug } from "../../lib/issues";
+import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 
 // Matches the PocketBase "cards" collection schema. "title" is a
@@ -31,7 +31,7 @@ export interface CardRecord {
   title: string;
   slug: string;
   description: string;
-  issue: string;
+  pot: string;
   position: number;
   pin: boolean;
   created: string;
@@ -50,9 +50,9 @@ export default function CardForm() {
   const params = useParams();
   const navigate = useNavigate();
 
-  // The parent issue/pot, used for the browser tab title (see
-  // useTitle below) and, in draft mode, as NoteEditor's issueId.
-  const [issue] = createResource(() => params.slug, fetchIssueBySlug);
+  // The parent pot/pot, used for the browser tab title (see
+  // useTitle below) and, in draft mode, as NoteEditor's potId.
+  const [pot] = createResource(() => params.slug, fetchPotBySlug);
 
   const [recordId, setRecordId] = createSignal("");
   const [notFound, setNotFound] = createSignal(false);
@@ -61,14 +61,14 @@ export default function CardForm() {
     if (!params.cardSlug) return; // draft mode -- nothing to resolve eagerly
 
     // Editing an existing card: its PocketBase id isn't in the URL --
-    // it's resolved by matching the decoded slug within the issue
-    // identified by :slug. Slugs are unique within an issue (enforced
+    // it's resolved by matching the decoded slug within the pot
+    // identified by :slug. Slugs are unique within an pot (enforced
     // at the database level), so this lookup returns at most one
-    // record. Filtering on the related issue's "slug" directly (dot
-    // notation) avoids a separate lookup just to get the issue's id.
+    // record. Filtering on the related pot's "slug" directly (dot
+    // notation) avoids a separate lookup just to get the pot's id.
     try {
       const record = await pb.collection("cards").getFirstListItem<CardRecord>(
-        pb.filter("issue.slug = {:slug} && slug = {:cardSlug}", {
+        pb.filter("pot.slug = {:slug} && slug = {:cardSlug}", {
           slug: params.slug,
           cardSlug: segmentToCardSlug(params.cardSlug),
         }),
@@ -142,7 +142,7 @@ export default function CardForm() {
   // the pot's name while a draft has no card title yet (see
   // useTitle.ts for the actual document.title wiring).
   useTitle(() => {
-    const pot = issue()?.title;
+    const pot = pot()?.title;
     if (!pot) return undefined;
     const cardTitle = cardsById[recordId()]?.title;
     return cardTitle ? `${cardTitle} - ${pot}` : pot;
@@ -155,7 +155,7 @@ export default function CardForm() {
         <div class="flex flex-col items-center gap-2 py-12 text-text">
           <p>Card not found.</p>
           <A href={`/${params.slug}`} class="underline">
-            Back to issue
+            Back to pot
           </A>
         </div>
       }
@@ -205,7 +205,7 @@ export default function CardForm() {
           </div>
           <NoteEditor
             cardId={() => recordId() || undefined}
-            issueId={() => issue()?.id}
+            potId={() => pot()?.id}
             onCardCreated={setRecordId}
             onMergeTarget={setMergeTarget}
           />

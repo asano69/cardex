@@ -219,7 +219,7 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		slog.Debug("card xml", "room", room, "xml", xml)
 
 		// Keep the card's "title" and "description" fields in sync with
-		// the room's live text, so IssueDetail's card grid (see
+		// the room's live text, so PotDetail's card grid (see
 		// CardItem.tsx) has something human-readable to show.
 		if err := p.updateTitleAndPreview(room, xml); err != nil {
 			slog.Warn("update card title/description", "room", room, "error", err)
@@ -250,10 +250,10 @@ func (p *ydocPersistence) updateTitleAndPreview(room, xml string) error {
 
 	rawTitle, description := buildTitleAndPreview(xml)
 
-	// Titles are unique per issue (same as slugs), so a collision with
+	// Titles are unique per pot (same as slugs), so a collision with
 	// another card's title is disambiguated with a numeric suffix
 	// (e.g. "a_2"), matching resolveCardSlug's own scheme.
-	title, err := resolveCardTitle(p.app, record.GetString("issue"), rawTitle, record.Id)
+	title, err := resolveCardTitle(p.app, record.GetString("pot"), rawTitle, record.Id)
 	if err != nil {
 		return fmt.Errorf("resolve title: %w", err)
 	}

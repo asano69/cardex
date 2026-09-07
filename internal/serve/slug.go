@@ -62,20 +62,20 @@ func normalizeSlugCandidate(candidate string) string {
 	return strings.ReplaceAll(candidate, " ", "_")
 }
 
-// resolveUniqueInIssue returns a value derived from base that is unique
-// among "cards" records where `field` matches, scoped to issue.
+// resolveUniqueInPot returns a value derived from base that is unique
+// among "cards" records where `field` matches, scoped to pot.
 // excludeID lets a record keep resolving against its own current value
 // without colliding with itself (pass "" for a brand-new record).
 // Collisions are disambiguated with a numeric suffix ("_2", "_3", ...),
 // shared by resolveCardSlug and resolveCardTitle below since both
-// fields are unique per-issue and use the same disambiguation scheme.
-func resolveUniqueInIssue(app core.App, issue, field, base, excludeID string) (string, error) {
+// fields are unique per-pot and use the same disambiguation scheme.
+func resolveUniqueInPot(app core.App, pot, field, base, excludeID string) (string, error) {
 	value := base
 	for suffix := 2; ; suffix++ {
 		_, err := app.FindFirstRecordByFilter(
 			"cards",
-			fmt.Sprintf("issue = {:issue} && %s = {:value} && id != {:id}", field),
-			dbx.Params{"issue": issue, "value": value, "id": excludeID},
+			fmt.Sprintf("pot = {:pot} && %s = {:value} && id != {:id}", field),
+			dbx.Params{"pot": pot, "value": value, "id": excludeID},
 		)
 		if errors.Is(err, sql.ErrNoRows) {
 			return value, nil
@@ -88,12 +88,12 @@ func resolveUniqueInIssue(app core.App, issue, field, base, excludeID string) (s
 }
 
 // resolveCardSlug returns a slug derived from candidate that is unique
-// within issue. excludeID lets a record keep resolving against its own
+// within pot. excludeID lets a record keep resolving against its own
 // current slug without colliding with itself (pass "" for a brand-new
 // record). Empty candidates fall back to defaultTitle (see ydoc.go),
 // the same "Untitled" fallback used for a card with no derivable
 // title.
-func resolveCardSlug(app core.App, issue, candidate, excludeID string) (string, error) {
+func resolveCardSlug(app core.App, pot, candidate, excludeID string) (string, error) {
 	base := normalizeSlugCandidate(candidate)
 	if base == "" {
 		base = defaultTitle
@@ -101,24 +101,24 @@ func resolveCardSlug(app core.App, issue, candidate, excludeID string) (string, 
 	if base == reservedSlug {
 		base = reservedSlugFallback
 	}
-	return resolveUniqueInIssue(app, issue, "slug", base, excludeID)
+	return resolveUniqueInPot(app, pot, "slug", base, excludeID)
 }
 
 // resolveCardTitle returns a title derived from rawTitle that is unique
-// within issue, matching the "cards" collection's unique (issue, title)
+// within pot, matching the "cards" collection's unique (pot, title)
 // index. Unlike resolveCardSlug, spaces are kept as-is and there is no
 // reserved-word fallback -- the title is a display label, not a URL
 // segment. excludeID lets a card keep resolving against its own current
 // title without colliding with itself.
-func resolveCardTitle(app core.App, issue, rawTitle, excludeID string) (string, error) {
+func resolveCardTitle(app core.App, pot, rawTitle, excludeID string) (string, error) {
 	if rawTitle == "" {
 		rawTitle = defaultTitle
 	}
-	return resolveUniqueInIssue(app, issue, "title", rawTitle, excludeID)
+	return resolveUniqueInPot(app, pot, "title", rawTitle, excludeID)
 }
 
 // mergeSuffixRe matches the trailing numeric dedup suffix a slug gets
-// from resolveUniqueInIssue (e.g. "p_2" -> "p"). Mirrors
+// from resolveUniqueInPot (e.g. "p_2" -> "p"). Mirrors
 // frontend/src/lib/cardSlug.ts's stripSlugSuffix; only one level is
 // stripped per call.
 var mergeSuffixRe = regexp.MustCompile(`^(.+)_\d+$`)
@@ -141,7 +141,7 @@ func stripSlugSuffix(slug string) string {
 // the other card's own header (its card_lines position-0 line) must
 // match rawHeader once both are trimmed. Returns "" when no merge
 // alert should be shown.
-func findMergeTarget(app core.App, issue, slug, rawHeader, excludeID string) (string, error) {
+func findMergeTarget(app core.App, pot, slug, rawHeader, excludeID string) (string, error) {
 	stripped := stripSlugSuffix(slug)
 	if stripped == "" {
 		return "", nil
@@ -149,8 +149,8 @@ func findMergeTarget(app core.App, issue, slug, rawHeader, excludeID string) (st
 
 	other, err := app.FindFirstRecordByFilter(
 		"cards",
-		"issue = {:issue} && slug = {:slug} && id != {:id}",
-		dbx.Params{"issue": issue, "slug": stripped, "id": excludeID},
+		"pot = {:pot} && slug = {:slug} && id != {:id}",
+		dbx.Params{"pot": pot, "slug": stripped, "id": excludeID},
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil

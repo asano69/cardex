@@ -10,25 +10,25 @@ import Loading from "../../components/Loading";
 import CardItem from "./CardItem";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { computePosition } from "../../lib/position";
-import { fetchIssueBySlug } from "../../lib/issues";
+import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 import type { CardRecord } from "./CardForm";
 
-// Fetches every card belonging to this issue and seeds them into the
+// Fetches every card belonging to this pot and seeds them into the
 // shared cards store (see lib/cardsStore.ts). The `cards` memo below
 // then renders from that store instead of from this one-shot result,
 // so it stays live as other users' edits/creates/deletes arrive over
 // the realtime subscription started in AppShell.
-async function fetchCards(issueId: string): Promise<void> {
+async function fetchCards(potId: string): Promise<void> {
   const records = await pb.collection("cards").getFullList<CardRecord>({
-    filter: pb.filter("issue = {:issue}", { issue: issueId }),
+    filter: pb.filter("pot = {:pot}", { pot: potId }),
     sort: "-created",
   });
   mergeCards(records);
 }
 
-// Detail page for a single issue, reached via the folder-open button on
-// IssueItem: the issue's title, an add-card button, and every card
+// Detail page for a single pot, reached via the folder-open button on
+// PotItem: the pot's title, an add-card button, and every card
 // belonging to it laid out as a Scrapbox/Cosense-style card grid (see
 // CardItem).
 // CardItem wraps the whole card in an <a> link (see CardItem.tsx), and
@@ -48,14 +48,14 @@ const sensors = [
 
 export default function CardList() {
   const params = useParams();
-  const [issue] = createResource(() => params.slug, fetchIssueBySlug);
+  const [pot] = createResource(() => params.slug, fetchPotBySlug);
   // Browser tab title: the pot's own name (see useTitle.ts). CardForm
-  // one level down uses "<card> - <pot>" for the same `issue` shape.
-  useTitle(() => issue()?.title);
-  // Cards relate to the issue by its PocketBase id (see the "cards"
-  // collection's "issue" relation field), not its slug, so this waits
-  // for `issue` to resolve before fetching.
-  const [cardsLoaded] = createResource(() => issue()?.id, fetchCards);
+  // one level down uses "<card> - <pot>" for the same `pot` shape.
+  useTitle(() => pot()?.title);
+  // Cards relate to the pot by its PocketBase id (see the "cards"
+  // collection's "pot" relation field), not its slug, so this waits
+  // for `pot` to resolve before fetching.
+  const [cardsLoaded] = createResource(() => pot()?.id, fetchCards);
 
   // Sorted descending by the fractional-indexing "position" column
   // (see lib/position.ts), with id as a tie-breaker for equal
@@ -65,7 +65,7 @@ export default function CardList() {
   // create/update/delete events too, not just the initial fetch above.
   const cards = createMemo(() =>
     Object.values(cardsById)
-      .filter((card) => card.issue === issue()?.id)
+      .filter((card) => card.pot === pot()?.id)
       // Pinned cards always sort before unpinned ones; within each
       // group the existing position/id ordering is unchanged.
       .sort((a, b) => {
@@ -77,7 +77,7 @@ export default function CardList() {
   // Persists a drag-to-reorder drop: only the moved card's own
   // position changes (see lib/position.ts), computed from whichever
   // two cards now sit on either side of it -- this works the same way
-  // whether `cards()` holds all 10 cards an issue has or one page of a
+  // whether `cards()` holds all 10 cards an pot has or one page of a
   // filtered, paginated view of 3000.
   //
   // dnd-kit reports the drop via event.operation.source rather than
@@ -149,7 +149,7 @@ export default function CardList() {
           .update<CardRecord>(moved.id, { position });
         mergeCards([updated], { skipFlip: true });
       } catch (err) {
-        console.error("[issues] failed to reorder card:", err);
+        console.error("[pots] failed to reorder card:", err);
         mergeCards([{ ...moved, position: previousPosition }], {
           skipFlip: true,
         });
@@ -160,7 +160,7 @@ export default function CardList() {
   return (
     <div class="flex w-full flex-col gap-4">
       <div class="flex items-center justify-between">
-        <A href="/" class="icon-btn" aria-label="Back to issues">
+        <A href="/" class="icon-btn" aria-label="Back to pots">
           <ChevronLeft size={20} />
         </A>
         <A href={`/${params.slug}/new`} class="icon-btn" aria-label="Add card">
@@ -168,14 +168,14 @@ export default function CardList() {
         </A>
       </div>
 
-      <h1 class="font-sans text-xl">{issue()?.title}</h1>
+      <h1 class="font-sans text-xl">{pot()?.title}</h1>
 
       <Show when={!cardsLoaded.loading} fallback={<Loading />}>
         <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
           <ul class="card-grid">
             <For each={cards()}>
               {(card, index) => (
-                <CardItem card={card} index={index()} issueSlug={params.slug} />
+                <CardItem card={card} index={index()} potSlug={params.slug} />
               )}
             </For>
           </ul>

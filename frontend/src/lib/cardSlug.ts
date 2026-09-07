@@ -11,7 +11,7 @@
 // the browser instead of being percent-encoded the way
 // encodeURIComponent would do it.
 //
-// Card slugs are unique within an issue (enforced at the database
+// Card slugs are unique within an pot (enforced at the database
 // level), so the segment doubles as the lookup key: CardForm resolves
 // the actual PocketBase record id by matching on the decoded slug. The
 // backend never stores an empty slug -- an empty document's slug
@@ -36,7 +36,7 @@ export function segmentToCardSlug(segment: string): string {
 }
 
 // Matches the trailing numeric dedup suffix the backend appends to a
-// colliding slug (see resolveUniqueInIssue in internal/serve/slug.go),
+// colliding slug (see resolveUniqueInPot in internal/serve/slug.go),
 // e.g. "p_2" -> "p", "p_2_2" -> "p_2". Only one level is stripped per
 // call. Returns null when the slug has no such suffix.
 const SLUG_SUFFIX_RE = /^(.+)_\d+$/;

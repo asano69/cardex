@@ -24,7 +24,7 @@ type Server struct {
 	// Authorize, if non-nil, is the richer alternative to AuthFunc: it both
 	// accepts/rejects the connection (second return value; false → 401) and
 	// returns a ConnectionConfig describing the accepted connection — notably
-	// whether it is read-only (issue #59). When Authorize is set it takes
+	// whether it is read-only (pot #59). When Authorize is set it takes
 	// precedence over AuthFunc. A read-only peer receives document and awareness
 	// broadcasts but its inbound writes (SyncStep2/Update and awareness updates)
 	// are dropped; it can still request state (SyncStep1 is answered) and query
@@ -163,7 +163,7 @@ type Server struct {
 	// MessageRateLimit caps the sustained inbound-message rate (messages per
 	// second) for each peer. Zero (the default) means unlimited, preserving
 	// existing behaviour. When set, every peer gets its own token-bucket limiter;
-	// a peer that exceeds it is disconnected (issue #51). Disconnect — rather than
+	// a peer that exceeds it is disconnected (pot #51). Disconnect — rather than
 	// dropping the offending message — is deliberate: silently discarding a CRDT
 	// update would leave that peer permanently diverged.
 	MessageRateLimit rate.Limit
@@ -297,7 +297,7 @@ type Server struct {
 	// MaxPendingItems caps the per-document pending-items queue depth. The
 	// queue holds items whose dependencies have not yet arrived, waiting for
 	// out-of-order delivery to resolve. Zero or negative uses the crdt default
-	// (100,000). See crdt.WithMaxPendingItems and issue #46.
+	// (100,000). See crdt.WithMaxPendingItems and pot #46.
 	MaxPendingItems int
 
 	// HandshakeTimeout caps how long a peer may stay connected without sending
@@ -316,7 +316,7 @@ type Server struct {
 	// ~10 GiB of awareness state in one room. Incoming entries that would
 	// push the total past this cap are silently dropped (matching the
 	// existing oversized-state handling). Zero (the default) disables the
-	// cap. Suggested production value: 100 MiB. See issue #48 vector B.
+	// cap. Suggested production value: 100 MiB. See pot #48 vector B.
 	MaxAwarenessBytesPerRoom int64
 
 	// MaxAwarenessClientsPerRoom caps the number of DISTINCT awareness client
