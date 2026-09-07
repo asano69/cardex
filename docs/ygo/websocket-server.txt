@@ -35,7 +35,7 @@ type Server struct {
 	// connections (C2 — CORS). Each entry is a full origin string, e.g.
 	// "https://example.com". An entry may contain "*" wildcards, each matching
 	// any run of characters: "https://*.example.com" matches any subdomain and
-	// "https://pr-*---web-*.run.app" matches preview hosts. A bare "*" allows any
+	// "https://pr-*---web-*.run.app" matches description hosts. A bare "*" allows any
 	// origin. Matching is case-insensitive.
 	//
 	// If the slice is empty the server falls back to a same-origin check:

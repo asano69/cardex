@@ -10,7 +10,7 @@ const DEBOUNCE_MS = 2000;
 
 // Extracts the slug candidate text: the document's first block (always
 // a level-1 heading, see forceFirstHeadingPlugin) if it has any text,
-// otherwise the first paragraph's text. Mirrors the title/preview
+// otherwise the first paragraph's text. Mirrors the title/description
 // split in internal/serve/ydoc.go's buildTitleAndPreview, minus the
 // XML parsing since this reads the live ProseMirror doc directly.
 function extractCandidate(doc: PMNode): string {

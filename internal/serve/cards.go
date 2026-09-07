@@ -116,7 +116,7 @@ func createCardHandler(e *core.RequestEvent) error {
 
 // updateCardSlugHandler resolves a new slug for an existing card from
 // the client-supplied candidate. Only the slug changes here -- title
-// and preview stay derived from the card's live Yjs content (see
+// and description stay derived from the card's live Yjs content (see
 // ydoc.go's updateTitleAndPreview).
 func updateCardSlugHandler(e *core.RequestEvent) error {
 	id := e.Request.PathValue("id")

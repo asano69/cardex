@@ -39,15 +39,15 @@ func TestBuildTitleAndPreview_CollapsesAndTrimsWhitespace(t *testing.T) {
 func TestBuildTitleAndPreview_PreviewIncludesTitleFallbackParagraph(t *testing.T) {
 	// Regression test: when there's no heading, the first paragraph is
 	// used as the title fallback. Title derivation must not remove that
-	// paragraph from the preview -- title and preview are independent
+	// paragraph from the description -- title and description are independent
 	// views over the same paragraph list.
 	xml := `<doc><paragraph>first line</paragraph><paragraph>second line</paragraph></doc>`
-	title, preview := buildTitleAndPreview(xml)
+	title, description := buildTitleAndPreview(xml)
 	if title != "first line" {
 		t.Errorf("title = %q, want %q", title, "first line")
 	}
 	want := "first line\nsecond line"
-	if preview != want {
-		t.Errorf("preview = %q, want %q", preview, want)
+	if description != want {
+		t.Errorf("description = %q, want %q", description, want)
 	}
 }

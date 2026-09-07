@@ -34,7 +34,7 @@ export interface CardRecord {
   id: string;
   title: string;
   slug: string;
-  preview: string;
+  description: string;
   issue: string;
   position: number;
   pin: boolean;

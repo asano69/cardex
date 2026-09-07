@@ -20,7 +20,7 @@ export interface CardItemProps {
 
 // A single card in CardList's card grid, styled to match Cosense's
 // own page-list card (see .card-grid-item in styles/components.css).
-// Both the title and the preview text are precomputed server-side (see
+// Both the title and the description text are precomputed server-side (see
 // internal/serve/ydoc.go's buildTitleAndPreview) from the card's live
 // Yjs body, not parsed here.
 export default function CardItem(props: CardItemProps) {
@@ -65,7 +65,7 @@ export default function CardItem(props: CardItemProps) {
           <div class="header">
             <h3 class="title">{props.card.title}</h3>
           </div>
-          <div class="description">{props.card.preview}</div>
+          <div class="description">{props.card.description}</div>
         </div>
       </A>
     </li>

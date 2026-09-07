@@ -46,7 +46,7 @@ export interface NoteEditorProps {
 // ".ProseMirror > :first-child" in styles/components.css), everything
 // below it is the body. Neither is persisted to PocketBase directly --
 // both only live in the server's in-memory Yjs room (see
-// internal/serve/handler.go). The "title" and "preview" fields shown
+// internal/serve/handler.go). The "title" and "description" fields shown
 // elsewhere (e.g. CardItem's grid) are derived server-side from this
 // same room's content (see internal/serve/ydoc.go), not saved from
 // here.

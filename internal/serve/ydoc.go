@@ -204,13 +204,13 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		return err
 	}
 
-	// Keep the card's "title" and "preview" fields in sync with the
+	// Keep the card's "title" and "description" fields in sync with the
 	// room's live text, so IssueDetail's card grid (see CardItem.tsx)
 	// has something human-readable to show. There is no separate title
 	// input anymore -- the document's first block is the title (see
 	// components/noteEditor).
 	if err := p.updateTitleAndPreview(room); err != nil {
-		slog.Warn("update card title/preview", "room", room, "error", err)
+		slog.Warn("update card title/description", "room", room, "error", err)
 	}
 
 	return p.compactIfNeeded(room)
@@ -219,7 +219,7 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 // updateTitleAndPreview serializes the room's live "prosemirror"
 // XmlFragment (the same root name the frontend uses via
 // ydoc.getXmlFragment("prosemirror"), see components/noteEditor) to
-// XML, splits that XML into a title and a short plain-text preview
+// XML, splits that XML into a title and a short plain-text description
 // (see buildTitleAndPreview), and writes both into the matching
 // "cards" record. There is no separate title input anymore -- the
 // document's first block IS the title (see components/noteEditor).
@@ -242,7 +242,7 @@ func (p *ydocPersistence) updateTitleAndPreview(room string) error {
 		return nil // card may have been deleted concurrently -- skip
 	}
 
-	rawTitle, preview := buildTitleAndPreview(xml)
+	rawTitle, description := buildTitleAndPreview(xml)
 
 	// Titles are unique per issue (same as slugs), so a collision with
 	// another card's title is disambiguated with a numeric suffix
@@ -252,27 +252,27 @@ func (p *ydocPersistence) updateTitleAndPreview(room string) error {
 		return fmt.Errorf("resolve title: %w", err)
 	}
 
-	if record.GetString("title") == title && record.GetString("preview") == preview {
+	if record.GetString("title") == title && record.GetString("description") == description {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
-	// title and preview are set on the same record and saved together
+	// title and description are set on the same record and saved together
 	// in one call, so this produces a single row write (and a single
 	// realtime event) instead of two separate saves.
 	record.Set("title", title)
-	record.Set("preview", preview)
+	record.Set("description", description)
 	return p.app.Save(record)
 }
 
-// titleMaxRunes and previewMaxRunes cap how much text
+// titleMaxRunes and descriptionMaxRunes cap how much text
 // buildTitleAndPreview keeps, counted in runes (not bytes) so a card
 // written in Japanese isn't cut mid-character.
 const titleMaxRunes = 80
-const previewMaxRunes = 120
+const descriptionMaxRunes = 120
 
 // paragraphRe pulls out the inner text of every <paragraph> element in a
 // ToXML() string, wherever it's nested (directly, or inside a
 // <list><paragraph>...>). Non-paragraph blocks (code blocks, ...) are
-// skipped on purpose -- good enough for a short card-grid preview (see
+// skipped on purpose -- good enough for a short card-grid description (see
 // CardItem.tsx), not a full-fidelity render. The document's own title
 // heading is excluded here since it's a <heading>, not a <paragraph>
 // (see headingRe below).
@@ -285,7 +285,7 @@ var paragraphRe = regexp.MustCompile(`(?s)<paragraph[^>]*>(.*?)</paragraph>`)
 var headingRe = regexp.MustCompile(`(?s)<heading[^>]*>(.*?)</heading>`)
 
 // xmlUnescaper reverses ygo's own xmlEscapeText/xmlEscapeAttr (crdt
-// package), so the preview shows plain "&"/"<"/">" instead of entities.
+// package), so the description shows plain "&"/"<"/">" instead of entities.
 var xmlUnescaper = strings.NewReplacer(
 	"&lt;", "<",
 	"&gt;", ">",
@@ -323,20 +323,20 @@ func normalizeTitleCandidate(s string) string {
 }
 
 // buildTitleAndPreview turns a card's full ToXML() output into a title
-// and a preview. The document's first-level heading is normally the
+// and a description. The document's first-level heading is normally the
 // title (see forceFirstHeadingPlugin for why the first block is always
 // a heading). If no heading is found (e.g. an older card synced before
 // forceFirstHeadingPlugin existed), the first paragraph is used as the
 // title instead. Preview is always every paragraph joined by a newline
-// (cut to previewMaxRunes runes, so line breaks in the editor are
-// preserved in the preview), regardless of whether one of those
+// (cut to descriptionMaxRunes runes, so line breaks in the editor are
+// preserved in the description), regardless of whether one of those
 // paragraphs was also used as the title fallback -- title derivation
-// and preview generation are intentionally orthogonal, so a
-// header-less card still gets a non-empty preview. Both are unescaped
+// and description generation are intentionally orthogonal, so a
+// header-less card still gets a non-empty description. Both are unescaped
 // plain text with no ellipsis; a blank heading or blank paragraphs are
 // dropped before either is built. If nothing usable remains,
 // defaultTitle is used.
-func buildTitleAndPreview(xml string) (title, preview string) {
+func buildTitleAndPreview(xml string) (title, description string) {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
 		text := strings.TrimSpace(xmlUnescaper.Replace(m[1]))
@@ -351,7 +351,7 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	// Empty heading (e.g. a brand-new card whose title hasn't been
 	// typed yet) falls back to the first paragraph too, not just a
 	// missing heading tag. `paragraphs` is left untouched here -- see
-	// the doc comment above for why title and preview must not share
+	// the doc comment above for why title and description must not share
 	// this kind of coupling.
 	if title == "" && len(paragraphs) > 0 {
 		title = paragraphs[0]
@@ -368,8 +368,8 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	}
 	title = truncateRunes(title, titleMaxRunes)
 
-	preview = truncateRunes(strings.Join(paragraphs, "\n"), previewMaxRunes)
-	return title, preview
+	description = truncateRunes(strings.Join(paragraphs, "\n"), descriptionMaxRunes)
+	return title, description
 }
 
 // truncateRunes cuts s to at most max runes (not bytes), so a card

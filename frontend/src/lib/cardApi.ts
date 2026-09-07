@@ -17,7 +17,7 @@ export async function createCard(
 
 // Resolves and saves a new slug for an existing card (see
 // internal/serve/cards.go's updateCardSlugHandler). Only the slug
-// changes here -- title and preview stay derived from the card's live
+// changes here -- title and description stay derived from the card's live
 // Yjs content (see internal/serve/ydoc.go).
 export async function updateCardSlug(
   cardId: string,
