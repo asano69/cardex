@@ -145,10 +145,20 @@ func findMergeTarget(app core.App, issue, slug, rawHeader, excludeID string) (st
 		return "", err
 	}
 
-	if strings.TrimSpace(rawHeader) != strings.TrimSpace(otherHeader) {
+	if !headersMatch(rawHeader, otherHeader) {
 		return "", nil
 	}
 	return stripped, nil
+}
+
+// headersMatch reports whether two card headers should be treated as
+// the same title for merge-alert purposes: exact match once both are
+// trimmed of leading/trailing whitespace. strings.TrimSpace already
+// strips the full-width space (U+3000) commonly typed in Japanese
+// text, via Go's Unicode White_Space table, so no extra normalization
+// is needed here.
+func headersMatch(a, b string) bool {
+	return strings.TrimSpace(a) == strings.TrimSpace(b)
 }
 
 // firstLineContent returns the content of a card's first line (see
