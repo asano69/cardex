@@ -66,11 +66,14 @@ export function defineNoteExtension() {
     defineHardBreak(),
     defineTable(),
     defineCodeBlock(),
-    // Per-block UUIDv7 ids (see blockIdPlugin.ts). Add more calls here
-    // if other block types also need a stable id.
+    // Per-block UUIDv7 ids (see blockIdPlugin.ts). Only textblock node
+    // types get one -- blockquote is a container (it wraps another
+    // block, e.g. a paragraph, rather than holding text itself), so it
+    // has no line of its own in card_lines (see internal/serve/lines.go)
+    // and doesn't need an id. Add more calls here if other textblock
+    // types also need a stable id.
     defineBlockIdAttr("paragraph"),
     defineBlockIdAttr("heading"),
-    defineBlockIdAttr("blockquote"),
     defineBlockIdAttr("codeBlock"),
     // Marks
     defineItalic(),
