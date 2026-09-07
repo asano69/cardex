@@ -1838,7 +1838,7 @@ func init() {
 				"id": "pbc_510841086",
 				"indexes": [],
 				"listRule": null,
-				"name": "card_snapshots",
+				"name": "card_histories",
 				"system": false,
 				"type": "base",
 				"updateRule": null,
