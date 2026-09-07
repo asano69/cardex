@@ -39,6 +39,11 @@ export interface NoteEditorProps {
   // is created, so the caller (CardForm) can start tracking the real
   // record id (e.g. for its own URL sync).
   onCardCreated?: (cardId: string) => void;
+  // Called with the merge-alert target (see findMergeTarget in
+  // internal/serve/slug.go) after every slug-resolving API call
+  // (create or update), so the caller (CardForm) can display it. null
+  // clears any previously shown alert.
+  onMergeTarget?: (target: string | null) => void;
 }
 
 // A single Yjs-synced ProseKit editor covering both title and body:
@@ -115,7 +120,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     inFlight = true;
     const mySequence = ++sequence;
     try {
-      const record: CardRecord = cardId
+      const result = cardId
         ? await updateCardSlug(cardId, candidate)
         : await createCard(props.issueId?.() ?? "", candidate);
 
@@ -123,9 +128,10 @@ export default function NoteEditor(props: NoteEditorProps) {
 
       setSlugError(false);
       lastResolvedCandidate = candidate;
-      mergeCards([record]);
+      mergeCards([result.card]);
+      props.onMergeTarget?.(result.mergeTarget);
       if (!cardId) {
-        cardId = record.id;
+        cardId = result.card.id;
         connectProvider(cardId);
         props.onCardCreated?.(cardId);
       }

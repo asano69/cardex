@@ -1,6 +1,15 @@
 import pb from "./pb";
 import type { CardRecord } from "../routes/cards/CardForm";
 
+// Response shape shared by createCard/updateCardSlug: the saved card,
+// plus a merge-alert target computed server-side (see findMergeTarget
+// in internal/serve/slug.go) -- the slug of another card in the same
+// issue whose header this one's header appears to duplicate, or null.
+export interface CardMutationResult {
+  card: CardRecord;
+  mergeTarget: string | null;
+}
+
 // Creates a new "cards" record with a slug resolved server-side from
 // `slugCandidate` (see internal/serve/cards.go's createCardHandler).
 // Used by NoteEditor's draft mode, which needs a real record id before
@@ -8,8 +17,8 @@ import type { CardRecord } from "../routes/cards/CardForm";
 export async function createCard(
   issue: string,
   slugCandidate: string,
-): Promise<CardRecord> {
-  return await pb.send<CardRecord>("/api/admin/cards", {
+): Promise<CardMutationResult> {
+  return await pb.send<CardMutationResult>("/api/admin/cards", {
     method: "POST",
     body: { issue, slugCandidate },
   });
@@ -22,8 +31,8 @@ export async function createCard(
 export async function updateCardSlug(
   cardId: string,
   slugCandidate: string,
-): Promise<CardRecord> {
-  return await pb.send<CardRecord>(`/api/admin/cards/${cardId}/slug`, {
+): Promise<CardMutationResult> {
+  return await pb.send<CardMutationResult>(`/api/admin/cards/${cardId}/slug`, {
     method: "POST",
     body: { slugCandidate },
   });

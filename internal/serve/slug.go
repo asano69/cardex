@@ -97,3 +97,74 @@ func resolveCardTitle(app core.App, issue, rawTitle, excludeID string) (string, 
 	}
 	return resolveUniqueInIssue(app, issue, "title", rawTitle, excludeID)
 }
+
+// mergeSuffixRe matches the trailing numeric dedup suffix a slug gets
+// from resolveUniqueInIssue (e.g. "p_2" -> "p"). Mirrors
+// frontend/src/lib/cardSlug.ts's stripSlugSuffix; only one level is
+// stripped per call.
+var mergeSuffixRe = regexp.MustCompile(`^(.+)_\d+$`)
+
+// stripSlugSuffix strips one level of the trailing numeric dedup
+// suffix from slug (see mergeSuffixRe), or returns "" if slug has no
+// such suffix.
+func stripSlugSuffix(slug string) string {
+	m := mergeSuffixRe.FindStringSubmatch(slug)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+// findMergeTarget returns the slug this card would collide with if its
+// own numeric dedup suffix were stripped (e.g. "p_2" -> "p"), but only
+// when that collision looks like a genuine duplicate rather than two
+// deliberately different headers that happen to share a stripped slug:
+// the other card's own header (its card_lines position-0 line) must
+// match rawHeader once both are trimmed. Returns "" when no merge
+// alert should be shown.
+func findMergeTarget(app core.App, issue, slug, rawHeader, excludeID string) (string, error) {
+	stripped := stripSlugSuffix(slug)
+	if stripped == "" {
+		return "", nil
+	}
+
+	other, err := app.FindFirstRecordByFilter(
+		"cards",
+		"issue = {:issue} && slug = {:slug} && id != {:id}",
+		dbx.Params{"issue": issue, "slug": stripped, "id": excludeID},
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	otherHeader, err := firstLineContent(app, other.Id)
+	if err != nil {
+		return "", err
+	}
+
+	if strings.TrimSpace(rawHeader) != strings.TrimSpace(otherHeader) {
+		return "", nil
+	}
+	return stripped, nil
+}
+
+// firstLineContent returns the content of a card's first line (see
+// lines.go's textblockTags), which is always its header -- or "" if
+// the card has no lines yet.
+func firstLineContent(app core.App, cardID string) (string, error) {
+	record, err := app.FindFirstRecordByFilter(
+		"card_lines",
+		"card = {:card} && position = 0",
+		dbx.Params{"card": cardID},
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return record.GetString("content"), nil
+}

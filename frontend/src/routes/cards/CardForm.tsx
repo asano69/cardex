@@ -14,11 +14,7 @@ import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
-import {
-  cardSlugToSegment,
-  segmentToCardSlug,
-  stripSlugSuffix,
-} from "../../lib/cardSlug";
+import { cardSlugToSegment, segmentToCardSlug } from "../../lib/cardSlug";
 import { fetchIssueBySlug } from "../../lib/issues";
 import { useTitle } from "../../lib/useTitle";
 
@@ -102,32 +98,14 @@ export default function CardForm() {
     history.replaceState(null, "", `/${params.slug}/${segment}`);
   });
 
-  // Merge-alert target: the slug this card's own slug would collide
-  // with if its numeric dedup suffix were stripped one level (e.g.
-  // "p_2" -> "p", see resolveUniqueInIssue in internal/serve/slug.go).
-  // Null when the slug has no such suffix, or no card with the
-  // stripped slug exists in this issue. Merging itself isn't
-  // implemented yet -- this only surfaces the alert.
+  // Merge-alert target: the slug this card's header text duplicates,
+  // determined server-side on each slug-resolving API call (see
+  // findMergeTarget in internal/serve/slug.go and NoteEditor's
+  // onMergeTarget below). Only ever updated right after such a call,
+  // so opening an existing card without editing its header shows no
+  // alert until the next edit. Merging itself isn't implemented yet --
+  // this only surfaces the alert.
   const [mergeTarget, setMergeTarget] = createSignal<string | null>(null);
-  createEffect(() => {
-    const id = recordId();
-    const slug = id ? cardsById[id]?.slug : undefined;
-    const issueId = issue()?.id;
-    const stripped = slug ? stripSlugSuffix(slug) : null;
-    if (!stripped || !issueId) {
-      setMergeTarget(null);
-      return;
-    }
-    pb.collection("cards")
-      .getFirstListItem(
-        pb.filter("issue = {:issue} && slug = {:slug}", {
-          issue: issueId,
-          slug: stripped,
-        }),
-      )
-      .then(() => setMergeTarget(stripped))
-      .catch(() => setMergeTarget(null));
-  });
 
   // Cascade deletion of the card's card_blocks/ydoc_updates records and
   // its in-memory Yjs room is already handled server-side (see
@@ -229,6 +207,7 @@ export default function CardForm() {
             cardId={() => recordId() || undefined}
             issueId={() => issue()?.id}
             onCardCreated={setRecordId}
+            onMergeTarget={setMergeTarget}
           />
         </div>
       </Show>

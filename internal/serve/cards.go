@@ -109,7 +109,7 @@ func createCardHandler(e *core.RequestEvent) error {
 			}
 			return e.InternalServerError("save card", err)
 		}
-		return e.JSON(http.StatusOK, record)
+		return jsonWithMergeTarget(e, e.App, req.Issue, slug, req.SlugCandidate, "", record)
 	}
 	return e.InternalServerError("failed to create card after retries", nil)
 }
@@ -150,7 +150,26 @@ func updateCardSlugHandler(e *core.RequestEvent) error {
 			}
 			return e.InternalServerError("save card", err)
 		}
-		return e.JSON(http.StatusOK, record)
+		return jsonWithMergeTarget(e, e.App, issue, slug, req.SlugCandidate, id, record)
 	}
 	return e.InternalServerError("failed to update slug after retries", nil)
+}
+
+// jsonWithMergeTarget writes record as JSON alongside a "mergeTarget"
+// field: the slug of another card in the same issue whose header text
+// this save's header appears to duplicate (see findMergeTarget in
+// slug.go), or null when there's no such duplicate.
+func jsonWithMergeTarget(e *core.RequestEvent, app core.App, issue, slug, rawHeader, excludeID string, record *core.Record) error {
+	mergeTarget, err := findMergeTarget(app, issue, slug, rawHeader, excludeID)
+	if err != nil {
+		return e.InternalServerError("find merge target", err)
+	}
+	var target any
+	if mergeTarget != "" {
+		target = mergeTarget
+	}
+	return e.JSON(http.StatusOK, map[string]any{
+		"card":        record,
+		"mergeTarget": target,
+	})
 }
