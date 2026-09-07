@@ -15,7 +15,6 @@ import { keymap } from "prosemirror-keymap";
 import { chainCommands } from "prosemirror-commands";
 import { createWrapInListCommand, listKeymap } from "prosemirror-flat-list";
 import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
-import { headingPlaceholderPlugin } from "./headingPlaceholderPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
@@ -84,6 +83,17 @@ export default function NoteEditor(props: NoteEditorProps) {
   if (cardId) {
     connectProvider(cardId);
   }
+
+  // True only when this editor opens an existing card right from the
+  // start (cardId already set above), not when a brand-new draft's
+  // backing record is created moments later via sendCandidate. An
+  // existing card whose title was never set still has an empty
+  // heading in its Yjs document -- cards.go's "Untitled" fallback only
+  // sets the "cards" record's title field, not the document itself.
+  // This flag is what lets mountEditor below fill that heading with
+  // real "Untitled" text once the card is opened, without ever doing
+  // so while a card is still being actively drafted.
+  const isOpeningExistingCard = !!cardId;
 
   const [slugError, setSlugError] = createSignal(false);
 
@@ -190,7 +200,6 @@ export default function NoteEditor(props: NoteEditorProps) {
           listTabKeymap,
           forceFirstHeadingPlugin(),
           blockIdPlugin(),
-          headingPlaceholderPlugin(),
           linkClickPlugin(),
           pasteUrlDecodePlugin(),
           slugCandidatePlugin(handleSlugCandidate),
@@ -208,7 +217,26 @@ export default function NoteEditor(props: NoteEditorProps) {
       setTimeout(() => editor.view.focus(), 0);
     }
 
+    // For an existing card opened with an empty title, replace the
+    // empty heading with real "Untitled" text once the initial Yjs
+    // sync completes -- see isOpeningExistingCard above for why this
+    // never runs for a card still being drafted. Only fires once: the
+    // listener removes itself the first time it sees a completed sync.
+    let fillUntitledIfEmpty: ((isSynced: boolean) => void) | undefined;
+    if (isOpeningExistingCard && provider) {
+      fillUntitledIfEmpty = (isSynced) => {
+        if (!isSynced) return;
+        provider?.off("sync", fillUntitledIfEmpty!);
+        const heading = editor.view.state.doc.firstChild;
+        if (heading && heading.textContent.trim() === "") {
+          editor.view.dispatch(editor.view.state.tr.insertText("Untitled", 1));
+        }
+      };
+      provider.on("sync", fillUntitledIfEmpty);
+    }
+
     onCleanup(() => {
+      if (fillUntitledIfEmpty) provider?.off("sync", fillUntitledIfEmpty);
       provider?.destroy();
       ydoc.destroy();
       if (typeof unmount === "function") unmount();
