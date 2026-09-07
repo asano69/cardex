@@ -1441,6 +1441,20 @@ func init() {
 					},
 					{
 						"cascadeDelete": false,
+						"collectionId": "_pb_users_auth_",
+						"help": "",
+						"hidden": false,
+						"id": "relation2375276105",
+						"maxSelect": 0,
+						"minSelect": 0,
+						"name": "user",
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "relation"
+					},
+					{
+						"cascadeDelete": true,
 						"collectionId": "pbc_2527524235",
 						"help": "",
 						"hidden": false,
@@ -1486,7 +1500,7 @@ func init() {
 						"help": "",
 						"hidden": false,
 						"id": "text2299167369",
-						"max": 9007199254740991,
+						"max": 0,
 						"min": 0,
 						"name": "content_hash",
 						"pattern": "",
@@ -1519,10 +1533,10 @@ func init() {
 				],
 				"id": "pbc_1277420920",
 				"indexes": [
-					"CREATE UNIQUE INDEX ` + "`" + `idx_10o0cgo38x` + "`" + ` ON ` + "`" + `card_blocks` + "`" + ` (` + "`" + `uuid` + "`" + `)"
+					"CREATE UNIQUE INDEX ` + "`" + `idx_10o0cgo38x` + "`" + ` ON ` + "`" + `card_lines` + "`" + ` (` + "`" + `uuid` + "`" + `)"
 				],
 				"listRule": null,
-				"name": "card_blocks",
+				"name": "card_lines",
 				"system": false,
 				"type": "base",
 				"updateRule": null,
@@ -1616,7 +1630,7 @@ func init() {
 						"help": "",
 						"hidden": false,
 						"id": "text410646757",
-						"max": 0,
+						"max": 9007199254740991,
 						"min": 0,
 						"name": "html",
 						"pattern": "",
