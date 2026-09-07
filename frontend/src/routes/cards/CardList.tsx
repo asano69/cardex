@@ -1,4 +1,4 @@
-import { createResource, createMemo, For, Show } from "solid-js";
+import { createResource, createMemo, createSignal, For, Show, onCleanup } from "solid-js";
 import { useParams, A } from "@solidjs/router";
 import { ChevronsLeft as ChevronLeft, Plus } from "../../lib/icons";
 import { DragDropProvider } from "@dnd-kit/solid";
@@ -14,18 +14,11 @@ import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 import type { CardRecord } from "./CardForm";
 
-// Fetches every card belonging to this pot and seeds them into the
-// shared cards store (see lib/cardsStore.ts). The `cards` memo below
-// then renders from that store instead of from this one-shot result,
-// so it stays live as other users' edits/creates/deletes arrive over
-// the realtime subscription started in AppShell.
-async function fetchCards(potId: string): Promise<void> {
-  const records = await pb.collection("cards").getFullList<CardRecord>({
-    filter: pb.filter("pot = {:pot}", { pot: potId }),
-    sort: "-created",
-  });
-  mergeCards(records);
-}
+// How many cards to fetch per page. Cards render as soon as their
+// page arrives (see loadPage below) instead of waiting for the whole
+// pot to load, so this mainly bounds the worst-case first request for
+// a pot with a huge number of cards.
+const PAGE_SIZE = 100;
 
 // Detail page for a single pot, reached via the folder-open button on
 // PotItem: the pot's title, an add-card button, and every card
@@ -52,10 +45,86 @@ export default function CardList() {
   // Browser tab title: the pot's own name (see useTitle.ts). CardForm
   // one level down uses "<card> - <pot>" for the same `pot` shape.
   useTitle(() => pot()?.title);
+
+  // Whether the first page of cards has arrived. This -- not "every
+  // page has arrived" -- is what gates the Loading spinner below, so
+  // cards appear as soon as page 1 is in rather than waiting for the
+  // whole pot to load.
+  const [firstPageLoaded, setFirstPageLoaded] = createSignal(false);
+  // Whether a further page is currently being fetched, and whether
+  // there's another page left to fetch at all. Both drive the
+  // sentinel row at the bottom of the grid (see the Show below).
+  const [loadingMore, setLoadingMore] = createSignal(false);
+  const [hasMore, setHasMore] = createSignal(true);
+
+  // Plain (non-reactive) pagination bookkeeping: only loadPage/loadMore
+  // read or write these, so they don't need to be signals.
+  let nextPage = 1;
+  let currentPotId: string | undefined;
+
+  // Fetches one page of cards for `potId` and merges it straight into
+  // the shared store (see lib/cardsStore.ts), so each page renders the
+  // moment it arrives instead of waiting for the whole pot to load.
+  // skipFlip is set here since this is an initial/paginated load, not
+  // a reorder -- there's nothing to FLIP-animate from.
+  const loadPage = async (potId: string) => {
+    const page = nextPage;
+    const result = await pb.collection("cards").getList<CardRecord>(
+      page,
+      PAGE_SIZE,
+      {
+        filter: pb.filter("pot = {:pot}", { pot: potId }),
+        sort: "-created",
+      },
+    );
+    mergeCards(result.items, { skipFlip: true });
+    nextPage = page + 1;
+    setHasMore(page < result.totalPages);
+  };
+
   // Cards relate to the pot by its PocketBase id (see the "cards"
   // collection's "pot" relation field), not its slug, so this waits
-  // for `pot` to resolve before fetching.
-  const [cardsLoaded] = createResource(() => pot()?.id, fetchCards);
+  // for `pot` to resolve before fetching. Only the first page is
+  // fetched eagerly; later pages are fetched on demand as the sentinel
+  // row below scrolls into view (see loadMore).
+  createResource(
+    () => pot()?.id,
+    async (potId) => {
+      currentPotId = potId;
+      nextPage = 1;
+      setFirstPageLoaded(false);
+      setHasMore(true);
+      await loadPage(potId);
+      setFirstPageLoaded(true);
+    },
+  );
+
+  // Fetches the next page, guarded against overlapping calls (e.g. the
+  // sentinel staying in view while a page is already loading) and
+  // against firing once every page has already been fetched.
+  const loadMore = async () => {
+    if (loadingMore() || !hasMore() || !currentPotId) return;
+    setLoadingMore(true);
+    try {
+      await loadPage(currentPotId);
+    } catch (err) {
+      console.error("[pots] failed to load more cards:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Sentinel element at the bottom of the grid: once it scrolls into
+  // view, the next page is fetched. A single shared observer instance
+  // is reused across re-renders instead of being recreated each time,
+  // so an intersection is never missed while a page is loading.
+  const sentinelObserver = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) loadMore();
+  });
+  const setSentinelRef = (el: HTMLDivElement) => {
+    sentinelObserver.observe(el);
+  };
+  onCleanup(() => sentinelObserver.disconnect());
 
   // Sorted descending by the fractional-indexing "position" column
   // (see lib/position.ts), with id as a tie-breaker for equal
@@ -170,7 +239,7 @@ export default function CardList() {
 
       <h1 class="font-sans text-xl">{pot()?.title}</h1>
 
-      <Show when={!cardsLoaded.loading} fallback={<Loading />}>
+      <Show when={firstPageLoaded()} fallback={<Loading />}>
         <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
           <ul class="card-grid">
             <For each={cards()}>
@@ -180,6 +249,16 @@ export default function CardList() {
             </For>
           </ul>
         </DragDropProvider>
+        {/* Sentinel row: fetching the next page is triggered by this
+            element scrolling into view (see setSentinelRef above), not
+            by an explicit "load more" button. */}
+        <Show when={hasMore()}>
+          <div ref={setSentinelRef}>
+            <Show when={loadingMore()}>
+              <Loading />
+            </Show>
+          </div>
+        </Show>
       </Show>
     </div>
   );
