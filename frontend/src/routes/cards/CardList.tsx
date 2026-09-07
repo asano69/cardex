@@ -10,17 +10,9 @@ import Loading from "../../components/Loading";
 import CardItem from "./CardItem";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { computePosition } from "../../lib/position";
-import type { IssueRecord } from "./IssueForm";
+import { fetchIssueBySlug } from "../../lib/issues";
+import { useTitle } from "../../lib/useTitle";
 import type { CardRecord } from "./CardForm";
-
-// Issues are now addressed by their unique "slug" field in the URL
-// instead of their PocketBase id, so this looks the record up via a
-// filter rather than a direct getOne by id.
-async function fetchIssue(slug: string): Promise<IssueRecord> {
-  return await pb
-    .collection("issues")
-    .getFirstListItem<IssueRecord>(pb.filter("slug = {:slug}", { slug }));
-}
 
 // Fetches every card belonging to this issue and seeds them into the
 // shared cards store (see lib/cardsStore.ts). The `cards` memo below
@@ -56,7 +48,10 @@ const sensors = [
 
 export default function CardList() {
   const params = useParams();
-  const [issue] = createResource(() => params.slug, fetchIssue);
+  const [issue] = createResource(() => params.slug, fetchIssueBySlug);
+  // Browser tab title: the pot's own name (see useTitle.ts). CardForm
+  // one level down uses "<card> - <pot>" for the same `issue` shape.
+  useTitle(() => issue()?.title);
   // Cards relate to the issue by its PocketBase id (see the "cards"
   // collection's "issue" relation field), not its slug, so this waits
   // for `issue` to resolve before fetching.

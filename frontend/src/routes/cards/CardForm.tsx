@@ -1,4 +1,4 @@
-import { onMount, createSignal, createEffect, Show } from "solid-js";
+import { onMount, createSignal, createResource, createEffect, Show } from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 
 import pb from "../../lib/pb";
@@ -9,7 +9,8 @@ import { POSITION_STEP } from "../../lib/position";
 import { randomKey } from "../../lib/randomKey";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { cardTitleToSegment, segmentToCardTitle } from "../../lib/cardSlug";
-import type { IssueRecord } from "../issues/IssueForm";
+import { fetchIssueBySlug } from "../../lib/issues";
+import { useTitle } from "../../lib/useTitle";
 
 // Matches the PocketBase "cards" collection schema. "title" and
 // "preview" are both derived server-side from the card's live Yjs body
@@ -47,11 +48,13 @@ export default function CardForm() {
   const params = useParams();
   const navigate = useNavigate();
 
+  // The parent issue/pot, used both for the browser tab title (see
+  // useTitle below) and, in draft mode, as createDraftRecord's "issue"
+  // relation.
+  const [issue] = createResource(() => params.slug, fetchIssueBySlug);
+
   const [recordId, setRecordId] = createSignal("");
   const [notFound, setNotFound] = createSignal(false);
-  // Parent issue's PocketBase id, resolved on mount for draft mode
-  // (see onMount below) -- only used by createDraftRecord.
-  const [issueId, setIssueId] = createSignal("");
   // Set if createDraftRecord exhausts its retries. Surfaced as a
   // small inline message for now; a real sync-status indicator is
   // future work.
@@ -64,40 +67,29 @@ export default function CardForm() {
   let draftPlaceholderTitle: string | null = null;
 
   onMount(async () => {
-    if (params.cardTitle) {
-      // Editing an existing card: its PocketBase id isn't in the URL
-      // anymore, so it's resolved by matching the decoded title within
-      // the issue identified by :slug. Titles are unique within an
-      // issue (enforced at the database level), so this lookup returns
-      // at most one record. Filtering on the related issue's "slug"
-      // directly (dot notation) avoids a separate lookup just to get
-      // the issue's id.
-      try {
-        const record = await pb
-          .collection("cards")
-          .getFirstListItem<CardRecord>(
-            pb.filter("issue.slug = {:slug} && title = {:title}", {
-              slug: params.slug,
-              title: segmentToCardTitle(params.cardTitle),
-            }),
-          );
-        mergeCards([record]);
-        setRecordId(record.id);
-      } catch {
-        setNotFound(true);
-      }
-      return;
-    }
+    if (!params.cardTitle) return; // draft mode -- nothing to resolve eagerly
 
-    // Draft mode (/:slug/new): only resolve the parent issue's id here,
-    // since a relation field can't be set to a slug. The "cards"
-    // record itself is created lazily by createDraftRecord below.
-    const issue = await pb
-      .collection("issues")
-      .getFirstListItem<IssueRecord>(
-        pb.filter("slug = {:slug}", { slug: params.slug }),
-      );
-    setIssueId(issue.id);
+    // Editing an existing card: its PocketBase id isn't in the URL
+    // anymore, so it's resolved by matching the decoded title within
+    // the issue identified by :slug. Titles are unique within an
+    // issue (enforced at the database level), so this lookup returns
+    // at most one record. Filtering on the related issue's "slug"
+    // directly (dot notation) avoids a separate lookup just to get
+    // the issue's id.
+    try {
+      const record = await pb
+        .collection("cards")
+        .getFirstListItem<CardRecord>(
+          pb.filter("issue.slug = {:slug} && title = {:title}", {
+            slug: params.slug,
+            title: segmentToCardTitle(params.cardTitle),
+          }),
+        );
+      mergeCards([record]);
+      setRecordId(record.id);
+    } catch {
+      setNotFound(true);
+    }
   });
 
   // Creates the backing "cards" record for a draft, called by
@@ -112,7 +104,7 @@ export default function CardForm() {
   // effect below ignores it via draftPlaceholderTitle so the address
   // bar never flashes a random string.
   const createDraftRecord = async (): Promise<string> => {
-    const issue = issueId();
+    const issueRecordId = issue()?.id ?? "";
     let lastErr: unknown;
     for (let attempt = 0; attempt < CREATE_MAX_ATTEMPTS; attempt++) {
       try {
@@ -125,14 +117,14 @@ export default function CardForm() {
         const existing = await pb
           .collection("cards")
           .getList<CardRecord>(1, 1, {
-            filter: pb.filter("issue = {:issue}", { issue }),
+            filter: pb.filter("issue = {:issue}", { issue: issueRecordId }),
             sort: "-position",
           });
         const position = (existing.items[0]?.position ?? 0) + POSITION_STEP;
         const placeholderTitle = randomKey();
         const record = await pb.collection("cards").create<CardRecord>({
           title: placeholderTitle,
-          issue,
+          issue: issueRecordId,
           position,
         });
         draftPlaceholderTitle = placeholderTitle;
@@ -205,6 +197,16 @@ export default function CardForm() {
       // Best-effort: if this fails the pin state simply doesn't change.
     }
   };
+
+  // Browser tab title: "<card title> - <pot name>". Falls back to just
+  // the pot's name while a draft has no card title yet (see
+  // useTitle.ts for the actual document.title wiring).
+  useTitle(() => {
+    const pot = issue()?.title;
+    if (!pot) return undefined;
+    const cardTitle = cardsById[recordId()]?.title;
+    return cardTitle ? `${cardTitle} - ${pot}` : pot;
+  });
 
   return (
     <Show
