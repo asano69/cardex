@@ -204,39 +204,45 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		return err
 	}
 
-	// Keep the card's "title" and "description" fields in sync with the
-	// room's live text, so IssueDetail's card grid (see CardItem.tsx)
-	// has something human-readable to show. There is no separate title
-	// input anymore -- the document's first block is the title (see
-	// components/noteEditor).
-	if err := p.updateTitleAndPreview(room); err != nil {
-		slog.Warn("update card title/description", "room", room, "error", err)
+	// The card's "title"/"description" fields and its per-line
+	// card_lines records are both derived from the same live XML
+	// snapshot, so it's rendered once here and shared between the two
+	// instead of each re-serializing the document. ToXML is called
+	// directly, not from inside a doc.Transact callback: its leaf text
+	// nodes take the document's read lock internally, which would
+	// deadlock under Transact's write lock. Calling it here, right
+	// after our own StoreUpdate has returned, matches how
+	// compactIfNeeded already calls doc.EncodeStateAsUpdate() directly
+	// on the same live doc.
+	if doc := yjsServer.GetDoc(room); doc != nil {
+		xml := doc.GetXmlFragment("prosemirror").ToXML()
+		slog.Debug("card xml", "room", room, "xml", xml)
+
+		// Keep the card's "title" and "description" fields in sync with
+		// the room's live text, so IssueDetail's card grid (see
+		// CardItem.tsx) has something human-readable to show.
+		if err := p.updateTitleAndPreview(room, xml); err != nil {
+			slog.Warn("update card title/description", "room", room, "error", err)
+		}
+
+		// Mirrors every line (textblock) of the document into
+		// card_lines, so each line's own "updated" timestamp tracks
+		// when that specific line last changed (see lines.go).
+		if err := p.updateLines(room, xml); err != nil {
+			slog.Warn("update card lines", "room", room, "error", err)
+		}
 	}
 
 	return p.compactIfNeeded(room)
 }
 
-// updateTitleAndPreview serializes the room's live "prosemirror"
-// XmlFragment (the same root name the frontend uses via
-// ydoc.getXmlFragment("prosemirror"), see components/noteEditor) to
-// XML, splits that XML into a title and a short plain-text description
-// (see buildTitleAndPreview), and writes both into the matching
-// "cards" record. There is no separate title input anymore -- the
-// document's first block IS the title (see components/noteEditor).
-//
-// ToXML is called directly, not from inside a doc.Transact callback: its
-// leaf text nodes take the document's read lock internally, which would
-// deadlock under Transact's write lock. Calling it here, right after our
-// own StoreUpdate has returned, matches how compactIfNeeded already calls
-// doc.EncodeStateAsUpdate() directly on the same live doc.
-func (p *ydocPersistence) updateTitleAndPreview(room string) error {
-	doc := yjsServer.GetDoc(room)
-	if doc == nil {
-		return nil // room isn't loaded -- nothing to derive yet
-	}
-	xml := doc.GetXmlFragment("prosemirror").ToXML()
-	slog.Debug("card xml", "room", room, "xml", xml)
-
+// updateTitleAndPreview splits xml -- the room's live "prosemirror"
+// XmlFragment, already serialized once by the caller (see store) --
+// into a title and a short plain-text description (see
+// buildTitleAndPreview), and writes both into the matching "cards"
+// record. There is no separate title input anymore -- the document's
+// first block IS the title (see components/noteEditor).
+func (p *ydocPersistence) updateTitleAndPreview(room, xml string) error {
 	record, err := p.app.FindRecordById("cards", room)
 	if err != nil {
 		return nil // card may have been deleted concurrently -- skip
