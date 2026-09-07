@@ -34,3 +34,14 @@ export function cardSlugToSegment(slug: string): string {
 export function segmentToCardSlug(segment: string): string {
   return decodeURIComponent(segment);
 }
+
+// Matches the trailing numeric dedup suffix the backend appends to a
+// colliding slug (see resolveUniqueInIssue in internal/serve/slug.go),
+// e.g. "p_2" -> "p", "p_2_2" -> "p_2". Only one level is stripped per
+// call. Returns null when the slug has no such suffix.
+const SLUG_SUFFIX_RE = /^(.+)_\d+$/;
+
+export function stripSlugSuffix(slug: string): string | null {
+  const match = slug.match(SLUG_SUFFIX_RE);
+  return match ? match[1] : null;
+}

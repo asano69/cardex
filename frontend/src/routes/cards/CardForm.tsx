@@ -7,12 +7,18 @@ import {
 } from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 
+import { Alert } from "@kobalte/core/alert";
+
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
-import { cardSlugToSegment, segmentToCardSlug } from "../../lib/cardSlug";
+import {
+  cardSlugToSegment,
+  segmentToCardSlug,
+  stripSlugSuffix,
+} from "../../lib/cardSlug";
 import { fetchIssueBySlug } from "../../lib/issues";
 import { useTitle } from "../../lib/useTitle";
 
@@ -96,6 +102,33 @@ export default function CardForm() {
     history.replaceState(null, "", `/${params.slug}/${segment}`);
   });
 
+  // Merge-alert target: the slug this card's own slug would collide
+  // with if its numeric dedup suffix were stripped one level (e.g.
+  // "p_2" -> "p", see resolveUniqueInIssue in internal/serve/slug.go).
+  // Null when the slug has no such suffix, or no card with the
+  // stripped slug exists in this issue. Merging itself isn't
+  // implemented yet -- this only surfaces the alert.
+  const [mergeTarget, setMergeTarget] = createSignal<string | null>(null);
+  createEffect(() => {
+    const id = recordId();
+    const slug = id ? cardsById[id]?.slug : undefined;
+    const issueId = issue()?.id;
+    const stripped = slug ? stripSlugSuffix(slug) : null;
+    if (!stripped || !issueId) {
+      setMergeTarget(null);
+      return;
+    }
+    pb.collection("cards")
+      .getFirstListItem(
+        pb.filter("issue = {:issue} && slug = {:slug}", {
+          issue: issueId,
+          slug: stripped,
+        }),
+      )
+      .then(() => setMergeTarget(stripped))
+      .catch(() => setMergeTarget(null));
+  });
+
   // Cascade deletion of the card's card_blocks/ydoc_updates records and
   // its in-memory Yjs room is already handled server-side (see
   // migrations/1788596608_collections_snapshot.go's cascadeDelete and
@@ -159,6 +192,11 @@ export default function CardForm() {
             editor. NoteEditor itself stays layout-agnostic so it can be
             reused without this app's card-specific chrome. */}
         <div class="flex flex-col">
+          <Show when={mergeTarget()}>
+            <Alert class="mb-2 rounded-md border border-[#dc3545] bg-card px-3 py-2 text-sm text-[#dc3545]">
+              "{mergeTarget()}" already exists.
+            </Alert>
+          </Show>
           {/* min-h-9 keeps this row's height consistent whether or not
             the pin/delete buttons are rendered, so a draft card (no
             recordId yet) doesn't lose the gap below TopBar that an
