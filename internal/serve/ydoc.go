@@ -303,14 +303,17 @@ const defaultTitle = "Untitled"
 // buildTitleAndPreview turns a card's full ToXML() output into a title
 // and a preview. The document's first-level heading is normally the
 // title (see forceFirstHeadingPlugin for why the first block is always
-// a heading), with every paragraph becoming the preview (joined by a
-// newline and cut to previewMaxRunes runes, so line breaks in the
-// editor are preserved in the preview). If no heading is found (e.g. an
-// older card synced before forceFirstHeadingPlugin existed), the first
-// paragraph is used as the title instead, and only the remaining
-// paragraphs go into the preview. Both are unescaped plain text with no
-// ellipsis; a blank heading or blank paragraphs are dropped before
-// either is built. If nothing usable remains, defaultTitle is used.
+// a heading). If no heading is found (e.g. an older card synced before
+// forceFirstHeadingPlugin existed), the first paragraph is used as the
+// title instead. Preview is always every paragraph joined by a newline
+// (cut to previewMaxRunes runes, so line breaks in the editor are
+// preserved in the preview), regardless of whether one of those
+// paragraphs was also used as the title fallback -- title derivation
+// and preview generation are intentionally orthogonal, so a
+// header-less card still gets a non-empty preview. Both are unescaped
+// plain text with no ellipsis; a blank heading or blank paragraphs are
+// dropped before either is built. If nothing usable remains,
+// defaultTitle is used.
 func buildTitleAndPreview(xml string) (title, preview string) {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
@@ -325,10 +328,11 @@ func buildTitleAndPreview(xml string) (title, preview string) {
 	}
 	// Empty heading (e.g. a brand-new card whose title hasn't been
 	// typed yet) falls back to the first paragraph too, not just a
-	// missing heading tag.
+	// missing heading tag. `paragraphs` is left untouched here -- see
+	// the doc comment above for why title and preview must not share
+	// this kind of coupling.
 	if title == "" && len(paragraphs) > 0 {
 		title = paragraphs[0]
-		paragraphs = paragraphs[1:]
 	}
 	if title == "" {
 		title = defaultTitle
