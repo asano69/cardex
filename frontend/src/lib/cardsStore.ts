@@ -9,7 +9,7 @@ import { withCardsFlip, registerCardElement } from "./cardFlip";
 export { registerCardElement };
 
 // Global cache of every "cards" record seen so far, keyed by id. Pages
-// that fetch cards (e.g. IssueDetail) call mergeCards() to seed their
+// that fetch cards (e.g. CardList) call mergeCards() to seed their
 // results in here; startCardsSubscription() -- called once from
 // AppShell -- then keeps the cache live via PocketBase's realtime API.
 // Any page deriving its view from cardsById therefore reflects other
@@ -30,7 +30,7 @@ export { cardsById };
 // dragged card into place during the gesture itself, so replaying our
 // own FLIP animation on top of that (when the local dragger's own
 // optimistic update lands) makes the card jump/stutter instead of
-// looking smooth -- see IssueDetail's handleDragEnd, the only caller
+// looking smooth -- see CardList's handleDragEnd, the only caller
 // that passes this.
 export function mergeCards(
   records: CardRecord[],

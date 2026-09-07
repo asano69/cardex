@@ -54,7 +54,7 @@ const sensors = [
   KeyboardSensor,
 ];
 
-export default function IssueDetail() {
+export default function CardList() {
   const params = useParams();
   const [issue] = createResource(() => params.slug, fetchIssue);
   // Cards relate to the issue by its PocketBase id (see the "cards"

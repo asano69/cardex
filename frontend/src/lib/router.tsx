@@ -4,7 +4,7 @@ import { Router, Route } from "@solidjs/router";
 import AppShell from "../components/layout/AppShell";
 
 import Issues from "../routes/issues";
-import IssueDetail from "../routes/issues/IssueDetail";
+import CardList from "../routes/issues/CardList";
 import CardForm from "../routes/issues/CardForm";
 
 // All top-level routes in one place, so adding or removing a page never
@@ -17,9 +17,9 @@ export default function AppRouter() {
   return (
     <Router root={AppShell}>
       <Route path="/" component={Issues} />
-      <Route path="/:slug" component={IssueDetail} />
+      <Route path="/:slug" component={CardList} />
       {/* The issue segment in the URL is now the issue's unique
-          "slug" field, not its PocketBase id (see IssueDetail.tsx
+          "slug" field, not its PocketBase id (see CardList.tsx
           and CardForm.tsx, which resolve the actual record via
           this slug). */}
       {/* "new" is a reserved title: this route always opens the

@@ -1,4 +1,4 @@
-// Smoothly animates a card's move within IssueDetail's CSS Grid using
+// Smoothly animates a card's move within CardList's CSS Grid using
 // the FLIP technique (Invert + Play only -- "First"/"Last" are
 // supplied by the caller via withCardsFlip below), since a card's
 // on-screen position comes from plain DOM order in a CSS Grid, not

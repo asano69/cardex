@@ -9,16 +9,16 @@ export interface CardItemProps {
   card: CardRecord;
   // This card's position in the currently rendered grid order. Fed to
   // useSortable below so dnd-kit can report initialIndex/index on drop
-  // (see IssueDetail.tsx's handleDragEnd).
+  // (see CardList.tsx's handleDragEnd).
   index: number;
   // The parent issue's slug, used to build this card's URL (see
   // lib/cardSlug.ts). Cards only store their parent issue's
   // PocketBase id (see CardRecord's "issue" field), not its slug, so
-  // the slug is passed down from IssueDetail instead.
+  // the slug is passed down from CardList instead.
   issueSlug: string;
 }
 
-// A single card in IssueDetail's card grid, styled to match Cosense's
+// A single card in CardList's card grid, styled to match Cosense's
 // own page-list card (see .card-grid-item in styles/components.css).
 // Both the title and the preview text are precomputed server-side (see
 // internal/serve/ydoc.go's buildTitleAndPreview) from the card's live

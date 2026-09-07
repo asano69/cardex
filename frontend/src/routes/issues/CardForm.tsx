@@ -16,7 +16,7 @@ import type { IssueRecord } from "./IssueForm";
 // (see internal/serve/ydoc.go) -- the body itself is never stored here,
 // only in the live Yjs room (see components/noteEditor). "position" is
 // a fractional-indexing sort key (see lib/position.ts) used to persist
-// the tile grid's drag-to-reorder order in IssueDetail.
+// the tile grid's drag-to-reorder order in CardList.
 export interface CardRecord {
   id: string;
   title: string;
@@ -35,7 +35,7 @@ export interface CardRecord {
 const CREATE_MAX_ATTEMPTS = 3;
 const CREATE_RETRY_DELAY_MS = 1000;
 
-// Add/edit page for a single card, reached from IssueDetail's "add card"
+// Add/edit page for a single card, reached from CardList's "add card"
 // button (create, at /:slug/new) or by clicking a card (edit, at
 // /:slug/:cardTitle). A brand-new card's PocketBase record is no
 // longer created on mount: the editor starts on a local-only Y.Doc
@@ -118,7 +118,7 @@ export default function CardForm() {
       try {
         // New cards get the current highest position + POSITION_STEP
         // (see lib/position.ts), which puts them first in
-        // IssueDetail's descending-sorted card grid. Only the current
+        // CardList's descending-sorted card grid. Only the current
         // highest position is fetched here -- never the full card
         // list -- so this stays cheap regardless of how many
         // thousands of cards the issue holds.
@@ -188,7 +188,7 @@ export default function CardForm() {
   };
 
   // Whether this card is currently pinned, read from the shared cards
-  // store (see lib/cardsStore.ts) so it stays in sync with IssueDetail's
+  // store (see lib/cardsStore.ts) so it stays in sync with CardList's
   // grid ordering and with other users' edits, instead of tracking a
   // separate local copy.
   const pinned = () => cardsById[recordId()]?.pin ?? false;
