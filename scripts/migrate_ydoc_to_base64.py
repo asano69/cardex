@@ -7,7 +7,7 @@ python scripts/migrate_ydoc_to_base64.py pb_data/data.db pb_data/storage
 
 
 One-time backfill: reads the existing file-based `data` field on every
-`card_ydoc` record, base64-encodes its bytes, and writes the result
+`card_ydocs` record, base64-encodes its bytes, and writes the result
 into the new `payload` text field. The original `data` file field is
 left untouched -- this script only adds data, it never deletes or
 modifies the existing file.
@@ -17,7 +17,7 @@ IMPORTANT:
     writing to data.db at the same time (SQLITE_BUSY risk otherwise).
   - Back up pb_data/ first. This script writes directly to the
     database file.
-  - The `card_ydoc` collection must already have the `payload` text
+  - The `card_ydocs` collection must already have the `payload` text
     field created via the PocketBase admin UI before running this.
 
 Usage:
@@ -45,17 +45,17 @@ def main() -> None:
     cur = conn.cursor()
 
     # Resolve the collection id from its name, so this script keeps
-    # working regardless of whether the ydoc_updates -> card_ydoc
+    # working regardless of whether the ydoc_updates -> card_ydocs
     # rename has already happened by the time it's run.
-    cur.execute("SELECT id FROM _collections WHERE name = 'card_ydoc'")
+    cur.execute("SELECT id FROM _collections WHERE name = 'card_ydocs'")
     row = cur.fetchone()
     if row is None:
-        print("collection 'card_ydoc' not found", file=sys.stderr)
+        print("collection 'card_ydocs' not found", file=sys.stderr)
         sys.exit(1)
     collection_id = row[0]
 
     cur.execute(
-        "SELECT id, data FROM card_ydoc "
+        "SELECT id, data FROM card_ydocs "
         "WHERE data != '' AND (payload IS NULL OR payload = '')"
     )
     rows = cur.fetchall()
@@ -71,7 +71,7 @@ def main() -> None:
         data = file_path.read_bytes()
         encoded = base64.b64encode(data).decode("ascii")
         cur.execute(
-            "UPDATE card_ydoc SET payload = ? WHERE id = ?",
+            "UPDATE card_ydocs SET payload = ? WHERE id = ?",
             (encoded, record_id),
         )
         migrated += 1

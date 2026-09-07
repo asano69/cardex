@@ -1292,7 +1292,7 @@ func init() {
 				"id": "pbc_1686311694",
 				"indexes": [],
 				"listRule": null,
-				"name": "card_ydoc",
+				"name": "card_ydocs",
 				"system": false,
 				"type": "base",
 				"updateRule": null,
