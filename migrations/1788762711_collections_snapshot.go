@@ -959,13 +959,13 @@ func init() {
 					},
 					{
 						"autogeneratePattern": "",
-						"help": "The entire string must consist of one or more non-space characters.",
+						"help": "label",
 						"hidden": false,
 						"id": "text724990059",
 						"max": 0,
 						"min": 0,
 						"name": "title",
-						"pattern": "^[^ ]+$",
+						"pattern": "",
 						"presentable": false,
 						"primaryKey": false,
 						"required": false,
@@ -1046,7 +1046,8 @@ func init() {
 				],
 				"id": "pbc_2527524235",
 				"indexes": [
-					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `slug` + "`" + `\n)"
+					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `slug` + "`" + `\n)",
+					"CREATE UNIQUE INDEX ` + "`" + `idx_r30t04lu5q` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `issue` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
 				],
 				"listRule": null,
 				"name": "cards",

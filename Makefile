@@ -65,7 +65,7 @@ test:
 
 lint: typecheck
 	golangci-lint run
-	cd frontend && bun run lint
+	cd frontend && bun run lint --fix
 
 .PHONY: typecheck
 typecheck:

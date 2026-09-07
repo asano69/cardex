@@ -1,4 +1,10 @@
-import { onMount, createSignal, createResource, createEffect, Show } from "solid-js";
+import {
+  onMount,
+  createSignal,
+  createResource,
+  createEffect,
+  Show,
+} from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 
 import pb from "../../lib/pb";
@@ -59,14 +65,12 @@ export default function CardForm() {
     // record. Filtering on the related issue's "slug" directly (dot
     // notation) avoids a separate lookup just to get the issue's id.
     try {
-      const record = await pb
-        .collection("cards")
-        .getFirstListItem<CardRecord>(
-          pb.filter("issue.slug = {:slug} && slug = {:cardSlug}", {
-            slug: params.slug,
-            cardSlug: segmentToCardSlug(params.cardSlug),
-          }),
-        );
+      const record = await pb.collection("cards").getFirstListItem<CardRecord>(
+        pb.filter("issue.slug = {:slug} && slug = {:cardSlug}", {
+          slug: params.slug,
+          cardSlug: segmentToCardSlug(params.cardSlug),
+        }),
+      );
       mergeCards([record]);
       setRecordId(record.id);
     } catch {
@@ -155,34 +159,34 @@ export default function CardForm() {
             editor. NoteEditor itself stays layout-agnostic so it can be
             reused without this app's card-specific chrome. */}
         <div class="flex flex-col">
-        {/* min-h-9 keeps this row's height consistent whether or not
+          {/* min-h-9 keeps this row's height consistent whether or not
             the pin/delete buttons are rendered, so a draft card (no
             recordId yet) doesn't lose the gap below TopBar that an
             existing card gets from these buttons. */}
-        <div class="flex min-h-9 justify-end gap-2">
-          {/* Pin/delete only make sense once a record actually exists
+          <div class="flex min-h-9 justify-end gap-2">
+            {/* Pin/delete only make sense once a record actually exists
               -- an unconfirmed draft has nothing to pin or delete. */}
-          <Show when={recordId()}>
-            <button
-              type="button"
-              aria-label={pinned() ? "Unpin card" : "Pin card"}
-              class="icon-btn shrink-0"
-              onClick={togglePin}
-            >
-              <Show when={pinned()} fallback={<Pin size={20} />}>
-                <PinOff size={20} />
-              </Show>
-            </button>
-            <button
-              type="button"
-              aria-label="Delete card"
-              class="icon-btn shrink-0"
-              onClick={handleDelete}
-            >
-              <Trash2 size={20} />
-            </button>
-          </Show>
-        </div>
+            <Show when={recordId()}>
+              <button
+                type="button"
+                aria-label={pinned() ? "Unpin card" : "Pin card"}
+                class="icon-btn shrink-0"
+                onClick={togglePin}
+              >
+                <Show when={pinned()} fallback={<Pin size={20} />}>
+                  <PinOff size={20} />
+                </Show>
+              </button>
+              <button
+                type="button"
+                aria-label="Delete card"
+                class="icon-btn shrink-0"
+                onClick={handleDelete}
+              >
+                <Trash2 size={20} />
+              </button>
+            </Show>
+          </div>
           <NoteEditor
             cardId={() => recordId() || undefined}
             issueId={() => issue()?.id}

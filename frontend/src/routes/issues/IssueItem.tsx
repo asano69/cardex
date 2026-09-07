@@ -1,12 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { ToggleButton } from "@kobalte/core/toggle-button";
-import {
-  CircleCheckBig,
-  Circle,
-  GripVertical,
-  Pencil,
-} from "../../lib/icons";
+import { CircleCheckBig, Circle, GripVertical, Pencil } from "../../lib/icons";
 
 import pb from "../../lib/pb";
 import { playCompletionSound } from "../../lib/completionSound";
@@ -137,8 +132,6 @@ export default function IssueItem(props: IssueItemProps) {
         >
           <Pencil size={18} />
         </button>
-
-    
       </div>
       {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
 

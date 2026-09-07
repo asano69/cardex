@@ -163,27 +163,19 @@ export default function CardList() {
         <A href="/" class="icon-btn" aria-label="Back to issues">
           <ChevronLeft size={20} />
         </A>
-        <A
-          href={`/${params.slug}/new`}
-          class="icon-btn"
-          aria-label="Add card"
-        >
+        <A href={`/${params.slug}/new`} class="icon-btn" aria-label="Add card">
           <Plus size={20} />
         </A>
       </div>
- 
-        <h1 class="font-sans text-xl">{issue()?.title}</h1>
-     
+
+      <h1 class="font-sans text-xl">{issue()?.title}</h1>
+
       <Show when={!cardsLoaded.loading} fallback={<Loading />}>
         <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
           <ul class="card-grid">
             <For each={cards()}>
               {(card, index) => (
-                <CardItem
-                  card={card}
-                  index={index()}
-                  issueSlug={params.slug}
-                />
+                <CardItem card={card} index={index()} issueSlug={params.slug} />
               )}
             </For>
           </ul>

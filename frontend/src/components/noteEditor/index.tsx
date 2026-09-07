@@ -194,7 +194,7 @@ export default function NoteEditor(props: NoteEditorProps) {
       }),
     );
 
- // Autofocus into the editor only for a brand-new draft card, so
+    // Autofocus into the editor only for a brand-new draft card, so
     // typing can start immediately. Opening an existing card leaves
     // focus untouched. Deferred to the next task: right after mount
     // the editor's DOM element may not be attached to the document
@@ -215,18 +215,18 @@ export default function NoteEditor(props: NoteEditorProps) {
   // regardless of screen size.
   return (
     <>
-    <div class="min-w-0 flex-1 px-2 py-10 sm:px-10 bg-field shadow-md">
-      <Show when={slugError()}>
-        <p class="mb-4 text-sm text-[#dc3545]">
-          Failed to save this card. Your text is still here, but it isn't
-          synced -- try editing the header again once you're back online.
-        </p>
-      </Show>
-      <div
-        ref={mountEditor}
-        class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
-      />
-    </div>
+      <div class="min-w-0 flex-1 px-2 py-10 sm:px-10 bg-field shadow-md">
+        <Show when={slugError()}>
+          <p class="mb-4 text-sm text-[#dc3545]">
+            Failed to save this card. Your text is still here, but it isn't
+            synced -- try editing the header again once you're back online.
+          </p>
+        </Show>
+        <div
+          ref={mountEditor}
+          class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
+        />
+      </div>
     </>
   );
 }

@@ -15,7 +15,11 @@ export function pasteUrlDecodePlugin() {
     props: {
       handlePaste(view, event) {
         const text = event.clipboardData?.getData("text/plain").trim();
-        if (!text || !FULL_URL_RE.test(text) || !PERCENT_ENCODED_RE.test(text)) {
+        if (
+          !text ||
+          !FULL_URL_RE.test(text) ||
+          !PERCENT_ENCODED_RE.test(text)
+        ) {
           return false; // not a single percent-encoded URL -- default paste behavior
         }
 
@@ -28,7 +32,11 @@ export function pasteUrlDecodePlugin() {
 
         const { state, dispatch } = view;
         dispatch(
-          state.tr.insertText(decoded, state.selection.from, state.selection.to),
+          state.tr.insertText(
+            decoded,
+            state.selection.from,
+            state.selection.to,
+          ),
         );
         return true;
       },
