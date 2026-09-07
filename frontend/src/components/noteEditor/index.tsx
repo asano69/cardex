@@ -20,6 +20,7 @@ import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
 import { slugCandidatePlugin } from "./slugCandidatePlugin";
 import { createCard, updateCardSlug } from "../../lib/cardApi";
+import type { TitleCandidate } from "../../lib/titleCandidate";
 import { mergeCards } from "../../lib/cardsStore";
 import type { CardRecord } from "../../routes/cards/CardForm";
 
@@ -113,10 +114,10 @@ export default function NoteEditor(props: NoteEditorProps) {
   // overwrites a newer one's result.
   let sequence = 0;
   let inFlight = false;
-  let pendingCandidate: string | null = null;
-  let lastResolvedCandidate: string | null = null;
+  let pendingCandidate: TitleCandidate | null = null;
+  let lastResolvedCandidate: TitleCandidate | null = null;
 
-  const sendCandidate = async (candidate: string) => {
+  const sendCandidate = async (candidate: TitleCandidate) => {
     inFlight = true;
     const mySequence = ++sequence;
     try {
@@ -152,7 +153,7 @@ export default function NoteEditor(props: NoteEditorProps) {
   // first line) is confirmed. Shared by draft creation and
   // existing-card slug edits -- which one happens is decided purely by
   // whether `cardId` is already set (see sendCandidate above).
-  const handleSlugCandidate = (candidate: string) => {
+  const handleSlugCandidate = (candidate: TitleCandidate) => {
     if (candidate === lastResolvedCandidate) return;
     // An empty candidate is only meaningful for a brand-new draft --
     // confirming with no header falls back to "Untitled" server-side

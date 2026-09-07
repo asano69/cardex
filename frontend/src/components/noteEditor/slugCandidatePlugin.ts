@@ -1,5 +1,6 @@
 import { Plugin, type Transaction } from "prosemirror-state";
 import type { Node as PMNode } from "prosemirror-model";
+import { type TitleCandidate, makeTitleCandidate } from "../../lib/titleCandidate";
 
 // How long to wait, after the last edit to the header (or the body's
 // first line when the header is empty), before treating it as
@@ -20,7 +21,7 @@ const DEBOUNCE_MS = 2000;
 // title/description split in internal/serve/ydoc.go's
 // buildTitleAndPreview, minus the XML parsing since this reads the
 // live ProseMirror doc directly.
-function extractCandidate(doc: PMNode): string {
+function extractCandidate(doc: PMNode): TitleCandidate {
   let candidate = "";
   doc.descendants((node) => {
     if (candidate !== "") return false; // already found -- stop descending further
@@ -33,7 +34,7 @@ function extractCandidate(doc: PMNode): string {
     }
     return true; // keep looking through this node's children
   });
-  return candidate;
+  return makeTitleCandidate(candidate);
 }
 
 // True the moment a transaction grows the document from a single block
@@ -59,11 +60,13 @@ function headerJustCommitted(
 // draft creation and existing-card slug editing (see NoteEditor's
 // index.tsx) -- this plugin has no notion of which mode it's running
 // in, only "a new candidate string is ready".
-export function slugCandidatePlugin(onConfirmed: (candidate: string) => void) {
+export function slugCandidatePlugin(
+  onConfirmed: (candidate: TitleCandidate) => void,
+) {
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-  let lastFired: string | null = null;
+  let lastFired: TitleCandidate | null = null;
 
-  const fire = (candidate: string) => {
+  const fire = (candidate: TitleCandidate) => {
     // Empty candidates are allowed through too -- an empty header
     // confirmed via Enter or the debounce below resolves to
     // "Untitled" server-side (see cards.go's createCardHandler). Only

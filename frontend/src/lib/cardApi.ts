@@ -1,5 +1,6 @@
 import pb from "./pb";
 import type { CardRecord } from "../routes/cards/CardForm";
+import type { TitleCandidate } from "./titleCandidate";
 
 // Response shape shared by createCard/updateCardSlug: the saved card,
 // plus a merge-alert target computed server-side (see findMergeTarget
@@ -16,7 +17,7 @@ export interface CardMutationResult {
 // Yjs sync can start.
 export async function createCard(
   pot: string,
-  slugCandidate: string,
+  slugCandidate: TitleCandidate,
 ): Promise<CardMutationResult> {
   return await pb.send<CardMutationResult>("/api/admin/cards", {
     method: "POST",
@@ -30,7 +31,7 @@ export async function createCard(
 // Yjs content (see internal/serve/ydoc.go).
 export async function updateCardSlug(
   cardId: string,
-  slugCandidate: string,
+  slugCandidate: TitleCandidate,
 ): Promise<CardMutationResult> {
   return await pb.send<CardMutationResult>(`/api/admin/cards/${cardId}/slug`, {
     method: "POST",
