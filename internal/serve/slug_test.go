@@ -37,6 +37,24 @@ func TestStripSlugSuffix(t *testing.T) {
 	}
 }
 
+func TestNormalizeSlugCandidate_BracketsBecomeSpaces(t *testing.T) {
+	// Regression test: brackets are word separators in slug candidates
+	// too, matching title resolution (see normalizeCandidateText).
+	got := normalizeSlugCandidate("[foo]bar[baz]")
+	want := "foo_bar_baz"
+	if got != want {
+		t.Errorf("normalizeSlugCandidate(...) = %q, want %q", got, want)
+	}
+}
+
+func TestNormalizeSlugCandidate_CollapsesAndTrimsWhitespace(t *testing.T) {
+	got := normalizeSlugCandidate("  [a][b]  c   d  ")
+	want := "a_b_c_d"
+	if got != want {
+		t.Errorf("normalizeSlugCandidate(...) = %q, want %q", got, want)
+	}
+}
+
 func TestHeadersMatch(t *testing.T) {
 	cases := []struct {
 		a, b string

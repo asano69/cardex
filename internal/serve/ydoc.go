@@ -306,28 +306,6 @@ var xmlUnescaper = strings.NewReplacer(
 // the same way any other title is (see updateTitleAndPreview).
 const defaultTitle = "Untitled"
 
-// bracketReplacer turns "[" and "]" in a title candidate into a plain
-// space. These commonly show up in text imported from bracket-link
-// wikis (e.g. "[some page]") and would otherwise leak into the title
-// as stray punctuation instead of reading as a word separator.
-var bracketReplacer = strings.NewReplacer("[", " ", "]", " ")
-
-// normalizeTitleCandidate is the single place where whitespace in a
-// title candidate is cleaned up, applied once at the end of title
-// resolution so every source (heading, paragraph fallback) is
-// normalized the same way. Order matters: brackets are turned into
-// spaces first, since that step can itself introduce the runs of
-// whitespace the next step collapses.
-//  1. Replace "[" / "]" with a space (see bracketReplacer).
-//  2. Collapse any run of two or more spaces into a single space
-//     (reuses multiSpaceRe from slug.go).
-//  3. Trim leading/trailing whitespace.
-func normalizeTitleCandidate(s string) string {
-	s = bracketReplacer.Replace(s)
-	s = multiSpaceRe.ReplaceAllString(s, " ")
-	return strings.TrimSpace(s)
-}
-
 // buildTitleAndPreview turns a card's full ToXML() output into a title
 // and a description. The document's first-level heading is normally the
 // title (see forceFirstHeadingPlugin for why the first block is always
@@ -365,10 +343,11 @@ func buildTitleAndPreview(xml string) (title, description string) {
 	if title == "" {
 		title = defaultTitle
 	}
-	// Whitespace cleanup (bracket-to-space, then collapse, then trim)
-	// happens once, right here, after title is resolved from whichever
-	// source above -- see normalizeTitleCandidate's doc comment.
-	title = normalizeTitleCandidate(title)
+	// Bracket/whitespace cleanup happens once, right here, after title
+	// is resolved from whichever source above -- see
+	// normalizeCandidateText's doc comment in slug.go, shared with
+	// slug resolution.
+	title = normalizeCandidateText(title)
 	if title == "" {
 		title = defaultTitle
 	}
