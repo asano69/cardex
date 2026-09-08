@@ -258,13 +258,13 @@ func (p *ydocPersistence) updateTitleAndPreview(room, xml string) error {
 		return fmt.Errorf("resolve title: %w", err)
 	}
 
-	if record.GetString("title") == title && record.GetString("description") == description {
+	if record.GetString("title") == string(title) && record.GetString("description") == description {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
 	// title and description are set on the same record and saved together
 	// in one call, so this produces a single row write (and a single
 	// realtime event) instead of two separate saves.
-	record.Set("title", title)
+	record.Set("title", string(title))
 	record.Set("description", description)
 	return p.app.Save(record)
 }
@@ -320,7 +320,7 @@ const defaultTitle = "Untitled"
 // plain text with no ellipsis; a blank heading or blank paragraphs are
 // dropped before either is built. If nothing usable remains,
 // defaultTitle is used.
-func buildTitleAndPreview(xml string) (title, description string) {
+func buildTitleAndPreview(xml string) (title TitleCandidate, description string) {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
 		text := strings.TrimSpace(xmlUnescaper.Replace(m[1]))
@@ -329,32 +329,33 @@ func buildTitleAndPreview(xml string) (title, description string) {
 		}
 	}
 
+	rawTitle := ""
 	if m := headingRe.FindStringSubmatch(xml); m != nil {
-		title = strings.TrimSpace(xmlUnescaper.Replace(m[1]))
+		rawTitle = strings.TrimSpace(xmlUnescaper.Replace(m[1]))
 	}
 	// Empty heading (e.g. a brand-new card whose title hasn't been
 	// typed yet) falls back to the first paragraph too, not just a
 	// missing heading tag. `paragraphs` is left untouched here -- see
 	// the doc comment above for why title and description must not share
 	// this kind of coupling.
-	if title == "" && len(paragraphs) > 0 {
-		title = paragraphs[0]
+	if rawTitle == "" && len(paragraphs) > 0 {
+		rawTitle = paragraphs[0]
 	}
-	if title == "" {
-		title = defaultTitle
+	if rawTitle == "" {
+		rawTitle = defaultTitle
 	}
 	// Bracket/whitespace cleanup happens once, right here, after title
 	// is resolved from whichever source above -- see
 	// normalizeCandidateText's doc comment in slug.go, shared with
 	// slug resolution.
-	title = normalizeCandidateText(title)
-	if title == "" {
-		title = defaultTitle
+	rawTitle = normalizeCandidateText(rawTitle)
+	if rawTitle == "" {
+		rawTitle = defaultTitle
 	}
-	title = truncateRunes(title, titleMaxRunes)
+	rawTitle = truncateRunes(rawTitle, titleMaxRunes)
 
 	description = truncateRunes(strings.Join(paragraphs, "\n"), descriptionMaxRunes)
-	return title, description
+	return TitleCandidate(rawTitle), description
 }
 
 // truncateRunes cuts s to at most max runes (not bytes), so a card

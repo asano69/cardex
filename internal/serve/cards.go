@@ -29,12 +29,12 @@ const positionStep = 1000
 const maxSlugRetries = 3
 
 type createCardRequest struct {
-	Pot         string `json:"pot"`
-	SlugCandidate string `json:"slugCandidate"`
+	Pot           string         `json:"pot"`
+	SlugCandidate TitleCandidate `json:"slugCandidate"`
 }
 
 type updateCardSlugRequest struct {
-	SlugCandidate string `json:"slugCandidate"`
+	SlugCandidate TitleCandidate `json:"slugCandidate"`
 }
 
 // nextCardPosition returns the position for a new card in `pot`.
@@ -96,15 +96,15 @@ func createCardHandler(e *core.RequestEvent) error {
 
 		record := core.NewRecord(collection)
 		record.Set("pot", req.Pot)
-		record.Set("slug", slug)
-		record.Set("title", title)
+		record.Set("slug", string(slug))
+		record.Set("title", string(title))
 		record.Set("position", position)
 		if err := e.App.Save(record); err != nil {
 			if attempt < maxSlugRetries-1 {
 				// A concurrent request may have taken this slug between
 				// resolveCardSlug's check and this save (TOCTOU) -- bump
 				// the candidate and retry rather than failing outright.
-				candidate = fmt.Sprintf("%s_%d", req.SlugCandidate, attempt+2)
+				candidate = TitleCandidate(fmt.Sprintf("%s_%d", req.SlugCandidate, attempt+2))
 				continue
 			}
 			return e.InternalServerError("save card", err)
@@ -142,10 +142,10 @@ func updateCardSlugHandler(e *core.RequestEvent) error {
 			return e.InternalServerError("resolve slug", err)
 		}
 
-		record.Set("slug", slug)
+		record.Set("slug", string(slug))
 		if err := e.App.Save(record); err != nil {
 			if attempt < maxSlugRetries-1 {
-				candidate = fmt.Sprintf("%s_%d", req.SlugCandidate, attempt+2)
+				candidate = TitleCandidate(fmt.Sprintf("%s_%d", req.SlugCandidate, attempt+2))
 				continue
 			}
 			return e.InternalServerError("save card", err)
@@ -159,14 +159,14 @@ func updateCardSlugHandler(e *core.RequestEvent) error {
 // field: the slug of another card in the same pot whose header text
 // this save's header appears to duplicate (see findMergeTarget in
 // slug.go), or null when there's no such duplicate.
-func jsonWithMergeTarget(e *core.RequestEvent, app core.App, pot, slug, rawHeader, excludeID string, record *core.Record) error {
+func jsonWithMergeTarget(e *core.RequestEvent, app core.App, pot string, slug CardSlug, rawHeader TitleCandidate, excludeID string, record *core.Record) error {
 	mergeTarget, err := findMergeTarget(app, pot, slug, rawHeader, excludeID)
 	if err != nil {
 		return e.InternalServerError("find merge target", err)
 	}
 	var target any
 	if mergeTarget != "" {
-		target = mergeTarget
+		target = string(mergeTarget)
 	}
 	return e.JSON(http.StatusOK, map[string]any{
 		"card":        record,

@@ -57,8 +57,8 @@ func normalizeCandidateText(s string) string {
 // -- percent-encoding the handful of characters that are actually
 // unsafe in a path segment (% / # ?) is the frontend's job (see
 // frontend/src/lib/cardSlug.ts).
-func normalizeSlugCandidate(candidate string) string {
-	return strings.Join(splitCandidateWords(candidate), "_")
+func normalizeSlugCandidate(candidate TitleCandidate) string {
+	return strings.Join(splitCandidateWords(string(candidate)), "_")
 }
 
 // resolveUniqueInPot returns a value derived from base that is unique
@@ -92,7 +92,7 @@ func resolveUniqueInPot(app core.App, pot, field, base, excludeID string) (strin
 // record). Empty candidates fall back to defaultTitle (see ydoc.go),
 // the same "Untitled" fallback used for a card with no derivable
 // title.
-func resolveCardSlug(app core.App, pot, candidate, excludeID string) (string, error) {
+func resolveCardSlug(app core.App, pot string, candidate TitleCandidate, excludeID string) (CardSlug, error) {
 	base := normalizeSlugCandidate(candidate)
 	if base == "" {
 		base = defaultTitle
@@ -100,7 +100,8 @@ func resolveCardSlug(app core.App, pot, candidate, excludeID string) (string, er
 	if base == reservedSlug {
 		base = reservedSlugFallback
 	}
-	return resolveUniqueInPot(app, pot, "slug", base, excludeID)
+	value, err := resolveUniqueInPot(app, pot, "slug", base, excludeID)
+	return CardSlug(value), err
 }
 
 // resolveCardTitle returns a title derived from rawTitle that is unique
@@ -109,11 +110,12 @@ func resolveCardSlug(app core.App, pot, candidate, excludeID string) (string, er
 // reserved-word fallback -- the title is a display label, not a URL
 // segment. excludeID lets a card keep resolving against its own current
 // title without colliding with itself.
-func resolveCardTitle(app core.App, pot, rawTitle, excludeID string) (string, error) {
+func resolveCardTitle(app core.App, pot string, rawTitle TitleCandidate, excludeID string) (CardTitle, error) {
 	if rawTitle == "" {
 		rawTitle = defaultTitle
 	}
-	return resolveUniqueInPot(app, pot, "title", rawTitle, excludeID)
+	value, err := resolveUniqueInPot(app, pot, "title", string(rawTitle), excludeID)
+	return CardTitle(value), err
 }
 
 // mergeSuffixRe matches the trailing numeric dedup suffix a slug gets
@@ -125,12 +127,12 @@ var mergeSuffixRe = regexp.MustCompile(`^(.+)_\d+$`)
 // stripSlugSuffix strips one level of the trailing numeric dedup
 // suffix from slug (see mergeSuffixRe), or returns "" if slug has no
 // such suffix.
-func stripSlugSuffix(slug string) string {
-	m := mergeSuffixRe.FindStringSubmatch(slug)
+func stripSlugSuffix(slug CardSlug) CardSlug {
+	m := mergeSuffixRe.FindStringSubmatch(string(slug))
 	if m == nil {
 		return ""
 	}
-	return m[1]
+	return CardSlug(m[1])
 }
 
 // findMergeTarget returns the slug this card would collide with if its
@@ -140,7 +142,7 @@ func stripSlugSuffix(slug string) string {
 // the other card's own header (its card_lines position-0 line) must
 // match rawHeader once both are trimmed. Returns "" when no merge
 // alert should be shown.
-func findMergeTarget(app core.App, pot, slug, rawHeader, excludeID string) (string, error) {
+func findMergeTarget(app core.App, pot string, slug CardSlug, rawHeader TitleCandidate, excludeID string) (CardSlug, error) {
 	stripped := stripSlugSuffix(slug)
 	if stripped == "" {
 		return "", nil
@@ -149,7 +151,7 @@ func findMergeTarget(app core.App, pot, slug, rawHeader, excludeID string) (stri
 	other, err := app.FindFirstRecordByFilter(
 		"cards",
 		"pot = {:pot} && slug = {:slug} && id != {:id}",
-		dbx.Params{"pot": pot, "slug": stripped, "id": excludeID},
+		dbx.Params{"pot": pot, "slug": string(stripped), "id": excludeID},
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
@@ -175,14 +177,14 @@ func findMergeTarget(app core.App, pot, slug, rawHeader, excludeID string) (stri
 // strips the full-width space (U+3000) commonly typed in Japanese
 // text, via Go's Unicode White_Space table, so no extra normalization
 // is needed here.
-func headersMatch(a, b string) bool {
-	return strings.TrimSpace(a) == strings.TrimSpace(b)
+func headersMatch(a, b TitleCandidate) bool {
+	return strings.TrimSpace(string(a)) == strings.TrimSpace(string(b))
 }
 
 // firstLineContent returns the content of a card's first line (see
 // lines.go's textblockTags), which is always its header -- or "" if
 // the card has no lines yet.
-func firstLineContent(app core.App, cardID string) (string, error) {
+func firstLineContent(app core.App, cardID string) (TitleCandidate, error) {
 	record, err := app.FindFirstRecordByFilter(
 		"card_lines",
 		"card = {:card} && position = 0",
@@ -194,5 +196,5 @@ func firstLineContent(app core.App, cardID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return record.GetString("content"), nil
+	return TitleCandidate(record.GetString("content")), nil
 }

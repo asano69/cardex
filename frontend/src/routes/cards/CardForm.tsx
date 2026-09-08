@@ -18,6 +18,7 @@ import { cardSlugToSegment, segmentToCardSlug } from "../../lib/cardSlug";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 import { computePosition } from "../../lib/position";
+import type { CardTitle } from "../../lib/cardTitle";
 
 // Matches the PocketBase "cards" collection schema. "title" is a
 // display label derived server-side from the card's live Yjs body
@@ -29,7 +30,7 @@ import { computePosition } from "../../lib/position";
 // order in CardList.
 export interface CardRecord {
   id: string;
-  title: string;
+  title: CardTitle;
   slug: string;
   description: string;
   pot: string;

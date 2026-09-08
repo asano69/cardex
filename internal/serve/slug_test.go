@@ -31,7 +31,7 @@ func TestStripSlugSuffix(t *testing.T) {
 		{"_2", ""},       // nothing before the underscore
 	}
 	for _, c := range cases {
-		if got := stripSlugSuffix(c.slug); got != c.want {
+		if got := stripSlugSuffix(CardSlug(c.slug)); string(got) != c.want {
 			t.Errorf("stripSlugSuffix(%q) = %q, want %q", c.slug, got, c.want)
 		}
 	}
@@ -71,7 +71,7 @@ func TestHeadersMatch(t *testing.T) {
 		{"Hello World", "HelloWorld", false},
 	}
 	for _, c := range cases {
-		if got := headersMatch(c.a, c.b); got != c.want {
+		if got := headersMatch(TitleCandidate(c.a), TitleCandidate(c.b)); got != c.want {
 			t.Errorf("headersMatch(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
 		}
 	}

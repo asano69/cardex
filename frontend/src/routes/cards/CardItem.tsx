@@ -3,6 +3,7 @@ import { A } from "@solidjs/router";
 import { useSortable } from "@dnd-kit/solid/sortable";
 import { registerCardElement } from "../../lib/cardsStore";
 import { cardSlugToSegment } from "../../lib/cardSlug";
+import { deriveCardGridTitle } from "../../lib/cardGridTitle";
 import type { CardRecord } from "./CardForm";
 
 export interface CardItemProps {
@@ -63,7 +64,7 @@ export default function CardItem(props: CardItemProps) {
         </Show>
         <div class="content">
           <div class="header">
-            <h3 class="title">{props.card.title}</h3>
+            <h3 class="title">{deriveCardGridTitle(props.card)}</h3>
           </div>
           <div class="description">{props.card.description}</div>
         </div>
