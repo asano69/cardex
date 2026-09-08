@@ -30,7 +30,7 @@ func TestBuildTitleAndPreview_CollapsesConsecutiveSeparators(t *testing.T) {
 	// rather than being preserved character-for-character.
 	xml := `<doc><heading level="1">  [a][b]  c   d  </heading></doc>`
 	title, _ := buildTitleAndPreview(xml)
-	want := "a b c d"
+	want := TitleCandidate("a b c d")
 	if title != want {
 		t.Errorf("title = %q, want %q", title, want)
 	}
