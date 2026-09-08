@@ -7,6 +7,7 @@ import PotLayout from "../routes/pots/PotLayout";
 import PotList from "../routes/pots/PotList";
 import CardList from "../routes/cards/CardList";
 import CardForm from "../routes/cards/CardForm";
+import PocPots from "../routes/poc/Pots";
 
 // All top-level routes in one place, so adding or removing a page never
 // requires touching main.tsx.
@@ -18,6 +19,10 @@ export default function AppRouter() {
   return (
     <Router root={AppShell}>
       <Route path="/" component={PotList} />
+      {/* Standalone proof-of-concept page, unrelated to pots/cards.
+          Registered as its own static top-level route so it doesn't
+          get swallowed by the "/:slug/:cardSlug" pattern below. */}
+      <Route path="/poc/pots" component={PocPots} />
       {/* The pot segment in the URL is now the pot's unique
           "slug" field, not its PocketBase id (see CardList.tsx
           and CardForm.tsx, which resolve the actual record via
