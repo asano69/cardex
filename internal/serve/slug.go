@@ -26,6 +26,12 @@ import (
 const reservedSlug = "new"
 const reservedSlugFallback = "new_"
 
+// defaultTitle is used when a candidate resolves to no usable text at
+// all -- e.g. an empty draft confirmed with Enter. Duplicate defaults
+// are disambiguated the same way any other slug/title is (see
+// resolveUniqueInPot).
+const defaultTitle = "Untitled"
+
 // splitCandidateWords splits s on runs of "[", "]", and space,
 // dropping empty fields. Brackets commonly show up in text imported
 // from bracket-link wikis (e.g. "[some page]") and act as a word
@@ -106,6 +112,25 @@ func resolveCardTitle(app core.App, pot string, rawTitle TitleCandidate, exclude
 	}
 	value, err := resolveUniqueInPot(app, pot, "title", string(rawTitle), excludeID)
 	return CardTitle(value), err
+}
+
+// resolveSlugAndTitle resolves both the slug and the display title for
+// a card from the same candidate text, so the two are never derived
+// from different sources (see cards.go's createCardHandler and
+// updateCardSlugHandler, the only callers). Title is no longer derived
+// from the card's live Yjs content on a periodic snapshot -- both
+// fields are decided together, right here, whenever the client
+// confirms a candidate.
+func resolveSlugAndTitle(app core.App, pot string, candidate TitleCandidate, excludeID string) (CardSlug, CardTitle, error) {
+	slug, err := resolveCardSlug(app, pot, candidate, excludeID)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve slug: %w", err)
+	}
+	title, err := resolveCardTitle(app, pot, candidate, excludeID)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve title: %w", err)
+	}
+	return slug, title, nil
 }
 
 // mergeSuffixRe matches the trailing numeric dedup suffix a slug gets

@@ -218,11 +218,15 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		xml := doc.GetXmlFragment("prosemirror").ToXML()
 		slog.Debug("card xml", "room", room, "xml", xml)
 
-		// Keep the card's "title" and "description" fields in sync with
-		// the room's live text, so PotDetail's card grid (see
-		// CardItem.tsx) has something human-readable to show.
-		if err := p.updateTitleAndPreview(room, xml); err != nil {
-			slog.Warn("update card title/description", "room", room, "error", err)
+		// Keep the card's "description" field in sync with the room's
+		// live text, so PotDetail's card grid (see CardItem.tsx) has
+		// something human-readable to show. "title" is no longer
+		// touched here -- it's resolved explicitly from the client's
+		// candidate text via the /api/admin/cards routes (see
+		// cards.go and slug.go's resolveSlugAndTitle), so it doesn't
+		// depend on this periodic snapshot's timing anymore.
+		if err := p.updatePreview(room, xml); err != nil {
+			slog.Warn("update card description", "room", room, "error", err)
 		}
 
 		// Mirrors every line (textblock) of the document into
@@ -236,59 +240,37 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 	return p.compactIfNeeded(room)
 }
 
-// updateTitleAndPreview splits xml -- the room's live "prosemirror"
-// XmlFragment, already serialized once by the caller (see store) --
-// into a title and a short plain-text description (see
-// buildTitleAndPreview), and writes both into the matching "cards"
-// record. There is no separate title input anymore -- the document's
-// first block IS the title (see components/noteEditor).
-func (p *ydocPersistence) updateTitleAndPreview(room, xml string) error {
+// updatePreview refreshes a card's "description" field from xml -- the
+// room's live "prosemirror" XmlFragment, already serialized once by
+// the caller (see store). "title" and "slug" are resolved elsewhere
+// now (see slug.go's resolveSlugAndTitle), not here.
+func (p *ydocPersistence) updatePreview(room, xml string) error {
 	record, err := p.app.FindRecordById("cards", room)
 	if err != nil {
 		return nil // card may have been deleted concurrently -- skip
 	}
 
-	rawTitle, description := buildTitleAndPreview(xml)
-
-	// Titles are unique per pot (same as slugs), so a collision with
-	// another card's title is disambiguated with a numeric suffix
-	// (e.g. "a_2"), matching resolveCardSlug's own scheme.
-	title, err := resolveCardTitle(p.app, record.GetString("pot"), rawTitle, record.Id)
-	if err != nil {
-		return fmt.Errorf("resolve title: %w", err)
-	}
-
-	if record.GetString("title") == string(title) && record.GetString("description") == description {
+	description := buildPreview(xml)
+	if record.GetString("description") == description {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
-	// title and description are set on the same record and saved together
-	// in one call, so this produces a single row write (and a single
-	// realtime event) instead of two separate saves.
-	record.Set("title", string(title))
 	record.Set("description", description)
 	return p.app.Save(record)
 }
 
-// titleMaxRunes and descriptionMaxRunes cap how much text
-// buildTitleAndPreview keeps, counted in runes (not bytes) so a card
-// written in Japanese isn't cut mid-character.
-const titleMaxRunes = 80
+// descriptionMaxRunes caps how much text buildPreview keeps, counted
+// in runes (not bytes) so a card written in Japanese isn't cut
+// mid-character.
 const descriptionMaxRunes = 120
 
 // paragraphRe pulls out the inner text of every <paragraph> element in a
 // ToXML() string, wherever it's nested (directly, or inside a
 // <list><paragraph>...>). Non-paragraph blocks (code blocks, ...) are
-// skipped on purpose -- good enough for a short card-grid description (see
-// CardItem.tsx), not a full-fidelity render. The document's own title
-// heading is excluded here since it's a <heading>, not a <paragraph>
-// (see headingRe below).
+// skipped on purpose -- good enough for a short card-grid description
+// (see CardItem.tsx), not a full-fidelity render. The document's own
+// title heading is excluded automatically since it's a <heading>, not
+// a <paragraph>.
 var paragraphRe = regexp.MustCompile(`(?s)<paragraph[^>]*>(.*?)</paragraph>`)
-
-// headingRe pulls out the inner text of the document's first-level
-// heading. forceFirstHeadingPlugin (see components/noteEditor) enforces
-// that the first block is always a level-1 heading, so this heading
-// doubles as the card's title.
-var headingRe = regexp.MustCompile(`(?s)<heading[^>]*>(.*?)</heading>`)
 
 // xmlUnescaper reverses ygo's own xmlEscapeText/xmlEscapeAttr (crdt
 // package), so the description shows plain "&"/"<"/">" instead of entities.
@@ -300,27 +282,13 @@ var xmlUnescaper = strings.NewReplacer(
 	"&amp;", "&",
 )
 
-// defaultTitle is used when a card's document has no heading or
-// paragraph text at all -- e.g. every block was cleared after being
-// typed. Duplicate defaults are disambiguated by resolveUniqueTitle
-// the same way any other title is (see updateTitleAndPreview).
-const defaultTitle = "Untitled"
-
-// buildTitleAndPreview turns a card's full ToXML() output into a title
-// and a description. The document's first-level heading is normally the
-// title (see forceFirstHeadingPlugin for why the first block is always
-// a heading). If no heading is found (e.g. an older card synced before
-// forceFirstHeadingPlugin existed), the first paragraph is used as the
-// title instead. Preview is always every paragraph joined by a newline
-// (cut to descriptionMaxRunes runes, so line breaks in the editor are
-// preserved in the description), regardless of whether one of those
-// paragraphs was also used as the title fallback -- title derivation
-// and description generation are intentionally orthogonal, so a
-// header-less card still gets a non-empty description. Both are unescaped
-// plain text with no ellipsis; a blank heading or blank paragraphs are
-// dropped before either is built. If nothing usable remains,
-// defaultTitle is used.
-func buildTitleAndPreview(xml string) (title TitleCandidate, description string) {
+// buildPreview turns a card's full ToXML() output into a short
+// plain-text description: every paragraph, joined by a newline (cut to
+// descriptionMaxRunes runes, so line breaks in the editor are
+// preserved), skipping blank paragraphs. Unescaped plain text with no
+// ellipsis. The title is no longer derived here -- see slug.go's
+// resolveSlugAndTitle.
+func buildPreview(xml string) string {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
 		text := strings.TrimSpace(xmlUnescaper.Replace(m[1]))
@@ -328,30 +296,7 @@ func buildTitleAndPreview(xml string) (title TitleCandidate, description string)
 			paragraphs = append(paragraphs, text)
 		}
 	}
-
-	rawTitle := ""
-	if m := headingRe.FindStringSubmatch(xml); m != nil {
-		rawTitle = strings.TrimSpace(xmlUnescaper.Replace(m[1]))
-	}
-	// Empty heading (e.g. a brand-new card whose title hasn't been
-	// typed yet) falls back to the first paragraph too, not just a
-	// missing heading tag. `paragraphs` is left untouched here -- see
-	// the doc comment above for why title and description must not share
-	// this kind of coupling.
-	if rawTitle == "" && len(paragraphs) > 0 {
-		rawTitle = paragraphs[0]
-	}
-	if rawTitle == "" {
-		rawTitle = defaultTitle
-	}
-	// The title is kept verbatim -- exactly matching the corresponding
-	// card_lines content -- so no bracket/whitespace normalization is
-	// applied here (see slug.go's normalizeSlugCandidate for the
-	// separate, URL-safe transformation the slug still needs).
-	rawTitle = truncateRunes(rawTitle, titleMaxRunes)
-
-	description = truncateRunes(strings.Join(paragraphs, "\n"), descriptionMaxRunes)
-	return TitleCandidate(rawTitle), description
+	return truncateRunes(strings.Join(paragraphs, "\n"), descriptionMaxRunes)
 }
 
 // truncateRunes cuts s to at most max runes (not bytes), so a card

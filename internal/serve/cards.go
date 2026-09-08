@@ -79,19 +79,9 @@ func createCardHandler(e *core.RequestEvent) error {
 
 	candidate := req.SlugCandidate
 	for attempt := 0; attempt < maxSlugRetries; attempt++ {
-		slug, err := resolveCardSlug(e.App, req.Pot, candidate, "")
+		slug, title, err := resolveSlugAndTitle(e.App, req.Pot, candidate, "")
 		if err != nil {
-			return e.InternalServerError("resolve slug", err)
-		}
-		// A card that never got any header text (e.g. an empty draft
-		// confirmed with Enter) would otherwise sit with no title at
-		// all until its first real edit -- resolve it here too, using
-		// the same "Untitled" fallback and per-pot disambiguation as
-		// the slug above. Any later edit still overwrites this via
-		// ydoc.go's updateTitleAndPreview.
-		title, err := resolveCardTitle(e.App, req.Pot, req.SlugCandidate, "")
-		if err != nil {
-			return e.InternalServerError("resolve title", err)
+			return e.InternalServerError("resolve slug/title", err)
 		}
 
 		record := core.NewRecord(collection)
@@ -114,10 +104,12 @@ func createCardHandler(e *core.RequestEvent) error {
 	return e.InternalServerError("failed to create card after retries", nil)
 }
 
-// updateCardSlugHandler resolves a new slug for an existing card from
-// the client-supplied candidate. Only the slug changes here -- title
-// and description stay derived from the card's live Yjs content (see
-// ydoc.go's updateTitleAndPreview).
+// updateCardSlugHandler resolves a new slug AND title for an existing
+// card from the client-supplied candidate (see slug.go's
+// resolveSlugAndTitle). This is now the single place a card's title
+// changes -- it no longer depends on ygo's periodic Yjs snapshot
+// timing (see ydoc.go's updatePreview, which now only touches
+// "description").
 func updateCardSlugHandler(e *core.RequestEvent) error {
 	id := e.Request.PathValue("id")
 
@@ -137,12 +129,13 @@ func updateCardSlugHandler(e *core.RequestEvent) error {
 
 	candidate := req.SlugCandidate
 	for attempt := 0; attempt < maxSlugRetries; attempt++ {
-		slug, err := resolveCardSlug(e.App, pot, candidate, id)
+		slug, title, err := resolveSlugAndTitle(e.App, pot, candidate, id)
 		if err != nil {
-			return e.InternalServerError("resolve slug", err)
+			return e.InternalServerError("resolve slug/title", err)
 		}
 
 		record.Set("slug", string(slug))
+		record.Set("title", string(title))
 		if err := e.App.Save(record); err != nil {
 			if attempt < maxSlugRetries-1 {
 				candidate = TitleCandidate(fmt.Sprintf("%s_%d", req.SlugCandidate, attempt+2))
