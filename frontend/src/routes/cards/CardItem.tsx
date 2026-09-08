@@ -66,7 +66,20 @@ export default function CardItem(props: CardItemProps) {
           <div class="header">
             <h3 class="title">{deriveCardGridTitle(props.card)}</h3>
           </div>
-          <div class="description">{props.card.description}</div>
+          {/* If the document has an image (see internal/xmldoc's
+              FirstImageSrc, mirrored into the "image" field by
+              internal/serve/ydoc.go), show it as a cover thumbnail
+              instead of the plain-text description -- there's rarely
+              room for both in a card this small. */}
+          <Show
+            when={props.card.image}
+            fallback={<div class="description">{props.card.description}</div>}
+          >
+            <div
+              class="thumbnail"
+              style={{ "background-image": `url(${props.card.image})` }}
+            />
+          </Show>
         </div>
       </A>
     </li>

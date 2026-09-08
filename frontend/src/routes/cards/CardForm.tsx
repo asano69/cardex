@@ -34,6 +34,11 @@ export interface CardRecord {
   id: string;
   title: CardTitle;
   description: string;
+  // First image URL found in the card's live document, resolved
+  // server-side alongside "description" (see internal/xmldoc's
+  // FirstImageSrc and internal/serve/ydoc.go's updatePreview). Empty
+  // string when the document has no image.
+  image: string;
   pot: string;
   position: number;
   pin: boolean;

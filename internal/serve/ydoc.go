@@ -41,6 +41,8 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/reearth/ygo/crdt"
 	yjsws "github.com/reearth/ygo/provider/websocket"
+
+	"github.com/asano69/cardex/internal/xmldoc"
 )
 
 // compactionThreshold is how many stored increments a room's update
@@ -218,15 +220,17 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		xml := doc.GetXmlFragment("prosemirror").ToXML()
 		slog.Debug("card xml", "room", room, "xml", xml)
 
-		// Keep the card's "description" field in sync with the room's
-		// live text, so PotDetail's card grid (see CardItem.tsx) has
-		// something human-readable to show. "title" is no longer
-		// touched here -- it's resolved explicitly from the client's
-		// candidate text via the /api/admin/cards routes (see
-		// cards.go and slug.go's resolveSlugAndTitle), so it doesn't
-		// depend on this periodic snapshot's timing anymore.
+		// Keep the card's "description" and "image" fields in sync
+		// with the room's live text, so PotDetail's card grid (see
+		// CardItem.tsx) has something human-readable -- and, if the
+		// document has one, a preview image -- to show. "title" is
+		// no longer touched here -- it's resolved explicitly from
+		// the client's candidate text via the /api/admin/cards
+		// routes (see cards.go and slug.go's resolveSlugAndTitle),
+		// so it doesn't depend on this periodic snapshot's timing
+		// anymore.
 		if err := p.updatePreview(room, xml); err != nil {
-			slog.Warn("update card description", "room", room, "error", err)
+			slog.Warn("update card preview", "room", room, "error", err)
 		}
 
 		// Mirrors every line (textblock) of the document into
@@ -240,10 +244,11 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 	return p.compactIfNeeded(room)
 }
 
-// updatePreview refreshes a card's "description" field from xml -- the
-// room's live "prosemirror" XmlFragment, already serialized once by
-// the caller (see store). "title" and "slug" are resolved elsewhere
-// now (see slug.go's resolveSlugAndTitle), not here.
+// updatePreview refreshes a card's "description" and "image" fields
+// from xml -- the room's live "prosemirror" XmlFragment, already
+// serialized once by the caller (see store). "title" and "slug" are
+// resolved elsewhere now (see slug.go's resolveSlugAndTitle), not
+// here.
 func (p *ydocPersistence) updatePreview(room, xml string) error {
 	record, err := p.app.FindRecordById("cards", room)
 	if err != nil {
@@ -251,10 +256,19 @@ func (p *ydocPersistence) updatePreview(room, xml string) error {
 	}
 
 	description := buildPreview(xml)
-	if record.GetString("description") == description {
+	image := xmldoc.FirstImageSrc(xml)
+
+	descriptionChanged := record.GetString("description") != description
+	imageChanged := record.GetString("image") != image
+	if !descriptionChanged && !imageChanged {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
-	record.Set("description", description)
+	if descriptionChanged {
+		record.Set("description", description)
+	}
+	if imageChanged {
+		record.Set("image", image)
+	}
 	return p.app.Save(record)
 }
 
@@ -272,26 +286,17 @@ const descriptionMaxRunes = 120
 // a <paragraph>.
 var paragraphRe = regexp.MustCompile(`(?s)<paragraph[^>]*>(.*?)</paragraph>`)
 
-// xmlUnescaper reverses ygo's own xmlEscapeText/xmlEscapeAttr (crdt
-// package), so the description shows plain "&"/"<"/">" instead of entities.
-var xmlUnescaper = strings.NewReplacer(
-	"&lt;", "<",
-	"&gt;", ">",
-	"&quot;", `"`,
-	"&apos;", "'",
-	"&amp;", "&",
-)
-
 // buildPreview turns a card's full ToXML() output into a short
 // plain-text description: every paragraph, joined by a newline (cut to
 // descriptionMaxRunes runes, so line breaks in the editor are
 // preserved), skipping blank paragraphs. Unescaped plain text with no
 // ellipsis. The title is no longer derived here -- see slug.go's
-// resolveSlugAndTitle.
+// resolveSlugAndTitle. Entity-unescaping is shared with xmldoc's own
+// image extraction (see xmldoc.UnescapeText).
 func buildPreview(xml string) string {
 	var paragraphs []string
 	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
-		text := strings.TrimSpace(xmlUnescaper.Replace(m[1]))
+		text := strings.TrimSpace(xmldoc.UnescapeText(m[1]))
 		if text != "" {
 			paragraphs = append(paragraphs, text)
 		}

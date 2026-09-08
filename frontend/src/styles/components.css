@@ -184,6 +184,16 @@
     color: light-dark(#808080, #c4c4c4);
   }
 
+  /* Cover-fit preview for a card whose document contains an image
+   * (see CardItem.tsx). Replaces .description entirely rather than
+   * sharing space with it -- the card is too small for both. */
+  .card-grid-item .thumbnail {
+    flex: 1 1 auto;
+    min-height: 0;
+    background-size: cover;
+    background-position: center;
+  }
+
   /* Folded-corner indicator for pinned cards (see CardForm's pin
    * toggle). A diagonal split: the upper-left triangle is the "fold"
    * (--color-border), the lower-right triangle matches the page
