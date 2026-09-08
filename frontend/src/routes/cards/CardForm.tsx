@@ -21,7 +21,7 @@ import {
 } from "../../lib/slugify";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
-import { useTopBarActions } from "../../lib/topBarSlot";
+import { useTopBarActions, useTopBarPotLink } from "../../lib/topBarSlot";
 import { computePosition } from "../../lib/position";
 import { deriveCardGridTitle } from "../../lib/cardGridTitle";
 import type { CardTitle } from "../../lib/cardTitle";
@@ -211,6 +211,12 @@ export default function CardForm() {
     const card = cardsById[recordId()];
     return card ? `${deriveCardGridTitle(card)} - ${potTitle}` : potTitle;
   });
+
+  // Shows the pot's name in TopBar, linking back to its card list
+  // (see lib/topBarSlot.ts) -- the way back from a card's edit page.
+  useTopBarPotLink(() =>
+    pot() ? { name: pot()!.title, slug: params.slug } : undefined,
+  );
 
   // Page-specific TopBar chrome (see lib/topBarSlot.ts): pin/delete
   // only make sense once a record actually exists -- an unconfirmed

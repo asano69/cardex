@@ -12,6 +12,7 @@ import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { computePosition } from "../../lib/position";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
+import { useTopBarPotLink } from "../../lib/topBarSlot";
 import type { CardRecord } from "./CardForm";
 
 // How many cards to fetch per page. Cards render as soon as their
@@ -45,6 +46,12 @@ export default function CardList() {
   // Browser tab title: the pot's own name (see useTitle.ts). CardForm
   // one level down uses "<card> - <pot>" for the same `pot` shape.
   useTitle(() => pot()?.title);
+  // Shows the pot's name in TopBar, next to the Pot icon (see
+  // lib/topBarSlot.ts). Clicking it here just links back to this same
+  // page -- CardForm is where this link actually goes somewhere.
+  useTopBarPotLink(() =>
+    pot() ? { name: pot()!.title, slug: params.slug } : undefined,
+  );
 
   // Whether the first page of cards has arrived. This -- not "every
   // page has arrived" -- is what gates the Loading spinner below, so

@@ -1,11 +1,11 @@
 import { Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { Menu, X, Pot } from "../../lib/icons";
+import { Menu, X } from "../../lib/icons";
 import Logo from "../Logo";
 
 import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
-import { topBarActions } from "../../lib/topBarSlot";
+import { topBarActions, topBarPotLink } from "../../lib/topBarSlot";
 
 export interface TopBarProps {
   isMobile: boolean;
@@ -49,15 +49,18 @@ export default function TopBar(props: TopBarProps) {
               the active state to the list itself: pot/card pages
               now live at "/:id" and "/:id/...", not nested under "/"
               in a way the router would otherwise treat as a match. */}
-          <A
-            href="/"
-            end
-            activeClass="bg-active-bg"
-            class="icon-btn"
-            aria-label="Themes"
-          >
-            <Pot size={18} />
-          </A>
+     
+          {/* Current pot's name, when the active page registered one
+              (see CardList/CardForm's useTopBarPotLink call). Links
+              back to that pot's card list. */}
+          <Show when={topBarPotLink()}>
+            <A
+              href={`/${topBarPotLink()!.slug}`}
+              class="truncate font-sans text-sm hover:underline"
+            >
+              {topBarPotLink()!.name}
+            </A>
+          </Show>
         </div>
 
         <nav class="flex items-center gap-1">
