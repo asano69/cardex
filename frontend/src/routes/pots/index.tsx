@@ -40,9 +40,7 @@ export default function Pots() {
   // position, so it's always appended at the end regardless of any
   // gaps left by earlier deletes or reorders.
   const nextPosition = () =>
-    pots().length === 0
-      ? 0
-      : Math.max(...pots().map((t) => t.position)) + 1;
+    pots().length === 0 ? 0 : Math.max(...pots().map((t) => t.position)) + 1;
 
   const handleAdded = (record: PotRecord) => {
     setPots((prev) => [...prev, record]);
@@ -120,9 +118,7 @@ export default function Pots() {
     try {
       await Promise.all(
         updates.map(({ pot, index }) =>
-          pb
-            .collection("pots")
-            .update<PotRecord>(pot.id, { position: index }),
+          pb.collection("pots").update<PotRecord>(pot.id, { position: index }),
         ),
       );
       setPots((prev) =>
@@ -140,13 +136,6 @@ export default function Pots() {
 
   return (
     <div class="flex w-full flex-col gap-4">
-      <h1 class="mb-4 font-sans text-2xl">Pots</h1>
-
-      <PotForm
-        hasExistingPots={pots().length > 0}
-        nextPosition={nextPosition()}
-        onAdded={handleAdded}
-      />
       <div class="flex flex-col gap-2">
         <For each={pots()}>
           {(pot) => (
@@ -161,6 +150,12 @@ export default function Pots() {
           )}
         </For>
       </div>
+
+      <PotForm
+        hasExistingPots={pots().length > 0}
+        nextPosition={nextPosition()}
+        onAdded={handleAdded}
+      />
     </div>
   );
 }

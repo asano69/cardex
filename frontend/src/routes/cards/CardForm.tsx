@@ -1,9 +1,4 @@
-import {
-  createSignal,
-  createResource,
-  createEffect,
-  Show,
-} from "solid-js";
+import { createSignal, createResource, createEffect, Show } from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 
 import { Alert } from "@kobalte/core/alert";
@@ -21,7 +16,7 @@ import {
 } from "../../lib/slugify";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
-import { useTopBarActions, useTopBarPotLink } from "../../lib/topBarSlot";
+import { useTopBarActions } from "../../lib/topBarSlot";
 import { computePosition } from "../../lib/position";
 import { deriveCardGridTitle } from "../../lib/cardGridTitle";
 import type { CardTitle } from "../../lib/cardTitle";
@@ -173,9 +168,7 @@ export default function CardForm() {
   const nextPinnedPosition = (excludeId: string): number => {
     const potId = cardsById[excludeId]?.pot;
     const pinnedPositions = Object.values(cardsById)
-      .filter(
-        (card) => card.pot === potId && card.pin && card.id !== excludeId,
-      )
+      .filter((card) => card.pot === potId && card.pin && card.id !== excludeId)
       .map((card) => card.position);
     const lowestPinned =
       pinnedPositions.length > 0 ? Math.min(...pinnedPositions) : undefined;
@@ -212,11 +205,9 @@ export default function CardForm() {
     return card ? `${deriveCardGridTitle(card)} - ${potTitle}` : potTitle;
   });
 
-  // Shows the pot's name in TopBar, linking back to its card list
-  // (see lib/topBarSlot.ts) -- the way back from a card's edit page.
-  useTopBarPotLink(() =>
-    pot() ? { name: pot()!.title, slug: params.slug } : undefined,
-  );
+  // TopBar's pot-name link (and the "add card" button next to it) is
+  // now registered once by the parent PotLayout route, not here -- see
+  // lib/router.tsx and routes/pots/PotLayout.tsx.
 
   // Page-specific TopBar chrome (see lib/topBarSlot.ts): pin/delete
   // only make sense once a record actually exists -- an unconfirmed

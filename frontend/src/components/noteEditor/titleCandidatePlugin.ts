@@ -1,6 +1,9 @@
 import { Plugin, type Transaction } from "prosemirror-state";
 import type { Node as PMNode } from "prosemirror-model";
-import { type TitleCandidate, makeTitleCandidate } from "../../lib/titleCandidate";
+import {
+  type TitleCandidate,
+  makeTitleCandidate,
+} from "../../lib/titleCandidate";
 
 // How long to wait, after the last edit to the header (or the body's
 // first line when the header is empty), before treating it as

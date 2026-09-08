@@ -45,7 +45,15 @@ describe("collapseGridTitleWhitespace (phase 3: title -> cardGridTitle)", () => 
     // StripBracketLinks (internal/slug/slug.go) already joins words
     // with a single half-width space, so these titles have no
     // consecutive whitespace to collapse in the first place.
-    for (const title of ["A B X C D", "A XB", "A B", "A", "A C", "D", "Untitled"]) {
+    for (const title of [
+      "A B X C D",
+      "A XB",
+      "A B",
+      "A",
+      "A C",
+      "D",
+      "Untitled",
+    ]) {
       expect(collapseGridTitleWhitespace(title)).toBe(title);
     }
   });

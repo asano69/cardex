@@ -1,4 +1,11 @@
-import { createResource, createMemo, createSignal, For, Show, onCleanup } from "solid-js";
+import {
+  createResource,
+  createMemo,
+  createSignal,
+  For,
+  Show,
+  onCleanup,
+} from "solid-js";
 import { useParams } from "@solidjs/router";
 import { DragDropProvider } from "@dnd-kit/solid";
 import { isSortable } from "@dnd-kit/solid/sortable";
@@ -11,7 +18,6 @@ import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { computePosition } from "../../lib/position";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
-import { useTopBarPotLink } from "../../lib/topBarSlot";
 import type { CardRecord } from "./CardForm";
 
 // How many cards to fetch per page. Cards render as soon as their
@@ -45,12 +51,9 @@ export default function CardList() {
   // Browser tab title: the pot's own name (see useTitle.ts). CardForm
   // one level down uses "<card> - <pot>" for the same `pot` shape.
   useTitle(() => pot()?.title);
-  // Shows the pot's name in TopBar, next to the Pot icon (see
-  // lib/topBarSlot.ts). Clicking it here just links back to this same
-  // page -- CardForm is where this link actually goes somewhere.
-  useTopBarPotLink(() =>
-    pot() ? { name: pot()!.title, slug: params.slug } : undefined,
-  );
+  // TopBar's pot-name link (and the "add card" button next to it) is
+  // now registered once by the parent PotLayout route, not here -- see
+  // lib/router.tsx and routes/pots/PotLayout.tsx.
 
   // Whether the first page of cards has arrived. This -- not "every
   // page has arrived" -- is what gates the Loading spinner below, so
@@ -75,14 +78,12 @@ export default function CardList() {
   // a reorder -- there's nothing to FLIP-animate from.
   const loadPage = async (potId: string) => {
     const page = nextPage;
-    const result = await pb.collection("cards").getList<CardRecord>(
-      page,
-      PAGE_SIZE,
-      {
+    const result = await pb
+      .collection("cards")
+      .getList<CardRecord>(page, PAGE_SIZE, {
         filter: pb.filter("pot = {:pot}", { pot: potId }),
         sort: "-created",
-      },
-    );
+      });
     mergeCards(result.items, { skipFlip: true });
     nextPage = page + 1;
     setHasMore(page < result.totalPages);

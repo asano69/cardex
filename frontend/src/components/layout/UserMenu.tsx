@@ -1,6 +1,12 @@
 // frontend/src/components/layout/UserMenu.tsx
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
-import { EllipsisVertical, LogOut, Settings, Help, About } from "../../lib/icons";
+import {
+  EllipsisVertical,
+  LogOut,
+  Settings,
+  Help,
+  About,
+} from "../../lib/icons";
 import pb from "../../lib/pb";
 
 // Dropdown menu in the top-right corner, currently holding just logout.
@@ -38,14 +44,13 @@ export default function UserMenu() {
             <About size={16} />
             About Cardex
           </DropdownMenu.Item>
-   <DropdownMenu.Item
+          <DropdownMenu.Item
             onSelect={handleSettings}
             class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-text outline-none transition-colors hover:bg-hover-bg data-[highlighted]:bg-hover-bg"
           >
             <Help size={16} />
             Help
           </DropdownMenu.Item>
-
 
           <DropdownMenu.Item
             onSelect={handleLogout}
