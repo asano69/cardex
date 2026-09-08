@@ -26,7 +26,7 @@ export default function MainLayout(props: ParentProps) {
         isMobile={isMobile()}
         sidebarOpen={sidebarOpen()}
         onToggleSidebar={toggleSidebar}
-        class="h-10 py-0"
+        class="h-10"
       />
 
       {/* Main content area. min-h-0 lets its flex children (Sidebar,

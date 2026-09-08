@@ -5,6 +5,7 @@ import Logo from "../Logo";
 
 import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
+import { topBarActions } from "../../lib/topBarSlot";
 
 export interface TopBarProps {
   isMobile: boolean;
@@ -60,6 +61,11 @@ export default function TopBar(props: TopBarProps) {
         </div>
 
         <nav class="flex items-center gap-1">
+          {/* Per-page actions slot (see lib/topBarSlot.ts): renders
+              whatever the currently mounted page registered via
+              useTopBarActions, e.g. CardForm's pin/delete buttons.
+              Empty on pages that register nothing. */}
+          {topBarActions()}
           <ThemeToggle />
           <UserMenu />
         </nav>

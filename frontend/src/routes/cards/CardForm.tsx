@@ -21,6 +21,7 @@ import {
 } from "../../lib/slugify";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
+import { useTopBarActions } from "../../lib/topBarSlot";
 import { computePosition } from "../../lib/position";
 import { deriveCardGridTitle } from "../../lib/cardGridTitle";
 import type { CardTitle } from "../../lib/cardTitle";
@@ -211,6 +212,33 @@ export default function CardForm() {
     return card ? `${deriveCardGridTitle(card)} - ${potTitle}` : potTitle;
   });
 
+  // Page-specific TopBar chrome (see lib/topBarSlot.ts): pin/delete
+  // only make sense once a record actually exists -- an unconfirmed
+  // draft has nothing to pin or delete -- so the Show guards the
+  // whole thing, same as before this moved out of the page body.
+  useTopBarActions(() => (
+    <Show when={recordId()}>
+      <button
+        type="button"
+        aria-label={pinned() ? "Unpin card" : "Pin card"}
+        class="icon-btn shrink-0"
+        onClick={togglePin}
+      >
+        <Show when={pinned()} fallback={<Pin size={20} />}>
+          <PinOff size={20} />
+        </Show>
+      </button>
+      <button
+        type="button"
+        aria-label="Delete card"
+        class="icon-btn shrink-0"
+        onClick={handleDelete}
+      >
+        <Trash2 size={20} />
+      </button>
+    </Show>
+  ));
+
   return (
     <Show
       when={!notFound()}
@@ -245,34 +273,6 @@ export default function CardForm() {
               "{mergeTarget()}" already exists.
             </Alert>
           </Show>
-          {/* min-h-9 keeps this row's height consistent whether or not
-            the pin/delete buttons are rendered, so a draft card (no
-            recordId yet) doesn't lose the gap below TopBar that an
-            existing card gets from these buttons. */}
-          <div class="flex min-h-9 justify-end gap-2">
-            {/* Pin/delete only make sense once a record actually exists
-              -- an unconfirmed draft has nothing to pin or delete. */}
-            <Show when={recordId()}>
-              <button
-                type="button"
-                aria-label={pinned() ? "Unpin card" : "Pin card"}
-                class="icon-btn shrink-0"
-                onClick={togglePin}
-              >
-                <Show when={pinned()} fallback={<Pin size={20} />}>
-                  <PinOff size={20} />
-                </Show>
-              </button>
-              <button
-                type="button"
-                aria-label="Delete card"
-                class="icon-btn shrink-0"
-                onClick={handleDelete}
-              >
-                <Trash2 size={20} />
-              </button>
-            </Show>
-          </div>
           <NoteEditor
             cardId={() => recordId() || undefined}
             potId={() => pot()?.id}
