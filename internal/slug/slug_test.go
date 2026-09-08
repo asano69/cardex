@@ -27,3 +27,27 @@ func TestFromTitle_ReservedWordGetsSuffixed(t *testing.T) {
 		t.Errorf("FromTitle(\"New\") = %q, want %q", got, "New")
 	}
 }
+
+func TestFromTitle_LeavesTabUntouched(t *testing.T) {
+	// Tab is not in the [\[\] ] separator class (only brackets and the
+	// literal ASCII space match), so it must pass through unchanged --
+	// mirrors frontend/src/lib/slugify.ts's titleToSlug. Turning it
+	// into a URL-safe "%09" is the frontend's job (titleToSegment's
+	// encodeUnsafeChars), not this function's.
+	got := FromTitle("A\tB")
+	want := "A\tB"
+	if got != want {
+		t.Errorf("FromTitle(%q) = %q, want %q", "A\tB", got, want)
+	}
+}
+
+func TestFromTitle_LeavesFullWidthSpaceUntouched(t *testing.T) {
+	// U+3000 (full-width space) is not the ASCII space character, so
+	// it isn't treated as a word separator -- mirrors
+	// frontend/src/lib/slugify.ts's splitWords.
+	got := FromTitle("A\u3000B")
+	want := "A\u3000B"
+	if got != want {
+		t.Errorf("FromTitle(%q) = %q, want %q", "A\u3000B", got, want)
+	}
+}

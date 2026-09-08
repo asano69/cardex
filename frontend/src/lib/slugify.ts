@@ -39,18 +39,28 @@ export function titleToSlug(title: string): string {
   return RESERVED_SEGMENTS.has(joined) ? `${joined}_` : joined;
 }
 
-// Percent-encodes the handful of characters that are actually unsafe
-// in a path segment (% / # ?). Everything else, including non-ASCII
-// text such as Japanese and the underscores titleToSlug already
-// produces, is left as-is so it shows up literally in the browser
-// instead of being percent-encoded the way encodeURIComponent would
-// do it.
+// Percent-encodes the characters that are actually unsafe in a path
+// segment: % / # ?, plus any ASCII control character (e.g. a stray tab
+// pasted into a title), which browsers can silently mangle or strip.
+// Everything else, including non-ASCII text such as Japanese and the
+// underscores titleToSlug already produces, is left as-is so it shows
+// up literally in the browser instead of being percent-encoded the
+// way encodeURIComponent would do it.
 function encodeUnsafeChars(slug: string): string {
   return slug
     .replaceAll("%", "%25") // must run first, or the escapes below would be double-encoded
     .replaceAll("/", "%2F")
     .replaceAll("#", "%23")
-    .replaceAll("?", "%3F");
+    .replaceAll("?", "%3F")
+    .replace(/[\x00-\x1f\x7f]/g, encodeControlChar);
+}
+
+// Percent-encodes a single ASCII control character (tab, newline, ...).
+// Only ever called for characters the regex in encodeUnsafeChars
+// matched, so printable non-ASCII text (Japanese, the full-width space
+// U+3000, ...) never reaches this function.
+function encodeControlChar(ch: string): string {
+  return `%${ch.charCodeAt(0).toString(16).padStart(2, "0").toUpperCase()}`;
 }
 
 // Converts a card's title straight into the URL path segment used to
