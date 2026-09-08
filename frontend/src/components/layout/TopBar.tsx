@@ -49,7 +49,7 @@ export default function TopBar(props: TopBarProps) {
           <Show when={topBarPotLink()}>
             <A
               href={`/${topBarPotLink()!.slug}`}
-              class="truncate font-sans text-md font-bold hover:bg-hover-bg"
+              class="truncate font-sans text-sm font-bold hover:bg-hover-bg"
             >
               {topBarPotLink()!.name}
             </A>

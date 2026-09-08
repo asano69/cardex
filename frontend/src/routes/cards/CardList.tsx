@@ -16,8 +16,8 @@ import Loading from "../../components/Loading";
 import CardItem from "./CardItem";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
 import { computePosition } from "../../lib/position";
-import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
+import { usePot } from "../pots/PotContext";
 import type { CardRecord } from "./CardForm";
 
 // How many cards to fetch per page. Cards render as soon as their
@@ -47,7 +47,11 @@ const sensors = [
 
 export default function CardList() {
   const params = useParams();
-  const [pot] = createResource(() => params.slug, fetchPotBySlug);
+  // Fetched once by the parent PotLayout route and shared via
+  // PotContext, instead of fetching it again here -- a second
+  // identical fetchPotBySlug request used to get auto-cancelled by
+  // PocketBase's SDK when navigating right after CardList mounted.
+  const pot = usePot();
   // Browser tab title: the pot's own name (see useTitle.ts). CardForm
   // one level down uses "<card> - <pot>" for the same `pot` shape.
   useTitle(() => pot()?.title);

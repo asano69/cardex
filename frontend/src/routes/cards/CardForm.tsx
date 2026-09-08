@@ -14,11 +14,11 @@ import {
   segmentToSlug,
   slugToTitle,
 } from "../../lib/slugify";
-import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 import { useTopBarActions } from "../../lib/topBarSlot";
 import { computePosition } from "../../lib/position";
 import { deriveCardGridTitle } from "../../lib/cardGridTitle";
+import { usePot } from "../pots/PotContext";
 import type { CardTitle } from "../../lib/cardTitle";
 
 // Matches the PocketBase "cards" collection schema. "title" is a
@@ -53,9 +53,11 @@ export default function CardForm() {
   const params = useParams();
   const navigate = useNavigate();
 
-  // The parent pot/pot, used for the browser tab title (see
-  // useTitle below) and, in draft mode, as NoteEditor's potId.
-  const [pot] = createResource(() => params.slug, fetchPotBySlug);
+  // The parent pot, used for the browser tab title (see useTitle
+  // below) and, in draft mode, as NoteEditor's potId. Fetched once by
+  // the parent PotLayout route and shared via PotContext, instead of
+  // fetching it again here.
+  const pot = usePot();
 
   const [recordId, setRecordId] = createSignal("");
   const [notFound, setNotFound] = createSignal(false);
