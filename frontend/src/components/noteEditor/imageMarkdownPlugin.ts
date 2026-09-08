@@ -2,14 +2,22 @@ import { Plugin } from "prosemirror-state";
 import type { Transaction } from "prosemirror-state";
 import type { Node as PMNode } from "prosemirror-model";
 
-// Markdown image syntax: ![alt](url)
-const MARKDOWN_IMAGE_RE = /!\[([^\]]*)\]\((\S+?)\)/g;
+// Markdown image syntax: ![alt](http(s)://...). The "![" prefix
+// already makes this unambiguous, so unlike the bracket pattern below
+// there's no need to also require an image file extension -- CDN and
+// server-rendered image URLs often have none.
+const MARKDOWN_IMAGE_RE = /!\[([^\]]*)\]\((https?:\/\/\S+?)\)/g;
 
-// A bare image URL wrapped in plain brackets, e.g.
-// "[https://example.com/cat.png]" -- distinguished from a normal
-// bracket link (see urlLinkRule.ts) purely by the file extension.
-const BRACKETED_IMAGE_URL_RE =
-  /\[(https?:\/\/[^\s[\]]+\.(?:png|jpe?g|gif|webp|svg)(?:\?\S*)?)\]/gi;
+// A bare URL that fills an entire bracket pair with nothing else
+// inside, e.g. "[https://example.com/cat.png]" or
+// "[https://example.com/render?id=1]" (no file extension needed).
+// This is what keeps it distinct from Scrapbox-style bracket links
+// (see internal/slug.StripBracketLinks / urlLinkRule.ts): a bracket
+// link's content is one or more words separated by spaces/nested
+// brackets, whereas this only matches when the bracket's ENTIRE
+// content -- no surrounding words, no internal whitespace -- is a
+// single http(s) URL.
+const BRACKETED_IMAGE_URL_RE = /\[(https?:\/\/[^\s[\]]+)\]/g;
 
 interface ImageMatch {
   from: number;
