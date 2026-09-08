@@ -18,7 +18,7 @@ import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
-import { slugCandidatePlugin } from "./slugCandidatePlugin";
+import { titleCandidatePlugin } from "./titleCandidatePlugin";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
 import { mergeCards } from "../../lib/cardsStore";
@@ -149,7 +149,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     }
   };
 
-  // Called by slugCandidatePlugin whenever the header (or the body's
+  // Called by titleCandidatePlugin whenever the header (or the body's
   // first line) is confirmed. Shared by draft creation and
   // existing-card slug edits -- which one happens is decided purely by
   // whether `cardId` is already set (see sendCandidate above).
@@ -209,7 +209,7 @@ export default function NoteEditor(props: NoteEditorProps) {
           blockIdPlugin(),
           linkClickPlugin(),
           pasteUrlDecodePlugin(),
-          slugCandidatePlugin(handleSlugCandidate),
+          titleCandidatePlugin(handleSlugCandidate),
           ...state.plugins,
         ],
       }),

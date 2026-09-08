@@ -9,7 +9,7 @@ import { type TitleCandidate, makeTitleCandidate } from "../../lib/titleCandidat
 // headerJustCommitted below).
 const DEBOUNCE_MS = 2000;
 
-// Extracts the slug candidate text: the first textblock (paragraph,
+// Extracts the title candidate text: the first textblock (paragraph,
 // heading, codeBlock, ...) anywhere in the document -- at any depth
 // and any position -- whose trimmed text content is non-empty. What
 // matters is "first line with actual text", not whether that line
@@ -53,14 +53,14 @@ function headerJustCommitted(
   );
 }
 
-// Fires `onConfirmed` with a slug candidate string whenever the header
+// Fires `onConfirmed` with a title candidate string whenever the header
 // (or the body's first line, if the header is empty) is "confirmed":
 // either the user presses Enter to move past it, or DEBOUNCE_MS passes
 // with no further edits to it, whichever comes first. Shared by both
-// draft creation and existing-card slug editing (see NoteEditor's
+// draft creation and existing-card title editing (see NoteEditor's
 // index.tsx) -- this plugin has no notion of which mode it's running
 // in, only "a new candidate string is ready".
-export function slugCandidatePlugin(
+export function titleCandidatePlugin(
   onConfirmed: (candidate: TitleCandidate) => void,
 ) {
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
