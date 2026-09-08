@@ -76,7 +76,7 @@ export default function CardItem(props: CardItemProps) {
             fallback={<div class="description">{props.card.description}</div>}
           >
             <div
-              class="thumbnail"
+              class="thumbnail m-1.5"
               style={{ "background-image": `url(${props.card.image})` }}
             />
           </Show>

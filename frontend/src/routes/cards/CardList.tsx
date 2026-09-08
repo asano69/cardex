@@ -190,26 +190,34 @@ export default function CardList() {
     if (!moved) return;
 
     // Pinned cards always sort before unpinned ones (see `cards`
-    // above). Clamp the drop target to the same pin group so a drag
-    // that overshoots past the group's boundary can't compute a
-    // position that crosses into the other group -- that would leave
-    // the card visually stranded until the next reload re-sorts it
-    // back by pin.
-    const groupSize = ordered.filter((card) => card.pin === moved.pin).length;
-    const groupStart = moved.pin ? 0 : ordered.length - groupSize;
-    const groupEnd = groupStart + groupSize - 1;
+    // above), but their positions are on a completely separate scale
+    // from unpinned ones (each new pin gets half of the lowest
+    // existing pinned position -- see nextPinnedPosition in
+    // CardForm.tsx). So neighbor lookups below must never cross into
+    // the other pin group: averaging a pinned card's (tiny) position
+    // with an unpinned card's (much larger) one could produce a value
+    // that isn't actually above every other unpinned card, landing
+    // the dragged card second or later instead of first.
+    const group = ordered.filter((card) => card.pin === moved.pin);
+    const groupStart = moved.pin ? 0 : ordered.length - group.length;
+    const groupEnd = groupStart + group.length - 1;
     const clampedIndex = Math.min(Math.max(newIndex, groupStart), groupEnd);
     if (initialIndex === clampedIndex) return;
 
-    const rest = ordered.filter((card) => card.id !== moved.id);
+    // Index of the drop target within its own group, and that group's
+    // cards with `moved` removed -- restricting computePosition's
+    // neighbors to this same-group list is what keeps the boundary
+    // case above from mixing in the other group's positions.
+    const indexInGroup = clampedIndex - groupStart;
+    const restInGroup = group.filter((card) => card.id !== moved.id);
     // The grid is sorted by descending position (see `cards` above),
     // so the card displayed above has the larger position and the
     // card displayed below has the smaller one -- the opposite of
     // computePosition's (prev, next) argument order, so they're
     // swapped here.
     const position = computePosition(
-      rest[clampedIndex]?.position,
-      rest[clampedIndex - 1]?.position,
+      restInGroup[indexInGroup]?.position,
+      restInGroup[indexInGroup - 1]?.position,
     );
 
     // Applied immediately, in step with dnd-kit's own drop animation
