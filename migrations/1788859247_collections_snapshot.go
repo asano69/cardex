@@ -1154,30 +1154,6 @@ func init() {
 						"type": "text"
 					},
 					{
-						"cascadeDelete": false,
-						"collectionId": "pbc_2800040823",
-						"help": "",
-						"hidden": false,
-						"id": "relation2638274075",
-						"maxSelect": 0,
-						"minSelect": 0,
-						"name": "topic",
-						"presentable": false,
-						"required": false,
-						"system": false,
-						"type": "relation"
-					},
-					{
-						"help": "",
-						"hidden": false,
-						"id": "bool271442091",
-						"name": "done",
-						"presentable": false,
-						"required": false,
-						"system": false,
-						"type": "bool"
-					},
-					{
 						"help": "",
 						"hidden": false,
 						"id": "number3619293394",
@@ -1203,6 +1179,21 @@ func init() {
 						"values": [
 							"active"
 						]
+					},
+					{
+						"help": "",
+						"hidden": false,
+						"id": "file2366146245",
+						"maxSelect": 0,
+						"maxSize": 0,
+						"mimeTypes": null,
+						"name": "cover",
+						"presentable": false,
+						"protected": false,
+						"required": false,
+						"system": false,
+						"thumbs": null,
+						"type": "file"
 					},
 					{
 						"hidden": false,
