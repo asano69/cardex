@@ -944,22 +944,7 @@ func init() {
 					},
 					{
 						"autogeneratePattern": "",
-						"help": "The entire string must consist of one or more non-space characters.",
-						"hidden": false,
-						"id": "text2560465762",
-						"max": 0,
-						"min": 0,
-						"name": "slug",
-						"pattern": "^[^ \\[\\]]+$",
-						"presentable": false,
-						"primaryKey": false,
-						"required": true,
-						"system": false,
-						"type": "text"
-					},
-					{
-						"autogeneratePattern": "",
-						"help": "The characters [ and ] must not appear anywhere in the string.",
+						"help": "The characters [ and ] must not appear anywhere in the string.  The entire string must consist of one or more non-space characters.",
 						"hidden": false,
 						"id": "text724990059",
 						"max": 0,
@@ -968,7 +953,7 @@ func init() {
 						"pattern": "^[^\\[\\]]*$",
 						"presentable": false,
 						"primaryKey": false,
-						"required": false,
+						"required": true,
 						"system": false,
 						"type": "text"
 					},
@@ -1046,7 +1031,6 @@ func init() {
 				],
 				"id": "pbc_2527524235",
 				"indexes": [
-					"CREATE UNIQUE INDEX ` + "`" + `idx_e0tuhskhni` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `pot` + "`" + `,\n  ` + "`" + `slug` + "`" + `\n)",
 					"CREATE UNIQUE INDEX ` + "`" + `idx_r30t04lu5q` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `pot` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
 				],
 				"listRule": null,

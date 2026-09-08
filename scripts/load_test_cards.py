@@ -101,7 +101,7 @@ def create_cards(base_url, token, pot_id, count):
             "POST",
             "/api/admin/cards",
             token=token,
-            body={"pot": pot_id, "slugCandidate": f"Test Card {i}"},
+            body={"pot": pot_id, "titleCandidate": f"Test Card {i}"},
         )
         if i % 100 == 0 or i == count:
             print(f"created {i}/{count} cards")

@@ -1,5 +1,4 @@
 import {
-  onMount,
   createSignal,
   createResource,
   createEffect,
@@ -14,7 +13,7 @@ import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
-import { cardSlugToSegment, segmentToCardSlug } from "../../lib/cardSlug";
+import { titleToSegment, titleToSlug, segmentToSlug } from "../../lib/slugify";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 import { computePosition } from "../../lib/position";
@@ -22,16 +21,16 @@ import type { CardTitle } from "../../lib/cardTitle";
 
 // Matches the PocketBase "cards" collection schema. "title" is a
 // display label derived server-side from the card's live Yjs body
-// (see internal/serve/ydoc.go); "slug" is the URL identifier, resolved
-// server-side from the same source via a dedicated route (see
-// internal/serve/cards.go and lib/cardApi.ts) instead of doubling as
-// the title. "position" is a fractional-indexing sort key (see
+// (see internal/serve/ydoc.go and internal/serve/slug.go), resolved
+// via a dedicated route (see internal/serve/cards.go and
+// lib/cardApi.ts). There is no separate "slug" field anymore -- a
+// card's URL segment is derived from this same title on demand (see
+// lib/slugify.ts). "position" is a fractional-indexing sort key (see
 // lib/position.ts) used to persist the tile grid's drag-to-reorder
 // order in CardList.
 export interface CardRecord {
   id: string;
   title: CardTitle;
-  slug: string;
   description: string;
   pot: string;
   position: number;
@@ -59,28 +58,37 @@ export default function CardForm() {
   const [recordId, setRecordId] = createSignal("");
   const [notFound, setNotFound] = createSignal(false);
 
-  onMount(async () => {
-    if (!params.cardSlug) return; // draft mode -- nothing to resolve eagerly
-
-    // Editing an existing card: its PocketBase id isn't in the URL --
-    // it's resolved by matching the decoded slug within the pot
-    // identified by :slug. Slugs are unique within an pot (enforced
-    // at the database level), so this lookup returns at most one
-    // record. Filtering on the related pot's "slug" directly (dot
-    // notation) avoids a separate lookup just to get the pot's id.
-    try {
-      const record = await pb.collection("cards").getFirstListItem<CardRecord>(
-        pb.filter("pot.slug = {:slug} && slug = {:cardSlug}", {
-          slug: params.slug,
-          cardSlug: segmentToCardSlug(params.cardSlug),
-        }),
-      );
-      mergeCards([record]);
-      setRecordId(record.id);
-    } catch {
-      setNotFound(true);
-    }
-  });
+  // Editing an existing card: its PocketBase id isn't in the URL, and
+  // there's no stored "slug" field to filter on anymore (see
+  // lib/slugify.ts) -- every card in the pot is fetched and matched by
+  // re-deriving its own slug from its title, since titleToSlug is a
+  // pure function and titles are already guaranteed unique per pot.
+  // Waits for `pot` to resolve first, since the filter below needs its
+  // PocketBase id rather than its slug.
+  // TODO: this is an O(n) scan over every card in the pot -- fine for
+  // now, but worth moving to a backend route (with its own index) if
+  // pots regularly grow into the thousands of cards.
+  createResource(
+    () => (params.cardSlug ? pot()?.id : undefined),
+    async (potId) => {
+      const targetSlug = segmentToSlug(params.cardSlug!);
+      try {
+        const candidates = await pb
+          .collection("cards")
+          .getFullList<CardRecord>({
+            filter: pb.filter("pot = {:pot}", { pot: potId }),
+          });
+        const record = candidates.find(
+          (card) => titleToSlug(card.title) === targetSlug,
+        );
+        if (!record) throw new Error("card not found");
+        mergeCards([record]);
+        setRecordId(record.id);
+      } catch {
+        setNotFound(true);
+      }
+    },
+  );
 
   // Keeps the address bar's slug segment in sync as the card's slug
   // changes server-side (see internal/serve/cards.go's
@@ -92,9 +100,9 @@ export default function CardForm() {
   createEffect(() => {
     const id = recordId();
     if (!id) return;
-    const slug = cardsById[id]?.slug ?? "";
-    if (!slug) return;
-    const segment = cardSlugToSegment(slug);
+    const title = cardsById[id]?.title ?? "";
+    if (!title) return;
+    const segment = titleToSegment(title);
     if (segment === urlSegment) return;
     urlSegment = segment;
     history.replaceState(null, "", `/${params.slug}/${segment}`);

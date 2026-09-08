@@ -1,11 +1,17 @@
-// Package serve: slug.go resolves a URL-safe, unique "slug" for a card
+// Package serve: slug.go resolves a unique display "title" for a card
 // from arbitrary candidate text (the card's header, or its first body
 // line if the header is empty). This is deliberately separate from
-// ydoc.go's Yjs persistence hook: slug resolution reacts to an
+// ydoc.go's Yjs persistence hook: title resolution reacts to an
 // explicit client request (see the /api/admin/cards and
-// /api/admin/cards/{id}/slug routes in cards.go), not to every Yjs
+// /api/admin/cards/{id}/title routes in cards.go), not to every Yjs
 // update, so there's no need to detect whether the header actually
 // changed before recomputing it.
+//
+// A card's URL segment is no longer a separate stored field -- it's
+// derived from this same title on demand (see internal/slug.FromTitle
+// and its frontend mirror, frontend/src/lib/slugify.ts), since the
+// (pot, title) unique index already guarantees a title never collides
+// within a pot.
 package serve
 
 import (
@@ -19,57 +25,23 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-// reservedSlug can never be reached via URL: "/:slug/new" always opens
-// the draft-creation flow (see frontend/src/lib/router.tsx), so a card
-// whose derived slug is exactly this string is renamed with a trailing
-// underscore before the usual uniqueness check runs.
-const reservedSlug = "new"
-const reservedSlugFallback = "new_"
-
 // defaultTitle is used when a candidate resolves to no usable text at
 // all -- e.g. an empty draft confirmed with Enter. Duplicate defaults
-// are disambiguated the same way any other slug/title is (see
-// resolveUniqueInPot).
+// are disambiguated the same way any other title is (see
+// resolveUniqueTitleInPot).
 const defaultTitle = "Untitled"
 
-// splitCandidateWords splits s on runs of "[", "]", and space,
-// dropping empty fields. Brackets commonly show up in text imported
-// from bracket-link wikis (e.g. "[some page]") and act as a word
-// separator just like whitespace does -- consecutive brackets/spaces
-// collapse into a single separator either way, so "[a][b]" and
-// "[a] [b]" both produce the word list ["a", "b"]. Used by
-// normalizeSlugCandidate below to build a URL-safe slug.
-func splitCandidateWords(s string) []string {
-	return strings.FieldsFunc(s, func(r rune) bool {
-		return r == '[' || r == ']' || r == ' '
-	})
-}
-
-// normalizeSlugCandidate joins splitCandidateWords with "_", so any
-// run of brackets/spaces in the source -- including the leading/
-// trailing edges -- collapses to a single underscore (or none, at the
-// edges), making the result safe as a single URL path segment.
-// Non-ASCII characters (e.g. Japanese) are left as-is -- percent-
-// encoding the handful of characters that are actually unsafe in a
-// path segment (% / # ?) is the frontend's job (see
-// frontend/src/lib/cardSlug.ts).
-func normalizeSlugCandidate(candidate TitleCandidate) string {
-	return strings.Join(splitCandidateWords(string(candidate)), "_")
-}
-
-// resolveUniqueInPot returns a value derived from base that is unique
-// among "cards" records where `field` matches, scoped to pot.
-// excludeID lets a record keep resolving against its own current value
-// without colliding with itself (pass "" for a brand-new record).
-// Collisions are disambiguated with a numeric suffix ("_2", "_3", ...),
-// shared by resolveCardSlug and resolveCardTitle below since both
-// fields are unique per-pot and use the same disambiguation scheme.
-func resolveUniqueInPot(app core.App, pot, field, base, excludeID string) (string, error) {
+// resolveUniqueTitleInPot returns a value derived from base that is
+// unique among "cards" records in pot. excludeID lets a record keep
+// resolving against its own current title without colliding with
+// itself (pass "" for a brand-new record). Collisions are
+// disambiguated with a numeric suffix ("_2", "_3", ...).
+func resolveUniqueTitleInPot(app core.App, pot, base, excludeID string) (string, error) {
 	value := base
 	for suffix := 2; ; suffix++ {
 		_, err := app.FindFirstRecordByFilter(
 			"cards",
-			fmt.Sprintf("pot = {:pot} && %s = {:value} && id != {:id}", field),
+			"pot = {:pot} && title = {:value} && id != {:id}",
 			dbx.Params{"pot": pot, "value": value, "id": excludeID},
 		)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -82,91 +54,52 @@ func resolveUniqueInPot(app core.App, pot, field, base, excludeID string) (strin
 	}
 }
 
-// resolveCardSlug returns a slug derived from candidate that is unique
-// within pot. excludeID lets a record keep resolving against its own
-// current slug without colliding with itself (pass "" for a brand-new
-// record). Empty candidates fall back to defaultTitle (see ydoc.go),
-// the same "Untitled" fallback used for a card with no derivable
-// title.
-func resolveCardSlug(app core.App, pot string, candidate TitleCandidate, excludeID string) (CardSlug, error) {
-	base := normalizeSlugCandidate(candidate)
+// resolveTitle returns a title derived from candidate that is unique
+// within pot, matching the "cards" collection's unique (pot, title)
+// index. excludeID lets a card keep resolving against its own current
+// title without colliding with itself.
+func resolveTitle(app core.App, pot string, candidate TitleCandidate, excludeID string) (CardTitle, error) {
+	base := string(candidate)
 	if base == "" {
 		base = defaultTitle
 	}
-	if base == reservedSlug {
-		base = reservedSlugFallback
-	}
-	value, err := resolveUniqueInPot(app, pot, "slug", base, excludeID)
-	return CardSlug(value), err
-}
-
-// resolveCardTitle returns a title derived from rawTitle that is unique
-// within pot, matching the "cards" collection's unique (pot, title)
-// index. Unlike resolveCardSlug, spaces are kept as-is and there is no
-// reserved-word fallback -- the title is a display label, not a URL
-// segment. excludeID lets a card keep resolving against its own current
-// title without colliding with itself.
-func resolveCardTitle(app core.App, pot string, rawTitle TitleCandidate, excludeID string) (CardTitle, error) {
-	if rawTitle == "" {
-		rawTitle = defaultTitle
-	}
-	value, err := resolveUniqueInPot(app, pot, "title", string(rawTitle), excludeID)
+	value, err := resolveUniqueTitleInPot(app, pot, base, excludeID)
 	return CardTitle(value), err
 }
 
-// resolveSlugAndTitle resolves both the slug and the display title for
-// a card from the same candidate text, so the two are never derived
-// from different sources (see cards.go's createCardHandler and
-// updateCardSlugHandler, the only callers). Title is no longer derived
-// from the card's live Yjs content on a periodic snapshot -- both
-// fields are decided together, right here, whenever the client
-// confirms a candidate.
-func resolveSlugAndTitle(app core.App, pot string, candidate TitleCandidate, excludeID string) (CardSlug, CardTitle, error) {
-	slug, err := resolveCardSlug(app, pot, candidate, excludeID)
-	if err != nil {
-		return "", "", fmt.Errorf("resolve slug: %w", err)
-	}
-	title, err := resolveCardTitle(app, pot, candidate, excludeID)
-	if err != nil {
-		return "", "", fmt.Errorf("resolve title: %w", err)
-	}
-	return slug, title, nil
-}
-
-// mergeSuffixRe matches the trailing numeric dedup suffix a slug gets
-// from resolveUniqueInPot (e.g. "p_2" -> "p"). Mirrors
-// frontend/src/lib/cardSlug.ts's stripSlugSuffix; only one level is
+// titleSuffixRe matches the trailing numeric dedup suffix a title gets
+// from resolveUniqueTitleInPot (e.g. "p_2" -> "p"). Only one level is
 // stripped per call.
-var mergeSuffixRe = regexp.MustCompile(`^(.+)_\d+$`)
+var titleSuffixRe = regexp.MustCompile(`^(.+)_\d+$`)
 
-// stripSlugSuffix strips one level of the trailing numeric dedup
-// suffix from slug (see mergeSuffixRe), or returns "" if slug has no
+// stripTitleSuffix strips one level of the trailing numeric dedup
+// suffix from title (see titleSuffixRe), or returns "" if title has no
 // such suffix.
-func stripSlugSuffix(slug CardSlug) CardSlug {
-	m := mergeSuffixRe.FindStringSubmatch(string(slug))
+func stripTitleSuffix(title CardTitle) CardTitle {
+	m := titleSuffixRe.FindStringSubmatch(string(title))
 	if m == nil {
 		return ""
 	}
-	return CardSlug(m[1])
+	return CardTitle(m[1])
 }
 
-// findMergeTarget returns the slug this card would collide with if its
-// own numeric dedup suffix were stripped (e.g. "p_2" -> "p"), but only
-// when that collision looks like a genuine duplicate rather than two
-// deliberately different headers that happen to share a stripped slug:
-// the other card's own header (its card_lines position-0 line) must
-// match rawHeader once both are trimmed. Returns "" when no merge
+// findMergeTarget returns the title this card would collide with if
+// its own numeric dedup suffix were stripped (e.g. "p_2" -> "p"), but
+// only when that collision looks like a genuine duplicate rather than
+// two deliberately different headers that happen to share a stripped
+// title: the other card's own header (its card_lines position-0 line)
+// must match rawHeader once both are trimmed. Returns "" when no merge
 // alert should be shown.
-func findMergeTarget(app core.App, pot string, slug CardSlug, rawHeader TitleCandidate, excludeID string) (CardSlug, error) {
-	stripped := stripSlugSuffix(slug)
+func findMergeTarget(app core.App, pot string, title CardTitle, rawHeader TitleCandidate, excludeID string) (CardTitle, error) {
+	stripped := stripTitleSuffix(title)
 	if stripped == "" {
 		return "", nil
 	}
 
 	other, err := app.FindFirstRecordByFilter(
 		"cards",
-		"pot = {:pot} && slug = {:slug} && id != {:id}",
-		dbx.Params{"pot": pot, "slug": string(stripped), "id": excludeID},
+		"pot = {:pot} && title = {:title} && id != {:id}",
+		dbx.Params{"pot": pot, "title": string(stripped), "id": excludeID},
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil

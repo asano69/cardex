@@ -19,7 +19,7 @@ import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
 import { slugCandidatePlugin } from "./slugCandidatePlugin";
-import { createCard, updateCardSlug } from "../../lib/cardApi";
+import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
 import { mergeCards } from "../../lib/cardsStore";
 import type { CardRecord } from "../../routes/cards/CardForm";
@@ -122,7 +122,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     const mySequence = ++sequence;
     try {
       const result = cardId
-        ? await updateCardSlug(cardId, candidate)
+        ? await updateCardTitle(cardId, candidate)
         : await createCard(props.potId?.() ?? "", candidate);
 
       if (mySequence !== sequence) return; // superseded by a newer request
