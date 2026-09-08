@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { Menu, X, Network } from "../../lib/icons";
+import { Menu, X, Pot } from "../../lib/icons";
 import Logo from "../Logo";
 
 import ThemeToggle from "./ThemeToggle";
@@ -56,7 +56,7 @@ export default function TopBar(props: TopBarProps) {
             class="icon-btn"
             aria-label="Themes"
           >
-            <Network size={18} />
+            <Pot size={18} />
           </A>
         </div>
 

@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { ToggleButton } from "@kobalte/core/toggle-button";
-import { CircleCheckBig, Circle, GripVertical, Pencil } from "../../lib/icons";
+import { CircleCheckBig, Circle, Pot, Pencil } from "../../lib/icons";
 
 import pb from "../../lib/pb";
 import { playCompletionSound } from "../../lib/completionSound";
@@ -103,7 +103,7 @@ export default function PotItem(props: PotItemProps) {
           onPointerDown={(e) => props.onDragStart(e)}
           onClick={(e) => e.stopPropagation()}
         >
-          <GripVertical size={15} />
+          <Pot size={15} />
         </button>
         <ToggleButton
           pressed={props.pot.done}
