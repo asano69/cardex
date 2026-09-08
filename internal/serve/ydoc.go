@@ -344,14 +344,10 @@ func buildTitleAndPreview(xml string) (title TitleCandidate, description string)
 	if rawTitle == "" {
 		rawTitle = defaultTitle
 	}
-	// Bracket/whitespace cleanup happens once, right here, after title
-	// is resolved from whichever source above -- see
-	// normalizeCandidateText's doc comment in slug.go, shared with
-	// slug resolution.
-	rawTitle = normalizeCandidateText(rawTitle)
-	if rawTitle == "" {
-		rawTitle = defaultTitle
-	}
+	// The title is kept verbatim -- exactly matching the corresponding
+	// card_lines content -- so no bracket/whitespace normalization is
+	// applied here (see slug.go's normalizeSlugCandidate for the
+	// separate, URL-safe transformation the slug still needs).
 	rawTitle = truncateRunes(rawTitle, titleMaxRunes)
 
 	description = truncateRunes(strings.Join(paragraphs, "\n"), descriptionMaxRunes)

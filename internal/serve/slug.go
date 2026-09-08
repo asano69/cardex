@@ -31,31 +31,21 @@ const reservedSlugFallback = "new_"
 // from bracket-link wikis (e.g. "[some page]") and act as a word
 // separator just like whitespace does -- consecutive brackets/spaces
 // collapse into a single separator either way, so "[a][b]" and
-// "[a] [b]" both produce the word list ["a", "b"]. Shared by
-// normalizeCandidateText (title) and normalizeSlugCandidate (slug)
-// below.
+// "[a] [b]" both produce the word list ["a", "b"]. Used by
+// normalizeSlugCandidate below to build a URL-safe slug.
 func splitCandidateWords(s string) []string {
 	return strings.FieldsFunc(s, func(r rune) bool {
 		return r == '[' || r == ']' || r == ' '
 	})
 }
 
-// normalizeCandidateText joins splitCandidateWords with a single
-// space, so any run of brackets/spaces in the source -- including the
-// leading/trailing edges -- collapses to exactly one separator (or
-// none, at the edges). This is the shared first step for both slug and
-// title resolution (see normalizeSlugCandidate below and
-// buildTitleAndPreview in ydoc.go) -- both start from the same raw
-// header/paragraph text.
-func normalizeCandidateText(s string) string {
-	return strings.Join(splitCandidateWords(s), " ")
-}
-
-// normalizeSlugCandidate joins splitCandidateWords with "_" instead of
-// normalizeCandidateText's space, so the result is safe as a single
-// URL path segment. Non-ASCII characters (e.g. Japanese) are left as-is
-// -- percent-encoding the handful of characters that are actually
-// unsafe in a path segment (% / # ?) is the frontend's job (see
+// normalizeSlugCandidate joins splitCandidateWords with "_", so any
+// run of brackets/spaces in the source -- including the leading/
+// trailing edges -- collapses to a single underscore (or none, at the
+// edges), making the result safe as a single URL path segment.
+// Non-ASCII characters (e.g. Japanese) are left as-is -- percent-
+// encoding the handful of characters that are actually unsafe in a
+// path segment (% / # ?) is the frontend's job (see
 // frontend/src/lib/cardSlug.ts).
 func normalizeSlugCandidate(candidate TitleCandidate) string {
 	return strings.Join(splitCandidateWords(string(candidate)), "_")

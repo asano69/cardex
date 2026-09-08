@@ -13,26 +13,48 @@ func TestBuildTitleAndPreview_KeepsSpacesInTitle(t *testing.T) {
 	}
 }
 
-func TestBuildTitleAndPreview_BracketsBecomeSpaces(t *testing.T) {
-	// Regression test: "[" and "]" in the title candidate are treated
-	// as word separators (turned into a space), not left as literal
-	// punctuation in the resolved title.
+func TestBuildTitleAndPreview_KeepsBracketsLiteral(t *testing.T) {
+	// Regression test: the title is kept verbatim, matching the same
+	// trimmed text stored in card_lines -- brackets are no longer
+	// converted to spaces (that conversion is slug-only, see
+	// normalizeSlugCandidate in slug.go).
 	xml := `<doc><heading level="1">[foo]bar[baz]</heading></doc>`
 	title, _ := buildTitleAndPreview(xml)
-	if title != "foo bar baz" {
-		t.Errorf("title = %q, want %q", title, "foo bar baz")
+	want := TitleCandidate("[foo]bar[baz]")
+	if title != want {
+		t.Errorf("title = %q, want %q", title, want)
 	}
 }
 
-func TestBuildTitleAndPreview_CollapsesConsecutiveSeparators(t *testing.T) {
-	// Regression test: a run of brackets and/or spaces -- wherever it
-	// appears, including the edges -- collapses into a single space
-	// rather than being preserved character-for-character.
-	xml := `<doc><heading level="1">  [a][b]  c   d  </heading></doc>`
+func TestBuildTitleAndPreview_PreservesInternalWhitespace(t *testing.T) {
+	// Regression test: only leading/trailing whitespace is trimmed --
+	// internal whitespace, including runs of spaces, is preserved
+	// verbatim so the title matches card_lines exactly.
+	xml := `<doc><heading level="1">  A  B  </heading></doc>`
 	title, _ := buildTitleAndPreview(xml)
-	want := TitleCandidate("a b c d")
+	want := TitleCandidate("A  B")
 	if title != want {
 		t.Errorf("title = %q, want %q", title, want)
+	}
+}
+
+func TestBuildTitleAndPreview_PreservesTabsAndFullWidthSpaces(t *testing.T) {
+	// Regression test: characters that aren't the ASCII space
+	// splitCandidateWords used to key off of -- tabs, full-width
+	// spaces -- must also survive untouched now that the title is no
+	// longer normalized at all.
+	xml := "<doc><heading level=\"1\">A\tB</heading></doc>"
+	title, _ := buildTitleAndPreview(xml)
+	want := TitleCandidate("A\tB")
+	if title != want {
+		t.Errorf("title = %q, want %q", title, want)
+	}
+
+	xmlFullWidth := `<doc><heading level="1">A　B</heading></doc>`
+	titleFullWidth, _ := buildTitleAndPreview(xmlFullWidth)
+	wantFullWidth := TitleCandidate("A　B")
+	if titleFullWidth != wantFullWidth {
+		t.Errorf("title = %q, want %q", titleFullWidth, wantFullWidth)
 	}
 }
 
