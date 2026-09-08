@@ -28,14 +28,29 @@ function splitWords(text: string): string[] {
   return text.split(/[[\] ]+/).filter((word) => word !== "");
 }
 
-// Converts title into a URL-safe slug: any run of brackets/spaces --
+// Converts title into a URL-safe slug.
+//
+// The bracket-collapsing branch below only matters for defense in
+// depth: a card's title never contains bracket markup by the time it
+// reaches this function (see internal/serve/slug.go's resolveTitle,
+// which strips it before saving), but it's kept in sync with the
+// server's own collapsing rule just in case.
+//
+// When title has no brackets (the normal case), each space maps to
+// its own "_" one-to-one, so titles that differ only in how many
+// spaces they have ("A B" vs "A  B") keep distinguishable slugs
+// instead of collapsing into the same one.
+//
+// When title does contain brackets, any run of brackets/spaces --
 // including at the edges -- collapses into a single "_". Non-ASCII
-// characters (e.g. Japanese) are left as-is. A result that would
-// collide with a reserved route segment gets a trailing underscore
-// appended, deterministically, so this never needs a round-trip to
-// the server to avoid that collision.
+// characters (e.g. Japanese) are left as-is either way. A result that
+// would collide with a reserved route segment gets a trailing
+// underscore appended, deterministically, so this never needs a
+// round-trip to the server to avoid that collision.
 export function titleToSlug(title: string): string {
-  const joined = splitWords(title).join("_");
+  const joined = /[[\]]/.test(title)
+    ? splitWords(title).join("_")
+    : title.replaceAll(" ", "_");
   return RESERVED_SEGMENTS.has(joined) ? `${joined}_` : joined;
 }
 

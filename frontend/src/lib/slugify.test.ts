@@ -25,12 +25,17 @@ describe("slugify", () => {
     expect(titleToSlug("New")).toBe("New"); // case-sensitive, matches internal/slug.FromTitle
   });
 
-  it("collapses consecutive separators into a single underscore", () => {
-    // Locks in the collapsing behavior (matching the bracket-strip
-    // reference: split(/[\[\] ]+/).filter(Boolean).join("_")) rather
-    // than emitting one underscore per separator character.
-    expect(titleToSlug("A  B")).toBe("A_B");
+  it("collapses consecutive separators only when brackets are present", () => {
+    // Collapsing only applies on the bracket path (see titleToSlug);
+    // a title with no brackets at all maps each space to its own "_"
+    // one-to-one instead (see the double-space test below).
     expect(titleToSlug("[A[[B]]")).toBe("A_B");
+  });
+
+  it("maps each space to its own underscore when no brackets are present", () => {
+    // Regression test: this used to collapse to "A_B", losing the
+    // distinction between "A B" and "A  B".
+    expect(titleToSlug("A  B")).toBe("A__B");
   });
 
   it("leaves a stray tab untouched by titleToSlug", () => {

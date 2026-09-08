@@ -53,18 +53,36 @@ func StripBracketLinks(candidate string) string {
 	return strings.Join(splitWords(candidate), " ")
 }
 
-// FromTitle converts a card's title into a URL-safe slug: any run of
-// brackets/spaces -- including at the edges -- collapses into a
-// single "_". Non-ASCII characters (e.g. Japanese) are left as-is;
-// percent-encoding the handful of characters that are actually unsafe
-// in a path segment (% / # ?) is the caller's job (see
-// frontend/src/lib/slugify.ts's titleToSegment).
+// FromTitle converts a card's title into a URL-safe slug.
+//
+// The bracket-collapsing branch below only matters for defense in
+// depth: resolveTitle (internal/serve/slug.go) already strips bracket
+// markup out of a candidate before it is ever persisted as a title,
+// so a real title should never contain brackets by the time it
+// reaches this function.
+//
+// When title has no brackets (the normal case), each space maps to
+// its own "_" one-to-one, so titles that differ only in how many
+// spaces they have ("A B" vs "A  B") keep distinguishable slugs
+// instead of collapsing into the same one.
+//
+// When title does contain brackets, any run of brackets/spaces --
+// including at the edges -- collapses into a single "_", matching
+// StripBracketLinks' own collapsing rule. Non-ASCII characters (e.g.
+// Japanese) are left as-is either way; percent-encoding the handful of
+// characters that are actually unsafe in a path segment (% / # ?) is
+// the caller's job (see frontend/src/lib/slugify.ts's titleToSegment).
 //
 // A result that would collide with a reserved route segment (e.g.
 // "new") gets a trailing underscore appended, deterministically, so
 // FromTitle never needs a database round-trip to avoid that collision.
 func FromTitle(title string) string {
-	joined := strings.Join(splitWords(title), "_")
+	var joined string
+	if strings.ContainsAny(title, "[]") {
+		joined = strings.Join(splitWords(title), "_")
+	} else {
+		joined = strings.ReplaceAll(title, " ", "_")
+	}
 	if reserved[joined] {
 		return joined + "_"
 	}
