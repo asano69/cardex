@@ -50,8 +50,12 @@ export default function MainLayout(props: ParentProps) {
         <main class="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {/* Horizontal padding shrinks to almost nothing on narrow
               (phone-width) screens, since every pixel of width matters
-              there, and grows back once there's room to spare. */}
-          <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col px-1 md:px-6 lg:px-8">
+              there, and grows back once there's room to spare.
+              pt-4 keeps a gap below the sticky TopBar -- this lives
+              here rather than on TopBar itself, since a margin there
+              would also push down Sidebar, which sits in the same row
+              as this <main>. */}
+          <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col px-1 pt-8 md:px-6 lg:px-8">
             {props.children}
           </div>
         </main>
