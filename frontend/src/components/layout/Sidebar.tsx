@@ -2,6 +2,7 @@ import { For, Show, type Component } from "solid-js";
 import { A } from "@solidjs/router";
 
 import { useVersion } from "../../lib/version";
+import SidebarPotList from "./SidebarPotList";
 
 interface NavItem {
   href: string;
@@ -58,25 +59,34 @@ export default function Sidebar(props: SidebarProps) {
         }}
         class="flex h-full min-h-0 w-64 flex-col border-r border-border bg-bg transition-transform duration-200 ease-in-out"
       >
-        <nav class="p-2 text-md">
-          <For each={NAV_ITEMS}>
-            {(item) => (
-              <A
-                href={item.href}
-                end
-                activeClass="bg-active-bg"
-                class="flex items-center gap-2 rounded-md px-2 py-2.5 text-text transition-colors hover:bg-hover-bg"
-              >
-                <item.icon size={20} />
-                {item.label}
-              </A>
-            )}
-          </For>
-        </nav>
+        {/* Scrollable middle section: nav items plus the pot list.
+            min-h-0 + overflow-y-auto is what lets a long pot list
+            scroll on its own instead of pushing the footer below off
+            the sidebar. */}
+        <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <nav class="p-2 text-md">
+            <For each={NAV_ITEMS}>
+              {(item) => (
+                <A
+                  href={item.href}
+                  end
+                  activeClass="bg-active-bg"
+                  class="flex items-center gap-2 rounded-md px-2 py-2.5 text-text transition-colors hover:bg-hover-bg"
+                >
+                  <item.icon size={20} />
+                  {item.label}
+                </A>
+              )}
+            </For>
+          </nav>
+
+          <SidebarPotList />
+        </div>
 
         {/* mt-auto pins this to the bottom of the sidebar regardless of
-            how tall the nav list above ends up being. */}
-        <footer class="mt-auto p-2 text-border font-mono text-xs">
+            how tall the content above ends up being. shrink-0 keeps it
+            from being squeezed by the scrollable section above. */}
+        <footer class="mt-auto shrink-0 p-2 text-border font-mono text-xs">
           <Show when={version()}>v{version()}</Show>
         </footer>
       </aside>
