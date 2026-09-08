@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { Menu, X } from "../../lib/icons";
+import { Menu, CirclePlus, X } from "../../lib/icons";
 import Logo from "../Logo";
 
 import ThemeToggle from "./ThemeToggle";
@@ -25,8 +25,8 @@ export default function TopBar(props: TopBarProps) {
     <header
       class={`sticky top-0 z-40 flex items-center border-b border-border bg-nav ${props.class}`}
     >
-      <div class="flex w-full justify-between px-2 md:px-8">
-        <div class="flex items-center gap-3">
+      <div class="grid w-full grid-cols-[1fr_auto_1fr] items-center px-2 md:px-8">
+        <div class="flex items-center gap-3 justify-self-start">
           {/* Toggle button only exists on mobile; on desktop the
               sidebar is always visible so there's nothing to toggle. */}
           <Show when={props.isMobile}>
@@ -43,13 +43,6 @@ export default function TopBar(props: TopBarProps) {
           {/* Version hidden on mobile: there isn't room for it next to
               the hamburger toggle and title. */}
           <Logo linkable showVersion={!props.isMobile} />
-          {/* Themes is the app's only top-level nav item now that
-              Sidebar holds just Diary, so it lives here next to the
-              logo instead of behind the sidebar toggle. `end` limits
-              the active state to the list itself: pot/card pages
-              now live at "/:id" and "/:id/...", not nested under "/"
-              in a way the router would otherwise treat as a match. */}
-     
           {/* Current pot's name, when the active page registered one
               (see CardList/CardForm's useTopBarPotLink call). Links
               back to that pot's card list. */}
@@ -63,7 +56,24 @@ export default function TopBar(props: TopBarProps) {
           </Show>
         </div>
 
-        <nav class="flex items-center gap-1">
+        {/* Center slot: "add card" is shared between CardList and
+            CardForm (both register a pot link via useTopBarPotLink),
+            so it lives here instead of being duplicated as a per-page
+            button. Only shown while a pot is in context -- there's
+            nothing to add a card to from the pots list itself. */}
+        <div class="flex items-center justify-self-center">
+          <Show when={topBarPotLink()}>
+            <A
+              href={`/${topBarPotLink()!.slug}/new`}
+              class="icon-btn"
+              aria-label="Add card"
+            >
+              <CirclePlus size={26} />
+            </A>
+          </Show>
+        </div>
+
+        <nav class="flex items-center gap-1 justify-self-end">
           {/* Per-page actions slot (see lib/topBarSlot.ts): renders
               whatever the currently mounted page registered via
               useTopBarActions, e.g. CardForm's pin/delete buttons.

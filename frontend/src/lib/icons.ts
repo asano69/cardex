@@ -18,6 +18,8 @@ export { default as Cone } from "lucide-solid/icons/cone";
 export { default as Notebook } from "lucide-solid/icons/notebook";
 export { default as Network } from "lucide-solid/icons/network";
 export { default as Plus } from "lucide-solid/icons/plus";
+export { default as CirclePlus } from "lucide-solid/icons/circle-plus";
+
 export { default as CircleCheckBig } from "lucide-solid/icons/circle-check-big";
 export { default as Circle } from "lucide-solid/icons/circle";
 export { default as Trash2 } from "lucide-solid/icons/trash-2";

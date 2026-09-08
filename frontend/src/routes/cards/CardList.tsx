@@ -1,6 +1,5 @@
 import { createResource, createMemo, createSignal, For, Show, onCleanup } from "solid-js";
-import { useParams, A } from "@solidjs/router";
-import { ChevronsLeft as ChevronLeft, Plus } from "../../lib/icons";
+import { useParams } from "@solidjs/router";
 import { DragDropProvider } from "@dnd-kit/solid";
 import { isSortable } from "@dnd-kit/solid/sortable";
 import { PointerSensor, KeyboardSensor } from "@dnd-kit/dom";
@@ -234,39 +233,26 @@ export default function CardList() {
   };
 
   return (
-    <div class="flex w-full flex-col gap-4">
-      <div class="flex items-center justify-between">
-        <A href="/" class="icon-btn" aria-label="Back to pots">
-          <ChevronLeft size={20} />
-        </A>
-        <A href={`/${params.slug}/new`} class="icon-btn" aria-label="Add card">
-          <Plus size={20} />
-        </A>
-      </div>
-
-      <h1 class="font-sans text-xl">{pot()?.title}</h1>
-
-      <Show when={firstPageLoaded()} fallback={<Loading />}>
-        <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
-          <ul class="card-grid">
-            <For each={cards()}>
-              {(card, index) => (
-                <CardItem card={card} index={index()} potSlug={params.slug} />
-              )}
-            </For>
-          </ul>
-        </DragDropProvider>
-        {/* Sentinel row: fetching the next page is triggered by this
-            element scrolling into view (see setSentinelRef above), not
-            by an explicit "load more" button. */}
-        <Show when={hasMore()}>
-          <div ref={setSentinelRef}>
-            <Show when={loadingMore()}>
-              <Loading />
-            </Show>
-          </div>
-        </Show>
+    <Show when={firstPageLoaded()} fallback={<Loading />}>
+      <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
+        <ul class="card-grid">
+          <For each={cards()}>
+            {(card, index) => (
+              <CardItem card={card} index={index()} potSlug={params.slug} />
+            )}
+          </For>
+        </ul>
+      </DragDropProvider>
+      {/* Sentinel row: fetching the next page is triggered by this
+          element scrolling into view (see setSentinelRef above), not
+          by an explicit "load more" button. */}
+      <Show when={hasMore()}>
+        <div ref={setSentinelRef}>
+          <Show when={loadingMore()}>
+            <Loading />
+          </Show>
+        </div>
       </Show>
-    </div>
+    </Show>
   );
 }
