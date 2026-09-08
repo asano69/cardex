@@ -22,6 +22,7 @@ import {
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 import { computePosition } from "../../lib/position";
+import { deriveCardGridTitle } from "../../lib/cardGridTitle";
 import type { CardTitle } from "../../lib/cardTitle";
 
 // Matches the PocketBase "cards" collection schema. "title" is a
@@ -198,14 +199,16 @@ export default function CardForm() {
     }
   };
 
-  // Browser tab title: "<card title> - <pot name>". Falls back to just
-  // the pot's name while a draft has no card title yet (see
-  // useTitle.ts for the actual document.title wiring).
+  // Browser tab title: "<pot name> - <card grid title>". Falls back to
+  // just the pot's name while a draft has no card title yet (see
+  // useTitle.ts for the actual document.title wiring). The grid title
+  // (see lib/cardGridTitle.ts) is used instead of the raw stored title
+  // so whitespace renders the same way it does in CardList's grid.
   useTitle(() => {
-    const pot = pot()?.title;
-    if (!pot) return undefined;
-    const cardTitle = cardsById[recordId()]?.title;
-    return cardTitle ? `${cardTitle} - ${pot}` : pot;
+    const potTitle = pot()?.title;
+    if (!potTitle) return undefined;
+    const card = cardsById[recordId()];
+    return card ? `${deriveCardGridTitle(card)} - ${potTitle}` : potTitle;
   });
 
   return (
