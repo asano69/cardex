@@ -90,3 +90,17 @@ export function titleToSegment(title: string): string {
 export function segmentToSlug(segment: string): string {
   return decodeURIComponent(segment);
 }
+
+// Best-effort reverse of titleToSlug, used when a URL's cardSlug
+// matches no existing card (see CardForm.tsx): reconstructs a title
+// candidate to pre-fill a new draft with, so opening /:pot/test seeds
+// the header with "test" instead of showing "not found".
+//
+// This is NOT a true inverse of titleToSlug: an underscore in `slug`
+// could originally have come from either a literal underscore or a
+// space in the title, and this always resolves it to a space. That
+// means a title can no longer be seeded with a literal underscore via
+// the URL alone -- an accepted limitation.
+export function slugToTitle(slug: string): string {
+  return slug.replaceAll("_", " ");
+}

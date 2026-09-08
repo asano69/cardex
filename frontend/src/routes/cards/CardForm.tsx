@@ -13,7 +13,12 @@ import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
-import { titleToSegment, titleToSlug, segmentToSlug } from "../../lib/slugify";
+import {
+  titleToSegment,
+  titleToSlug,
+  segmentToSlug,
+  slugToTitle,
+} from "../../lib/slugify";
 import { fetchPotBySlug } from "../../lib/pots";
 import { useTitle } from "../../lib/useTitle";
 import { computePosition } from "../../lib/position";
@@ -57,6 +62,21 @@ export default function CardForm() {
 
   const [recordId, setRecordId] = createSignal("");
   const [notFound, setNotFound] = createSignal(false);
+  // Set once the lookup below has run and found no matching card: the
+  // page opens in draft mode instead of "not found", pre-filling the
+  // header with this text (see slugToTitle and NoteEditor's
+  // initialTitle prop). Stays undefined while loading, or once a
+  // matching record is found.
+  //
+  // No explicit <string | undefined> generic here: a union type
+  // argument on createSignal<...>(...) is ambiguous with a JSX tag in
+  // a .tsx file, which breaks the parser into treating `createSignal`
+  // as an un-called reference (destructuring the function itself
+  // instead of its return value). Casting the initial value instead
+  // sidesteps that ambiguity.
+  const [draftInitialTitle, setDraftInitialTitle] = createSignal(
+    undefined as string | undefined,
+  );
 
   // Editing an existing card: its PocketBase id isn't in the URL, and
   // there's no stored "slug" field to filter on anymore (see
@@ -72,21 +92,31 @@ export default function CardForm() {
     () => (params.cardSlug ? pot()?.id : undefined),
     async (potId) => {
       const targetSlug = segmentToSlug(params.cardSlug!);
+      let candidates: CardRecord[];
       try {
-        const candidates = await pb
-          .collection("cards")
-          .getFullList<CardRecord>({
-            filter: pb.filter("pot = {:pot}", { pot: potId }),
-          });
-        const record = candidates.find(
-          (card) => titleToSlug(card.title) === targetSlug,
-        );
-        if (!record) throw new Error("card not found");
+        candidates = await pb.collection("cards").getFullList<CardRecord>({
+          filter: pb.filter("pot = {:pot}", { pot: potId }),
+        });
+      } catch {
+        // A genuine fetch failure (network, auth, ...) -- distinct
+        // from "no card matches this slug" below, which opens a draft
+        // instead of this "not found" page.
+        setNotFound(true);
+        return;
+      }
+      const record = candidates.find(
+        (card) => titleToSlug(card.title) === targetSlug,
+      );
+      if (record) {
         mergeCards([record]);
         setRecordId(record.id);
-      } catch {
-        setNotFound(true);
+        return;
       }
+      // No card matches this slug yet -- open a draft pre-filled with
+      // the slug's title instead of "not found", so visiting e.g.
+      // /:pot/test creates a new card titled "test" once its header is
+      // confirmed (same flow as /:pot/new -- see NoteEditor).
+      setDraftInitialTitle(slugToTitle(targetSlug));
     },
   );
 
@@ -195,7 +225,14 @@ export default function CardForm() {
           for: the editor starts immediately on a local-only Y.Doc, and
           recordId only appears once the user has typed something (see
           createDraftRecord). */}
-      <Show when={params.cardSlug ? recordId() : true} fallback={<Loading />}>
+      <Show
+        when={
+          params.cardSlug
+            ? recordId() !== "" || draftInitialTitle() !== undefined
+            : true
+        }
+        fallback={<Loading />}
+      >
         {/* Layout for a card-editing screen: pin/delete icons above the
             editor. NoteEditor itself stays layout-agnostic so it can be
             reused without this app's card-specific chrome. */}
@@ -236,6 +273,7 @@ export default function CardForm() {
           <NoteEditor
             cardId={() => recordId() || undefined}
             potId={() => pot()?.id}
+            initialTitle={draftInitialTitle()}
             onCardCreated={setRecordId}
             onMergeTarget={setMergeTarget}
           />

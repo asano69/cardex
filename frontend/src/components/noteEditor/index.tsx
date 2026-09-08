@@ -36,6 +36,12 @@ export interface NoteEditorProps {
   // backing record (see handleSlugCandidate below). Ignored once
   // cardId already resolves to a real record.
   potId?: () => string | undefined;
+  // Pre-fills the document's first block (the header) with this text
+  // when starting a brand-new draft -- e.g. opening /:pot/:cardSlug
+  // with no matching card seeds this from the URL's slug instead of
+  // showing "not found" (see CardForm.tsx). Ignored once cardId is
+  // already set, since only a fresh draft's empty doc gets seeded.
+  initialTitle?: string;
   // Called exactly once, the moment a draft's backing "cards" record
   // is created, so the caller (CardForm) can start tracking the real
   // record id (e.g. for its own URL sync).
@@ -214,6 +220,20 @@ export default function NoteEditor(props: NoteEditorProps) {
         ],
       }),
     );
+
+    // Seed the document's first block with initialTitle for a
+    // brand-new draft opened from a URL slug that matched no existing
+    // card (see CardForm.tsx). This is a plain text insertion, so it
+    // flows through titleCandidatePlugin exactly like typing -- the
+    // header still doesn't resolve into a real "cards" record (no
+    // websocket connection yet) until it's confirmed via Enter or the
+    // debounce window, same as any other draft. No focus is set here;
+    // that's left to the autofocus block below.
+    if (!cardId && props.initialTitle) {
+      editor.view.dispatch(
+        editor.view.state.tr.insertText(props.initialTitle, 1),
+      );
+    }
 
     // Autofocus into the editor only for a brand-new draft card, so
     // typing can start immediately. Opening an existing card leaves
