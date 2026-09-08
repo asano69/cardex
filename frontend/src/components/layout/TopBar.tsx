@@ -42,7 +42,7 @@ export default function TopBar(props: TopBarProps) {
           </Show>
           {/* Version hidden on mobile: there isn't room for it next to
               the hamburger toggle and title. */}
-          <Logo showTitle linkable showVersion={!props.isMobile} />
+          <Logo linkable showVersion={!props.isMobile} />
           {/* Themes is the app's only top-level nav item now that
               Sidebar holds just Diary, so it lives here next to the
               logo instead of behind the sidebar toggle. `end` limits
