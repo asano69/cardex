@@ -18,6 +18,7 @@ import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
+import { imageMarkdownPlugin } from "./imageMarkdownPlugin";
 import { titleCandidatePlugin } from "./titleCandidatePlugin";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
@@ -215,6 +216,11 @@ export default function NoteEditor(props: NoteEditorProps) {
           blockIdPlugin(),
           linkClickPlugin(),
           pasteUrlDecodePlugin(),
+          // Must run before urlLinkRule's mark-rule (baked into
+          // state.plugins via the extension below): consuming the
+          // bracket/markdown text into an image node first means
+          // there's nothing left for the link rule to mark.
+          imageMarkdownPlugin(),
           titleCandidatePlugin(handleSlugCandidate),
           ...state.plugins,
         ],

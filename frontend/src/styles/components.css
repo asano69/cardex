@@ -51,6 +51,22 @@
     margin: 0.75rem;
   }
 
+  /* Images inserted via markdown syntax or a bracketed URL (see
+   * noteEditor/imageMarkdownPlugin.ts) are capped so a large image
+   * never blows out the editor's width or dominates the page. */
+  .ProseMirror img {
+    max-width: 100%;
+    max-height: 300px;
+  }
+
+  /* Images inserted via markdown syntax or a bracketed URL (see
+   * noteEditor/imageMarkdownPlugin.ts) are capped so a large image
+   * never blows out the editor's width or dominates the page. */
+  .ProseMirror img {
+    max-width: 100%;
+    max-height: 300px;
+  }
+
   /* Autolinked/typed links (see noteEditor/index.tsx's defineLink). */
   .ProseMirror a {
     color: light-dark(#0969da, #58a6ff);
