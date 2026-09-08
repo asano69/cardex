@@ -1191,6 +1191,20 @@ func init() {
 						"type": "number"
 					},
 					{
+						"help": "",
+						"hidden": false,
+						"id": "select2063623452",
+						"maxSelect": 0,
+						"name": "status",
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "select",
+						"values": [
+							"active"
+						]
+					},
+					{
 						"hidden": false,
 						"id": "autodate2990389176",
 						"name": "created",

@@ -4,7 +4,7 @@ import { Router, Route } from "@solidjs/router";
 import AppShell from "../components/layout/AppShell";
 import PotLayout from "../routes/pots/PotLayout";
 
-import Pots from "../routes/pots";
+import PotList from "../routes/pots/PotList";
 import CardList from "../routes/cards/CardList";
 import CardForm from "../routes/cards/CardForm";
 
@@ -17,7 +17,7 @@ import CardForm from "../routes/cards/CardForm";
 export default function AppRouter() {
   return (
     <Router root={AppShell}>
-      <Route path="/" component={Pots} />
+      <Route path="/" component={PotList} />
       {/* The pot segment in the URL is now the pot's unique
           "slug" field, not its PocketBase id (see CardList.tsx
           and CardForm.tsx, which resolve the actual record via
