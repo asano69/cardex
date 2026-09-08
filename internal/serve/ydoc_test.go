@@ -24,14 +24,13 @@ func TestBuildTitleAndPreview_BracketsBecomeSpaces(t *testing.T) {
 	}
 }
 
-func TestBuildTitleAndPreview_PreservesInteriorWhitespace(t *testing.T) {
-	// Regression test: whitespace normalization no longer collapses
-	// runs of spaces -- only bracket replacement and outer trimming
-	// happen, so interior spacing (including runs created by adjacent
-	// brackets) is preserved as-is.
+func TestBuildTitleAndPreview_CollapsesConsecutiveSeparators(t *testing.T) {
+	// Regression test: a run of brackets and/or spaces -- wherever it
+	// appears, including the edges -- collapses into a single space
+	// rather than being preserved character-for-character.
 	xml := `<doc><heading level="1">  [a][b]  c   d  </heading></doc>`
 	title, _ := buildTitleAndPreview(xml)
-	want := "a  b   c   d"
+	want := "a b c d"
 	if title != want {
 		t.Errorf("title = %q, want %q", title, want)
 	}
