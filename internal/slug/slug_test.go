@@ -18,6 +18,26 @@ func TestFromTitle_CollapsesConsecutiveSeparators(t *testing.T) {
 	}
 }
 
+func TestStripBracketLinks(t *testing.T) {
+	cases := []struct {
+		candidate string
+		want      string
+	}{
+		{"[A B[X]C D]", "A B X C D"},
+		{"[A[XB]", "A XB"},
+		{"[[[A[[B]]]", "A B"}, // consecutive brackets collapse into one boundary
+		{"[A[]]", "A"},
+		{"[[]]", ""}, // no words at all -- caller applies its own fallback
+		{"[A[[[C]", "A C"},
+		{"[D]", "D"},
+	}
+	for _, c := range cases {
+		if got := StripBracketLinks(c.candidate); got != c.want {
+			t.Errorf("StripBracketLinks(%q) = %q, want %q", c.candidate, got, c.want)
+		}
+	}
+}
+
 func TestFromTitle_ReservedWordGetsSuffixed(t *testing.T) {
 	if got := FromTitle("new"); got != "new_" {
 		t.Errorf("FromTitle(\"new\") = %q, want %q", got, "new_")

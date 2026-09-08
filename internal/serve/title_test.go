@@ -98,3 +98,61 @@ func TestResolveTitle_ExcludeIDLetsARecordKeepItsOwnTitle(t *testing.T) {
 		t.Errorf(`resolveTitle("X", excludeID=self) = %q, want %q`, got, "X")
 	}
 }
+
+func TestResolveTitle_StripsBracketLinkSyntax(t *testing.T) {
+	// Regression test: a header typed with Scrapbox-style bracket-link
+	// markup must resolve to its plain-word form, not the literal
+	// candidate with brackets still attached.
+	app := newSlugTestApp(t)
+
+	cases := []struct {
+		candidate string
+		want      string
+	}{
+		{"[A B[X]C D]", "A B X C D"},
+		{"[A[XB]", "A XB"},
+		{"[[[A[[B]]]", "A B"},
+		{"[A[]]", "A"},
+		{"[[]]", "Untitled"}, // no words at all -- falls back like any empty candidate
+		{"[A[[[C]", "A C"},
+		{"[D]", "D"},
+	}
+	for _, c := range cases {
+		got, err := resolveTitle(app, "pot1", TitleCandidate(c.candidate), "")
+		if err != nil {
+			t.Fatalf("resolveTitle(%q): %v", c.candidate, err)
+		}
+		if string(got) != c.want {
+			t.Errorf("resolveTitle(%q) = %q, want %q", c.candidate, got, c.want)
+		}
+	}
+}
+
+func TestResolveTitle_StripsBracketLinkSyntax(t *testing.T) {
+	// Regression test: a header typed with Scrapbox-style bracket-link
+	// markup must resolve to its plain-word form, not the literal
+	// candidate with brackets still attached.
+	app := newSlugTestApp(t)
+
+	cases := []struct {
+		candidate string
+		want      string
+	}{
+		{"[A B[X]C D]", "A B X C D"},
+		{"[A[XB]", "A XB"},
+		{"[[[A[[B]]]", "A B"},
+		{"[A[]]", "A"},
+		{"[[]]", "Untitled"}, // no words at all -- falls back like any empty candidate
+		{"[A[[[C]", "A C"},
+		{"[D]", "D"},
+	}
+	for _, c := range cases {
+		got, err := resolveTitle(app, "pot1", TitleCandidate(c.candidate), "")
+		if err != nil {
+			t.Fatalf("resolveTitle(%q): %v", c.candidate, err)
+		}
+		if string(got) != c.want {
+			t.Errorf("resolveTitle(%q) = %q, want %q", c.candidate, got, c.want)
+		}
+	}
+}

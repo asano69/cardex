@@ -37,6 +37,22 @@ func splitWords(s string) []string {
 	})
 }
 
+// StripBracketLinks removes Scrapbox/Cosense-style bracket-link markup
+// from a raw title candidate, returning its words rejoined with a
+// single space -- e.g. "[A B[X]C D]" -> "A B X C D". Reuses the same
+// separator class as FromTitle (brackets and spaces), so a title
+// produced this way slugifies identically whether or not it still
+// contains brackets. Returns "" when the candidate carries no words at
+// all (e.g. "[[]]"); callers are responsible for applying their own
+// empty-title fallback (see resolveTitle in internal/serve/slug.go).
+//
+// Unlike FromTitle, this does not collapse to a reserved-word suffix:
+// it produces a display title, not a URL segment, so there is no
+// route to collide with.
+func StripBracketLinks(candidate string) string {
+	return strings.Join(splitWords(candidate), " ")
+}
+
 // FromTitle converts a card's title into a URL-safe slug: any run of
 // brackets/spaces -- including at the edges -- collapses into a
 // single "_". Non-ASCII characters (e.g. Japanese) are left as-is;

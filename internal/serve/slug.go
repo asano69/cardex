@@ -23,6 +23,8 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/asano69/cardex/internal/slug"
 )
 
 // defaultTitle is used when a candidate resolves to no usable text at
@@ -58,8 +60,20 @@ func resolveUniqueTitleInPot(app core.App, pot, base, excludeID string) (string,
 // within pot, matching the "cards" collection's unique (pot, title)
 // index. excludeID lets a card keep resolving against its own current
 // title without colliding with itself.
+//
+// A candidate containing bracket-link markup ("[", "]") is treated as
+// Scrapbox/Cosense-style word segmentation and normalized via
+// slug.StripBracketLinks before becoming the title base -- e.g.
+// "[D]" resolves to "D", not the literal "[D]". A candidate with no
+// brackets at all is left completely untouched (see
+// TestResolveTitle_PreservesCandidateWhitespaceVariants): only the
+// presence of brackets triggers normalization, so plain whitespace
+// variants are never altered.
 func resolveTitle(app core.App, pot string, candidate TitleCandidate, excludeID string) (CardTitle, error) {
 	base := string(candidate)
+	if strings.ContainsAny(base, "[]") {
+		base = slug.StripBracketLinks(base)
+	}
 	if base == "" {
 		base = defaultTitle
 	}
