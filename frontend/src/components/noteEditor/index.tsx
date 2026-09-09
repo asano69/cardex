@@ -9,6 +9,7 @@ import { noteSchema } from "./schema";
 import { urlLinkPlugin } from "./urlLinkRule";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
+import { IndexeddbPersistence } from "y-indexeddb";
 import { ySyncPlugin } from "y-prosemirror";
 import { keymap } from "prosemirror-keymap";
 import { baseKeymap, chainCommands } from "prosemirror-commands";
@@ -82,12 +83,20 @@ export default function NoteEditor(props: NoteEditorProps) {
   // sync once a real record id exists (see connectProvider/
   // sendCandidate below).
   let provider: WebsocketProvider | undefined;
+  // Caches `ydoc`'s state in IndexedDB, keyed by the same cardId as
+  // the websocket room, so edits made while offline survive a reload
+  // instead of being lost along with the in-memory-only Y.Doc.
+  // WebsocketProvider already re-syncs the diff automatically once
+  // the connection comes back, so no extra reconciliation logic is
+  // needed here.
+  let idbProvider: IndexeddbPersistence | undefined;
 
   // Builds the connection URL as `${base}/${room}`. The "/yjs" prefix
   // is proxied to the Go backend's "/yjs/{room}" route (see
   // vite.config.ts, which also rewrites the Origin header so the
   // backend's same-origin websocket check passes).
   const connectProvider = (cardId: string) => {
+    idbProvider = new IndexeddbPersistence(cardId, ydoc);
     const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
     provider = new WebsocketProvider(
       `${wsProtocol}//${location.host}/yjs`,
@@ -308,8 +317,9 @@ export default function NoteEditor(props: NoteEditorProps) {
     }
 
     onCleanup(() => {
-      if (fillUntitledIfEmpty) provider?.off("sync", fillUntitledIfEmpty);
+      if (fillUntitledIfEmpty) provider?.off("sync", fillUntitledIfEmpty!);
       provider?.destroy();
+      idbProvider?.destroy();
       ydoc.destroy();
       view.destroy();
     });
