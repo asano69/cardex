@@ -2,7 +2,7 @@
 
 Cardex is a card box for thinkers.
 
-<img src="frontend/public/favicon.svg" width="100" align="right" />
+<img src="../frontend/public/favicon.svg" width="100" align="right" />
 
 
 
@@ -37,4 +37,5 @@ Cardex is a card box for thinkers.
 - Logo: "Japan Flat Vectors" by maxicons (CC Attribution License)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/cardex)
+
 
