@@ -221,6 +221,14 @@ export default function NoteEditor(props: NoteEditorProps) {
       plugins: [
         ySyncPlugin(fragment),
         listTabKeymap,
+        // Everything else prosemirror-flat-list binds by default
+        // (Enter to split/exit a list item, Backspace to lift out of
+        // one, ...). Tab/Shift-Tab are handled above by
+        // listTabKeymap instead, so this plugin's own bindings for
+        // those two keys never fire -- ProseMirror tries plugins in
+        // array order and only falls through to a later plugin's
+        // binding for a key the earlier one didn't handle.
+        keymap(listKeymap),
         forceFirstHeadingPlugin(),
         blockIdPlugin(),
         linkClickPlugin(),
