@@ -1361,9 +1361,24 @@ func init() {
 						"minSelect": 0,
 						"name": "target",
 						"presentable": false,
-						"required": true,
+						"required": false,
 						"system": false,
 						"type": "relation"
+					},
+					{
+						"autogeneratePattern": "",
+						"help": "target_title is intended solely as a placeholder to retain information while the target remains unresolved.",
+						"hidden": false,
+						"id": "text2543706983",
+						"max": 0,
+						"min": 0,
+						"name": "target_title",
+						"pattern": "",
+						"presentable": false,
+						"primaryKey": false,
+						"required": true,
+						"system": false,
+						"type": "text"
 					},
 					{
 						"hidden": false,
