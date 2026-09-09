@@ -1,19 +1,27 @@
 import { createSignal, onCleanup, Show } from "solid-js";
-// Only style.css (structural/functional editor CSS) is needed here.
-// typography.css layers its own opinionated heading/paragraph styles
-// on top, which conflict with this app's own overrides in
-// styles/components.css (.ProseMirror p/h1-h6/blockquote) -- this app
-// re-implements all the typography it needs there instead.
-import "prosekit/basic/style.css";
-import { createEditor, union } from "prosekit/core";
-import { defineNoteExtension } from "./basicExtension";
-import { defineUrlLinkRule } from "./urlLinkRule";
+// The editor's structural CSS (ProseMirror core, gap cursor, table,
+// list) now lives in styles/components.css, loaded globally via
+// styles/index.css -- no per-component stylesheet import needed here
+// anymore (this used to be prosekit/basic/style.css).
+import { EditorState } from "prosemirror-state";
+import { EditorView } from "prosemirror-view";
+import { noteSchema } from "./schema";
+import { urlLinkPlugin } from "./urlLinkRule";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { ySyncPlugin } from "y-prosemirror";
 import { keymap } from "prosemirror-keymap";
-import { chainCommands } from "prosemirror-commands";
-import { createWrapInListCommand, listKeymap } from "prosemirror-flat-list";
+import { baseKeymap, chainCommands } from "prosemirror-commands";
+import { history, undo, redo } from "prosemirror-history";
+import { gapCursor } from "prosemirror-gapcursor";
+import { inputRules } from "prosemirror-inputrules";
+import { tableEditing } from "prosemirror-tables";
+import {
+  createWrapInListCommand,
+  createListPlugins,
+  listInputRules,
+  listKeymap,
+} from "prosemirror-flat-list";
 import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
@@ -110,6 +118,16 @@ export default function NoteEditor(props: NoteEditorProps) {
 
   const [slugError, setSlugError] = createSignal(false);
 
+  // NOTE(prosekit removal): ProseKit's defineVirtualSelection() and
+  // defineModClickPrevention() extensions have no direct raw-
+  // ProseMirror equivalent and are not reinstated here. Neither is
+  // exercised by this app's own behavior -- link clicks are already
+  // handled explicitly by linkClickPlugin.ts, and no IME-composition
+  // issue motivating virtual selection has ever surfaced -- so they're
+  // dropped rather than reimplemented, in line with keeping the editor
+  // setup as simple as possible. Revisit only if a concrete bug traces
+  // back to one of them.
+
   // In-flight control for slug candidates coming from
   // slugCandidatePlugin: only one request is ever outstanding at a
   // time. A candidate that arrives while one is pending replaces
@@ -174,19 +192,10 @@ export default function NoteEditor(props: NoteEditorProps) {
     sendCandidate(candidate);
   };
 
-  // defineNoteExtension() (see basicExtension.ts) is our own copy of
-  // prosekit's defineBasicExtension() with prosekit's built-in
-  // auto-linking swapped out for defineUrlLinkRule(), which only
-  // recognizes explicit http(s):// URLs (see urlLinkRule.ts).
-  const extension = union(defineNoteExtension(), defineUrlLinkRule());
-  const editor = createEditor({ extension });
-
   // Solid doesn't auto-unmount ref callbacks the way React's new
-  // ref-cleanup convention does, so the returned unmount function is
-  // wired to onCleanup explicitly here.
+  // ref-cleanup convention does, so `view.destroy()` is wired to
+  // onCleanup explicitly below.
   const mountEditor = (el: HTMLDivElement) => {
-    const unmount = editor.mount(el);
-
     // Tab/Shift-Tab hotkeys, active only while this ProseMirror
     // instance has focus: Tab turns the current block into a bullet
     // list, or indents it one level deeper if it's already a list
@@ -202,30 +211,48 @@ export default function NoteEditor(props: NoteEditorProps) {
       "Shift-Tab": listKeymap["Mod-["],
     });
 
-    // Splice the yjs sync plugin into the state prosekit already
-    // built. The doc always starts empty here: nothing is loaded from
+    // The doc always starts empty here: nothing is loaded from
     // PocketBase, only whatever the room already holds (nothing, for
-    // a brand-new card).
-    const state = editor.view.state;
-    editor.view.updateState(
-      state.reconfigure({
-        plugins: [
-          ySyncPlugin(fragment),
-          listTabKeymap,
-          forceFirstHeadingPlugin(),
-          blockIdPlugin(),
-          linkClickPlugin(),
-          pasteUrlDecodePlugin(),
-          // Must run before urlLinkRule's mark-rule (baked into
-          // state.plugins via the extension below): consuming the
-          // bracket/markdown text into an image node first means
-          // there's nothing left for the link rule to mark.
-          imageMarkdownPlugin(),
-          titleCandidatePlugin(handleSlugCandidate),
-          ...state.plugins,
-        ],
-      }),
-    );
+    // a brand-new card) -- ySyncPlugin(fragment) below is what
+    // actually populates it. Plugin order matters in a few places,
+    // called out inline.
+    const state = EditorState.create({
+      schema: noteSchema,
+      plugins: [
+        ySyncPlugin(fragment),
+        listTabKeymap,
+        forceFirstHeadingPlugin(),
+        blockIdPlugin(),
+        linkClickPlugin(),
+        pasteUrlDecodePlugin(),
+        // Must run before urlLinkPlugin: consuming the bracket/
+        // markdown text into an image node first means there's
+        // nothing left for the link plugin to mark as a link.
+        imageMarkdownPlugin(),
+        urlLinkPlugin(),
+        titleCandidatePlugin(handleSlugCandidate),
+        // Everything below is generic editor plumbing with no
+        // app-specific behavior, equivalent to what ProseKit's
+        // defineBaseKeymap/defineBaseCommands/defineHistory/
+        // defineGapCursor and prosemirror-flat-list/prosemirror-
+        // tables' own extensions used to wire up automatically.
+        ...createListPlugins({ schema: noteSchema }),
+        inputRules({ rules: listInputRules }),
+        keymap(baseKeymap),
+        history(),
+        keymap({ "Mod-z": undo, "Shift-Mod-z": redo, "Mod-y": redo }),
+        gapCursor(),
+        tableEditing(),
+      ],
+    });
+
+    let view: EditorView;
+    view = new EditorView(el, {
+      state,
+      dispatchTransaction(tr) {
+        view.updateState(view.state.apply(tr));
+      },
+    });
 
     // Seed the document's first block with initialTitle for a
     // brand-new draft opened from a URL slug that matched no existing
@@ -236,9 +263,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     // debounce window, same as any other draft. No focus is set here;
     // that's left to the autofocus block below.
     if (!cardId && props.initialTitle) {
-      editor.view.dispatch(
-        editor.view.state.tr.insertText(props.initialTitle, 1),
-      );
+      view.dispatch(view.state.tr.insertText(props.initialTitle, 1));
     }
 
     // Autofocus into the editor only for a brand-new draft card, so
@@ -247,7 +272,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     // the editor's DOM element may not be attached to the document
     // yet, which makes a synchronous focus() call silently do nothing.
     if (!cardId) {
-      setTimeout(() => editor.view.focus(), 0);
+      setTimeout(() => view.focus(), 0);
     }
 
     // For an existing card opened with an empty title, replace the
@@ -260,9 +285,9 @@ export default function NoteEditor(props: NoteEditorProps) {
       fillUntitledIfEmpty = (isSynced) => {
         if (!isSynced) return;
         provider?.off("sync", fillUntitledIfEmpty!);
-        const heading = editor.view.state.doc.firstChild;
+        const heading = view.state.doc.firstChild;
         if (heading && heading.textContent.trim() === "") {
-          editor.view.dispatch(editor.view.state.tr.insertText("Untitled", 1));
+          view.dispatch(view.state.tr.insertText("Untitled", 1));
         }
       };
       provider.on("sync", fillUntitledIfEmpty);
@@ -272,7 +297,7 @@ export default function NoteEditor(props: NoteEditorProps) {
       if (fillUntitledIfEmpty) provider?.off("sync", fillUntitledIfEmpty);
       provider?.destroy();
       ydoc.destroy();
-      if (typeof unmount === "function") unmount();
+      view.destroy();
     });
   };
 

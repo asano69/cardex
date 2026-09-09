@@ -20,23 +20,6 @@ const injectAppNameHtml: Plugin = {
 };
 
 export default defineConfig({
-  optimizeDeps: {
-    // Every prosekit subpath used anywhere in the app must be listed
-    // here so Vite pre-bundles them together from a single dependency
-    // scan at startup. Otherwise, a subpath first imported later in a
-    // dev session (e.g. prosekit/extensions/readonly, only used on the
-    // notes list page) gets pre-bundled on its own, producing a second,
-    // reference-distinct copy of prosekit/core's internals -- which
-    // then fails prosekit's internal `assert(a.facet === b.facet)`
-    // check when combining extensions via union().
-    include: [
-      "prosekit/core",
-      "prosekit/basic",
-      "prosekit/extensions/readonly",
-      "prosekit/extensions/link",
-      "prosekit/extensions/mark-rule",
-    ],
-  },
   plugins: [solid(), tailwindcss(), injectAppNameHtml],
   // __APP_NAME__ is a build-time constant (not a runtime env var), so it
   // can be referenced anywhere in src/ without an import.
