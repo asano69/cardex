@@ -133,15 +133,37 @@
     pointer-events: none;
   }
 
-  /* --- List (prosemirror-flat-list). PLACEHOLDER: the marker/
-   * indentation styling is entirely CSS-driven (listToDOM only emits
-   * plain <div> wrappers + data attributes), and prosekit's own skin
-   * for this is unknown. This is a minimal fallback so lists are at
-   * least readable; inspect the rendered DOM in devtools once running
-   * to find the real attribute names (kind/checked/collapsed) and
-   * refine. --- */
-  .ProseMirror [data-kind] {
-    padding-left: 1.5em;
+  /* --- List (ported from prosemirror-flat-list's own
+   * src/style.css). A "list" node renders as a plain <div> (not a
+   * native <ul>/<li>), so nothing here comes from the browser's
+   * default list styling -- every rule below is load-bearing. Only
+   * "bullet" is styled: ordered/task/toggle aren't wired up in this
+   * app (see noteEditor/index.tsx's listTabKeymap), so their marker
+   * CSS is left out rather than carried along unused. --- */
+  .prosemirror-flat-list {
+    margin: 0 0 0 32px;
+    padding: 0;
+    position: relative;
+    display: list-item;
+    list-style: none;
+  }
+
+  .prosemirror-flat-list[data-list-kind="bullet"] {
+    list-style: disc;
+  }
+
+  .prosemirror-flat-list.ProseMirror-selectednode {
+    outline: none;
+  }
+  .prosemirror-flat-list.ProseMirror-selectednode:after {
+    content: "";
+    position: absolute;
+    left: -32px;
+    right: -2px;
+    top: -2px;
+    bottom: -2px;
+    border: 2px solid #8cf;
+    pointer-events: none;
   }
 
   /* Shared tap target for icon-only buttons/links (TopBar, UserMenu,

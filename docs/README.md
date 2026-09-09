@@ -30,7 +30,7 @@ Cardpot is a card box for thinkers.
 - Kobalte v0.13+
 - Tailwind v4
 - clauderic/dnd-kit v0.5.0
-- ProseKit (ProseMirror)
+- ProseMirror
 - yjs
 
 ---
