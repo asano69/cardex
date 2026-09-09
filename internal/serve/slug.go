@@ -24,7 +24,7 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/asano69/cardex/internal/slug"
+	"github.com/asano69/cardpot/internal/slug"
 )
 
 // defaultTitle is used when a candidate resolves to no usable text at

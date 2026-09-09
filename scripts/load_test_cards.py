@@ -15,9 +15,9 @@ Requires the server to be running (e.g. `make server`).
 Usage:
     python scripts/load_test_cards.py [--count 3000] [--base-url http://localhost:3000]
 
-Environment variables (fall back to cardex.env's own defaults):
-    CARDEX_ADMIN_EMAIL     (default: admin@mail.internal)
-    CARDEX_ADMIN_PASSWORD  (default: password)
+Environment variables (fall back to cardpot.env's own defaults):
+    CARDPOT_ADMIN_EMAIL     (default: admin@mail.internal)
+    CARDPOT_ADMIN_PASSWORD  (default: password)
 """
 
 import argparse
@@ -113,10 +113,10 @@ def main():
     parser.add_argument("--pot-slug", default=DEFAULT_POT_SLUG)
     parser.add_argument("--count", type=int, default=DEFAULT_CARD_COUNT)
     parser.add_argument(
-        "--email", default=os.environ.get("CARDEX_ADMIN_EMAIL", "admin@mail.internal")
+        "--email", default=os.environ.get("CARDPOT_ADMIN_EMAIL", "admin@mail.internal")
     )
     parser.add_argument(
-        "--password", default=os.environ.get("CARDEX_ADMIN_PASSWORD", "password")
+        "--password", default=os.environ.get("CARDPOT_ADMIN_PASSWORD", "password")
     )
     args = parser.parse_args()
 

@@ -1,6 +1,6 @@
 {
-  "name": "Cardex",
-  "short_name": "Cardex",
+  "name": "Cardpot",
+  "short_name": "Cardpot",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1e1f20",

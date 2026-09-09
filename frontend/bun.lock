@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "cardex-frontend",
+      "name": "cardpot-frontend",
       "dependencies": {
         "@dnd-kit/abstract": "^0.5.0",
         "@dnd-kit/dom": "^0.5.0",

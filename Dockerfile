@@ -5,8 +5,8 @@
 # ==========================================
 FROM oven/bun:1-alpine AS node-builder
 # Passed through to vite.config.js's `define` at build time; defaults to
-# "cardex" to match the Go backend's default (see internal/config).
-ARG APP_NAME=Cardex
+# "cardpot" to match the Go backend's default (see internal/config).
+ARG APP_NAME=Cardpot
 ENV APP_NAME=${APP_NAME}
 WORKDIR /build/frontend
 # Copy only dependency manifests first to leverage Docker layer caching
@@ -37,13 +37,13 @@ COPY internal/ ./internal/
 COPY migrations/ ./migrations/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/asano69/cardex/internal/version.Version=${VERSION}" -o cardex ./cmd/cardex
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/asano69/cardpot/internal/version.Version=${VERSION}" -o cardpot ./cmd/cardpot
 
 # ==========================================
 # Stage 2: Runtime
 # ==========================================
 FROM alpine:3.23
-WORKDIR /cardex
+WORKDIR /cardpot
 
 RUN apk add --no-cache \
     ca-certificates \
@@ -54,13 +54,13 @@ RUN apk add --no-cache \
     curl \
     sqlite
  
-RUN addgroup -g 1000 cardex && \
-    adduser -D -u 1000 -G cardex cardex
+RUN addgroup -g 1000 cardpot && \
+    adduser -D -u 1000 -G cardpot cardpot
 
-COPY --from=go-builder /build/cardex /usr/local/bin/cardex
+COPY --from=go-builder /build/cardpot /usr/local/bin/cardpot
 
-RUN mkdir -p /certs /cardex/pb_data
-RUN chown -R cardex:cardex /cardex
+RUN mkdir -p /certs /cardpot/pb_data
+RUN chown -R cardpot:cardpot /cardpot
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
@@ -68,5 +68,5 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 EXPOSE 3000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["cardex", "serve"]
+CMD ["cardpot", "serve"]
 

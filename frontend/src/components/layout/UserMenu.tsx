@@ -42,7 +42,7 @@ export default function UserMenu() {
             class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-text outline-none transition-colors hover:bg-hover-bg data-[highlighted]:bg-hover-bg"
           >
             <About size={16} />
-            About Cardex
+            About Cardpot
           </DropdownMenu.Item>
           <DropdownMenu.Item
             onSelect={handleSettings}

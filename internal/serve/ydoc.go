@@ -42,7 +42,7 @@ import (
 	"github.com/reearth/ygo/crdt"
 	yjsws "github.com/reearth/ygo/provider/websocket"
 
-	"github.com/asano69/cardex/internal/xmldoc"
+	"github.com/asano69/cardpot/internal/xmldoc"
 )
 
 // compactionThreshold is how many stored increments a room's update

@@ -1,6 +1,6 @@
-# Cardex
+# Cardpot
 
-Cardex is a card box for thinkers.
+Cardpot is a card box for thinkers.
 
 <img src="../frontend/public/favicon.svg" width="100" align="right" />
 
@@ -16,7 +16,7 @@ Cardex is a card box for thinkers.
 - 自分が思いついたこと・考えたことを保存する。
 
 ## Features
-- Cardexでは同一ページを複数人でリアルタイムに共同編集できます。
+- Cardpotでは同一ページを複数人でリアルタイムに共同編集できます。
 
 ## Tech Stack
 ### backend
@@ -36,6 +36,6 @@ Cardex is a card box for thinkers.
 ---
 - Logo: "Japan Flat Vectors" by maxicons (CC Attribution License)
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/cardex)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/cardpot)
 
 

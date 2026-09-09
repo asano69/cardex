@@ -1,4 +1,4 @@
-module github.com/asano69/cardex
+module github.com/asano69/cardpot
 
 go 1.25.9
 
