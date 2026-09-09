@@ -119,7 +119,11 @@ const nodes: Record<string, NodeSpec> = {
     toDOM: (node) => ["img", { src: node.attrs.src, alt: node.attrs.alt }],
   },
 
-  ...tableNodes({ tableGroup: "block", cellContent: "block+" }),
+  ...tableNodes({
+    tableGroup: "block",
+    cellContent: "block+",
+    cellAttributes: {},
+  }),
 };
 
 const marks: Record<string, MarkSpec> = {

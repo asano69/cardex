@@ -249,8 +249,14 @@ export default function NoteEditor(props: NoteEditorProps) {
     let view: EditorView;
     view = new EditorView(el, {
       state,
+      // ProseMirror invokes dispatchTransaction with the view bound as
+      // `this`, so use `this` here instead of the outer `view` variable:
+      // ySyncPlugin can fire a transaction synchronously from inside
+      // `new EditorView(...)` itself (e.g. an already-synced Yjs update),
+      // before the assignment to `view` below has completed, which left
+      // the outer variable still undefined.
       dispatchTransaction(tr) {
-        view.updateState(view.state.apply(tr));
+        this.updateState(this.state.apply(tr));
       },
     });
 
