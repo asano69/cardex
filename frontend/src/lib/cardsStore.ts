@@ -20,6 +20,20 @@ const [cardsById, setCardsById] = createStore<Record<string, CardRecord>>({});
 
 export { cardsById };
 
+// Resolves a card by its parent pot id and URL slug, scanning the
+// already-loaded cardsById store instead of asking the server (see
+// CardForm.tsx). A plain linear scan is cheap even for a few thousand
+// cards, and it avoids the network round-trip the old server-side
+// lookup (fetchCardBySlug) required on every card open.
+export function findCardByPotAndSlug(
+  potId: string,
+  slug: string,
+): CardRecord | undefined {
+  return Object.values(cardsById).find(
+    (card) => card.pot === potId && card.slug === slug,
+  );
+}
+
 // Whether the initial full-collection fetch (see loadAllCards below)
 // has completed. CardList gates its "Loading" spinner on this instead
 // of tracking its own per-mount fetch, since the whole "cards"

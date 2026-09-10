@@ -1,28 +1,19 @@
-import {
-  createSignal,
-  createMemo,
-  createResource,
-  createEffect,
-  Show,
-} from "solid-js";
+import { createSignal, createMemo, createEffect, Show } from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 
 import { Alert } from "@kobalte/core/alert";
-
-import { ClientResponseError } from "pocketbase";
 
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
-import { cardsById, mergeCards } from "../../lib/cardsStore";
-import { fetchCardBySlug } from "../../lib/cardApi";
 import {
-  titleToSegment,
-  titleToSlug,
-  segmentToSlug,
-  slugToTitle,
-} from "../../lib/slugify";
+  cardsById,
+  cardsLoaded,
+  mergeCards,
+  findCardByPotAndSlug,
+} from "../../lib/cardsStore";
+import { titleToSegment, segmentToSlug, slugToTitle } from "../../lib/slugify";
 import { useTitle } from "../../lib/useTitle";
 import { useTopBarActions } from "../../lib/topBarSlot";
 import { computePosition } from "../../lib/position";
@@ -34,14 +25,17 @@ import type { CardTitle } from "../../lib/cardTitle";
 // display label derived server-side from the card's live Yjs body
 // (see internal/serve/ydoc.go and internal/serve/slug.go), resolved
 // via a dedicated route (see internal/serve/cards.go and
-// lib/cardApi.ts). There is no separate "slug" field anymore -- a
-// card's URL segment is derived from this same title on demand (see
-// lib/slugify.ts). "position" is a fractional-indexing sort key (see
-// lib/position.ts) used to persist the tile grid's drag-to-reorder
-// order in CardList.
+// lib/cardApi.ts). "slug" is derived from "title" server-side (see
+// internal/slug.FromTitle) and persisted alongside it -- it's read
+// here so a card's URL segment can be resolved locally against
+// cardsById (see lib/cardsStore.ts's findCardByPotAndSlug) instead of
+// asking the server to look it up on every card open. "position" is a
+// fractional-indexing sort key (see lib/position.ts) used to persist
+// the tile grid's drag-to-reorder order in CardList.
 export interface CardRecord {
   id: string;
   title: CardTitle;
+  slug: string;
   description: string;
   // First image URL found in the card's live document, resolved
   // server-side alongside "description" (see internal/xmldoc's
@@ -120,36 +114,30 @@ export default function CardForm() {
     return s.kind === "existing" ? s.cardId : undefined;
   });
 
-  // Editing an existing card: its PocketBase id isn't in the URL, and
-  // there's no stored "slug" field to filter on anymore (see
-  // lib/slugify.ts) -- the backend resolves the slug against the
-  // pot's cards instead of shipping every card's full record here
-  // (see internal/serve/cards.go's findCardBySlugHandler). Waits for
-  // `pot` to resolve first, since the lookup needs its PocketBase id
-  // rather than its slug.
-  createResource(
-    () => (params.cardSlug ? pot()?.id : undefined),
-    async (potId) => {
-      const targetSlug = segmentToSlug(params.cardSlug!);
-      try {
-        const record = await fetchCardBySlug(potId, targetSlug);
-        mergeCards([record]);
-        setState({ kind: "existing", cardId: record.id });
-      } catch (err) {
-        // A 404 means no card matches this slug yet -- open a draft
-        // pre-filled with the slug's title instead of "not found", so
-        // visiting e.g. /:pot/test creates a new card titled "test"
-        // once its header is confirmed (same flow as /:pot/new -- see
-        // NoteEditor). Any other error (network, auth, ...) falls
-        // through to the "not found" page instead.
-        if (err instanceof ClientResponseError && err.status === 404) {
-          setState({ kind: "draft", initialTitle: slugToTitle(targetSlug) });
-          return;
-        }
-        setState({ kind: "notFound" });
-      }
-    },
-  );
+  // Editing an existing card: resolves its PocketBase id from the URL
+  // slug entirely on the client, since the full "cards" collection --
+  // "slug" field included -- is already loaded into cardsById (see
+  // lib/cardsStore.ts's loadAllCards). This used to hit a dedicated
+  // server route on every open, adding a needless network round-trip
+  // for data the client already has. Waits for cardsLoaded() (the
+  // store's initial fetch) and `pot` to resolve first.
+  createEffect(() => {
+    if (!params.cardSlug) return;
+    const potId = pot()?.id;
+    if (!potId || !cardsLoaded()) return;
+
+    const targetSlug = segmentToSlug(params.cardSlug);
+    const record = findCardByPotAndSlug(potId, targetSlug);
+    if (record) {
+      setState({ kind: "existing", cardId: record.id });
+    } else {
+      // No card matches this slug yet -- open a draft pre-filled with
+      // the slug's title instead of "not found", so visiting e.g.
+      // /:pot/test creates a new card titled "test" once its header
+      // is confirmed (same flow as /:pot/new -- see NoteEditor).
+      setState({ kind: "draft", initialTitle: slugToTitle(targetSlug) });
+    }
+  });
 
   // Called by NoteEditor the moment a draft's backing "cards" record
   // is created (see its onCardCreated prop) -- the point where this
