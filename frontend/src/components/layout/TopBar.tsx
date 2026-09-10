@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { Menu, CirclePlus, X } from "../../lib/icons";
+import { Menu, Plus, X } from "../../lib/icons";
 import Logo from "../Logo";
 
 import ThemeToggle from "./ThemeToggle";
@@ -65,10 +65,10 @@ export default function TopBar(props: TopBarProps) {
           <Show when={topBarPotLink()}>
             <A
               href={`/${topBarPotLink()!.slug}/new`}
-              class="icon-btn"
               aria-label="Add card"
+     class="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(144,30%,50%)] text-white transition-colors hover:bg-[hsl(153,10%,50%)]"
             >
-              <CirclePlus size={26} />
+              <Plus size={20}  strokeWidth={4} />
             </A>
           </Show>
         </div>
