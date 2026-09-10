@@ -9,11 +9,14 @@ import { useParams, useNavigate, A } from "@solidjs/router";
 
 import { Alert } from "@kobalte/core/alert";
 
+import { ClientResponseError } from "pocketbase";
+
 import pb from "../../lib/pb";
 import NoteEditor from "../../components/noteEditor";
 import Loading from "../../components/Loading";
 import { Trash2, Pin, PinOff } from "../../lib/icons";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
+import { fetchCardBySlug } from "../../lib/cardApi";
 import {
   titleToSegment,
   titleToSlug,
@@ -119,43 +122,32 @@ export default function CardForm() {
 
   // Editing an existing card: its PocketBase id isn't in the URL, and
   // there's no stored "slug" field to filter on anymore (see
-  // lib/slugify.ts) -- every card in the pot is fetched and matched by
-  // re-deriving its own slug from its title, since titleToSlug is a
-  // pure function and titles are already guaranteed unique per pot.
-  // Waits for `pot` to resolve first, since the filter below needs its
-  // PocketBase id rather than its slug.
-  // TODO: this is an O(n) scan over every card in the pot -- fine for
-  // now, but worth moving to a backend route (with its own index) if
-  // pots regularly grow into the thousands of cards.
+  // lib/slugify.ts) -- the backend resolves the slug against the
+  // pot's cards instead of shipping every card's full record here
+  // (see internal/serve/cards.go's findCardBySlugHandler). Waits for
+  // `pot` to resolve first, since the lookup needs its PocketBase id
+  // rather than its slug.
   createResource(
     () => (params.cardSlug ? pot()?.id : undefined),
     async (potId) => {
       const targetSlug = segmentToSlug(params.cardSlug!);
-      let candidates: CardRecord[];
       try {
-        candidates = await pb.collection("cards").getFullList<CardRecord>({
-          filter: pb.filter("pot = {:pot}", { pot: potId }),
-        });
-      } catch {
-        // A genuine fetch failure (network, auth, ...) -- distinct
-        // from "no card matches this slug" below, which opens a draft
-        // instead of this "not found" page.
-        setState({ kind: "notFound" });
-        return;
-      }
-      const record = candidates.find(
-        (card) => titleToSlug(card.title) === targetSlug,
-      );
-      if (record) {
+        const record = await fetchCardBySlug(potId, targetSlug);
         mergeCards([record]);
         setState({ kind: "existing", cardId: record.id });
-        return;
+      } catch (err) {
+        // A 404 means no card matches this slug yet -- open a draft
+        // pre-filled with the slug's title instead of "not found", so
+        // visiting e.g. /:pot/test creates a new card titled "test"
+        // once its header is confirmed (same flow as /:pot/new -- see
+        // NoteEditor). Any other error (network, auth, ...) falls
+        // through to the "not found" page instead.
+        if (err instanceof ClientResponseError && err.status === 404) {
+          setState({ kind: "draft", initialTitle: slugToTitle(targetSlug) });
+          return;
+        }
+        setState({ kind: "notFound" });
       }
-      // No card matches this slug yet -- open a draft pre-filled with
-      // the slug's title instead of "not found", so visiting e.g.
-      // /:pot/test creates a new card titled "test" once its header is
-      // confirmed (same flow as /:pot/new -- see NoteEditor).
-      setState({ kind: "draft", initialTitle: slugToTitle(targetSlug) });
     },
   );
 

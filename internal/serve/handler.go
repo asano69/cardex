@@ -51,6 +51,7 @@ func registerRoutes(e *core.ServeEvent) error {
 	admin.Bind(apis.RequireSuperuserAuth())
 	admin.POST("/cards", createCardHandler)
 	admin.POST("/cards/{id}/title", updateCardTitleHandler)
+	admin.GET("/pots/{potId}/cards/by-slug/{slug}", findCardBySlugHandler)
 
 	// Serves the whole Vite build output (index.html, hashed JS/CSS
 	// under assets/, and public/ files like favicon.svg copied to the

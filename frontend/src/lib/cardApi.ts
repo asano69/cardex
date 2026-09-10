@@ -29,6 +29,20 @@ export async function createCard(
 // internal/serve/cards.go's updateCardTitleHandler). The card's URL
 // segment is derived from this same title on demand (see
 // lib/slugify.ts) instead of being a separate field kept in sync here.
+// Resolves a card by its URL slug within pot (see
+// internal/serve/cards.go's findCardBySlugHandler). Replaces
+// CardForm's old approach of fetching every card in the pot and
+// recomputing titleToSlug client-side.
+export async function fetchCardBySlug(
+  potId: string,
+  slug: string,
+): Promise<CardRecord> {
+  return await pb.send<CardRecord>(
+    `/api/admin/pots/${potId}/cards/by-slug/${encodeURIComponent(slug)}`,
+    { method: "GET" },
+  );
+}
+
 export async function updateCardTitle(
   cardId: string,
   titleCandidate: TitleCandidate,

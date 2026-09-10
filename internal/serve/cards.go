@@ -16,6 +16,8 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/asano69/cardpot/internal/slug"
 )
 
 // positionStep matches the frontend's own POSITION_STEP (see
@@ -145,6 +147,34 @@ func updateCardTitleHandler(e *core.RequestEvent) error {
 		return jsonWithMergeTarget(e, e.App, pot, title, req.TitleCandidate, id, record)
 	}
 	return e.InternalServerError("failed to update title after retries", nil)
+}
+
+// findCardBySlugHandler resolves a card by its (derived) URL slug
+// within a pot, without the client having to fetch every card's full
+// record and recompute the slug itself (see CardForm.tsx). This is
+// still an O(n) scan over the pot's cards -- just moved server-side,
+// so it reads a few columns from SQLite instead of shipping every
+// card's full JSON over the network. Interim measure: a real
+// (pot, slug) index would make this O(1), but isn't worth the extra
+// complexity until a pot's card count actually makes this scan slow.
+func findCardBySlugHandler(e *core.RequestEvent) error {
+	potID := e.Request.PathValue("potId")
+	targetSlug := e.Request.PathValue("slug")
+
+	records, err := e.App.FindRecordsByFilter(
+		"cards", "pot = {:pot}", "", 0, 0,
+		dbx.Params{"pot": potID},
+	)
+	if err != nil {
+		return e.InternalServerError("list cards", err)
+	}
+
+	for _, record := range records {
+		if slug.FromTitle(record.GetString("title")) == targetSlug {
+			return e.JSON(http.StatusOK, record)
+		}
+	}
+	return e.NotFoundError("card not found", nil)
 }
 
 // jsonWithMergeTarget writes record as JSON alongside a "mergeTarget"
