@@ -11,6 +11,8 @@ import {
   syntheticAnnotation,
 } from "./titleCandidatePlugin";
 import { titleLineHighlight } from "./titleLineHighlight";
+import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
+import { cardpotSyntax } from "./cardpotSyntax";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
@@ -182,6 +184,12 @@ export default function NoteEditor(props: NoteEditorProps) {
         yCollab(ytext, null),
         titleCandidateExtension(handleSlugCandidate),
         titleLineHighlight,
+        // Cardpot's own inline syntax (wiki links, brackets, tags --
+        // see cardpotSyntax.ts). Needs syntaxHighlighting() alongside
+        // it: the parser only tags nodes, this is what actually turns
+        // those tags into colored text.
+        cardpotSyntax(),
+        syntaxHighlighting(defaultHighlightStyle),
         // Tab/Shift-Tab indent/outdent the current line(s) -- the
         // plain-text equivalent of the old prosemirror-flat-list
         // bullet indent/outdent (see prose-mirror.old/index.tsx's
