@@ -1,5 +1,6 @@
 import { Plugin, type Transaction } from "prosemirror-state";
 import type { Node as PMNode } from "prosemirror-model";
+import { ySyncPluginKey } from "y-prosemirror";
 import {
   type TitleCandidate,
   makeTitleCandidate,
@@ -81,7 +82,14 @@ export function titleCandidatePlugin(
 
   return new Plugin({
     appendTransaction(transactions, oldState, newState) {
-      if (!transactions.some((tr) => tr.docChanged)) return null;
+      // Ignore transactions y-prosemirror generates on its own (e.g.
+      // seeding an empty Y.XmlFragment with the schema's minimum
+      // content on mount) -- only a transaction the user actually
+      // caused should start the debounce.
+      const userChanged = transactions.some(
+        (tr) => tr.docChanged && !tr.getMeta(ySyncPluginKey)?.isChangeOrigin,
+      );
+      if (!userChanged) return null;
 
       const candidate = extractCandidate(newState.doc);
       clearTimeout(debounceTimer);
