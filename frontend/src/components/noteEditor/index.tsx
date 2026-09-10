@@ -1,36 +1,15 @@
-import { createSignal, onCleanup, Show } from "solid-js";
-// The editor's structural CSS (ProseMirror core, gap cursor, table,
-// list) now lives in styles/components.css, loaded globally via
-// styles/index.css -- no per-component stylesheet import needed here
-// anymore (this used to be prosekit/basic/style.css).
-import { EditorState } from "prosemirror-state";
-import { EditorView } from "prosemirror-view";
-import { noteSchema } from "./schema";
-import { urlLinkPlugin } from "./urlLinkRule";
+import { onCleanup, Show, createSignal } from "solid-js";
+import { EditorState } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { defaultKeymap } from "@codemirror/commands";
+import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { IndexeddbPersistence } from "y-indexeddb";
-import { ySyncPlugin } from "y-prosemirror";
-import { keymap } from "prosemirror-keymap";
-import { baseKeymap, chainCommands } from "prosemirror-commands";
-import { history, undo, redo } from "prosemirror-history";
-import { gapCursor } from "prosemirror-gapcursor";
-import { inputRules } from "prosemirror-inputrules";
-import { tableEditing } from "prosemirror-tables";
 import {
-  createWrapInListCommand,
-  createListPlugins,
-  listInputRules,
-  listKeymap,
-} from "prosemirror-flat-list";
-import { emphasisRevealPlugin } from "./emphasisRevealPlugin";
-import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
-import { linkClickPlugin } from "./linkClickPlugin";
-import { blockIdPlugin } from "./blockIdPlugin";
-import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
-import { imageMarkdownPlugin } from "./imageMarkdownPlugin";
-import { titleCandidatePlugin } from "./titleCandidatePlugin";
-import { markSynthetic } from "./syntheticTransaction";
+  titleCandidateExtension,
+  syntheticAnnotation,
+} from "./titleCandidatePlugin";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
@@ -48,7 +27,7 @@ export interface NoteEditorProps {
   // backing record (see handleSlugCandidate below). Ignored once
   // cardId already resolves to a real record.
   potId?: () => string | undefined;
-  // Pre-fills the document's first block (the header) with this text
+  // Pre-fills the document's first line (the header) with this text
   // when starting a brand-new draft -- e.g. opening /:pot/:cardSlug
   // with no matching card seeds this from the URL's slug instead of
   // showing "not found" (see CardForm.tsx). Ignored once cardId is
@@ -65,21 +44,24 @@ export interface NoteEditorProps {
   onMergeTarget?: (target: string | null) => void;
 }
 
-// A single Yjs-synced ProseKit editor covering both title and body:
-// the document's first block is the title (styled larger via
-// ".ProseMirror > :first-child" in styles/components.css), everything
-// below it is the body. Neither is persisted to PocketBase directly --
-// both only live in the server's in-memory Yjs room (see
-// internal/serve/handler.go). The "title" and "description" fields shown
-// elsewhere (e.g. CardItem's grid) are derived server-side from this
-// same room's content (see internal/serve/ydoc.go), not saved from
-// here.
+// A single Yjs-synced CodeMirror editor covering both title and body,
+// as plain text: line 1 is the title, everything below it is the
+// body. Neither is persisted to PocketBase directly -- both only live
+// in the server's in-memory Yjs room (see internal/serve/handler.go).
+// The "title" and "description" fields shown elsewhere (e.g.
+// CardItem's grid) are derived server-side from this same room's
+// content (see internal/serve/ydoc.go), not saved from here.
+//
+// This is a minimal skeleton: markdown-style decorations (bold/
+// italic reveal, bracket links, image syntax, ...) that the old
+// ProseMirror editor had are intentionally not reimplemented yet --
+// see this project's CLAUDE.md for the migration's current phase.
 export default function NoteEditor(props: NoteEditorProps) {
   const ydoc = new Y.Doc();
-  const fragment = ydoc.getXmlFragment("prosemirror");
+  const ytext = ydoc.getText("content");
 
   // The WebsocketProvider is what actually syncs `ydoc` over the
-  // network -- ySyncPlugin (wired up below) works against `fragment`
+  // network -- yCollab (wired up below) works against `ytext`
   // regardless of whether a provider is connected, so draft mode can
   // edit locally from the very first keystroke and only gains network
   // sync once a real record id exists (see connectProvider/
@@ -110,7 +92,7 @@ export default function NoteEditor(props: NoteEditorProps) {
   // Read once at setup (like the old initialCardId), but mutable: it
   // flips from undefined to a real id the moment a draft's backing
   // record is created (see sendCandidate below), which is also what
-  // switches later slug candidates from createCard to updateCardSlug.
+  // switches later title candidates from createCard to updateCardTitle.
   let cardId = props.cardId();
   if (cardId) {
     connectProvider(cardId);
@@ -118,18 +100,8 @@ export default function NoteEditor(props: NoteEditorProps) {
 
   const [slugError, setSlugError] = createSignal(false);
 
-  // NOTE(prosekit removal): ProseKit's defineVirtualSelection() and
-  // defineModClickPrevention() extensions have no direct raw-
-  // ProseMirror equivalent and are not reinstated here. Neither is
-  // exercised by this app's own behavior -- link clicks are already
-  // handled explicitly by linkClickPlugin.ts, and no IME-composition
-  // issue motivating virtual selection has ever surfaced -- so they're
-  // dropped rather than reimplemented, in line with keeping the editor
-  // setup as simple as possible. Revisit only if a concrete bug traces
-  // back to one of them.
-
-  // In-flight control for slug candidates coming from
-  // slugCandidatePlugin: only one request is ever outstanding at a
+  // In-flight control for title candidates coming from
+  // titleCandidatePlugin: only one request is ever outstanding at a
   // time. A candidate that arrives while one is pending replaces
   // `pendingCandidate` instead of firing its own request; once the
   // in-flight request settles, the latest pending candidate (if any)
@@ -162,7 +134,7 @@ export default function NoteEditor(props: NoteEditorProps) {
         props.onCardCreated?.(cardId);
       }
     } catch (err) {
-      console.error("[note-editor] failed to resolve card slug:", err);
+      console.error("[note-editor] failed to resolve card title:", err);
       setSlugError(true);
     } finally {
       inFlight = false;
@@ -174,16 +146,16 @@ export default function NoteEditor(props: NoteEditorProps) {
     }
   };
 
-  // Called by titleCandidatePlugin whenever the header (or the body's
-  // first line) is confirmed. Shared by draft creation and
-  // existing-card slug edits -- which one happens is decided purely by
-  // whether `cardId` is already set (see sendCandidate above).
+  // Called by titleCandidatePlugin whenever the header (line 1) is
+  // confirmed. Shared by draft creation and existing-card title edits
+  // -- which one happens is decided purely by whether `cardId` is
+  // already set (see sendCandidate above).
   const handleSlugCandidate = (candidate: TitleCandidate) => {
     if (candidate === lastResolvedCandidate) return;
     // An empty candidate is only meaningful for a brand-new draft --
     // confirming with no header falls back to "Untitled" server-side
-    // (see cards.go's createCardHandler). An existing card's slug/
-    // title should never be reset just because its header was cleared.
+    // (see cards.go's createCardHandler). An existing card's title
+    // should never be reset just because its header was cleared.
     if (!candidate && cardId) return;
     if (inFlight) {
       pendingCandidate = candidate;
@@ -196,101 +168,44 @@ export default function NoteEditor(props: NoteEditorProps) {
   // ref-cleanup convention does, so `view.destroy()` is wired to
   // onCleanup explicitly below.
   const mountEditor = (el: HTMLDivElement) => {
-    // Tab/Shift-Tab hotkeys, active only while this ProseMirror
-    // instance has focus: Tab turns the current block into a bullet
-    // list, or indents it one level deeper if it's already a list
-    // item (prosemirror-flat-list's own "Mod-]" indent command);
-    // Shift-Tab dedents a list item back out ("Mod-["), and is a
-    // no-op outside a list. Ordered lists aren't used in this
-    // project, so only "bullet" is wired up here.
-    const listTabKeymap = keymap({
-      Tab: chainCommands(
-        listKeymap["Mod-]"],
-        createWrapInListCommand({ kind: "bullet" }),
-      ),
-      "Shift-Tab": listKeymap["Mod-["],
-    });
-
-    // The doc always starts empty here: nothing is loaded from
-    // PocketBase, only whatever the room already holds (nothing, for
-    // a brand-new card) -- ySyncPlugin(fragment) below is what
-    // actually populates it. Plugin order matters in a few places,
-    // called out inline.
+    // The doc always starts from `ytext`'s current content here --
+    // for a brand-new card that's empty, for an existing one it's
+    // whatever the room already holds. yCollab keeps this view and
+    // `ytext` in sync afterward. Awareness (remote cursors) isn't
+    // wired up yet -- passing null keeps this skeleton minimal; see
+    // this file's own top comment.
     const state = EditorState.create({
-      schema: noteSchema,
-      plugins: [
-        ySyncPlugin(fragment),
-        listTabKeymap,
-        // Everything else prosemirror-flat-list binds by default
-        // (Enter to split/exit a list item, Backspace to lift out of
-        // one, ...). Tab/Shift-Tab are handled above by
-        // listTabKeymap instead, so this plugin's own bindings for
-        // those two keys never fire -- ProseMirror tries plugins in
-        // array order and only falls through to a later plugin's
-        // binding for a key the earlier one didn't handle.
-        keymap(listKeymap),
-        forceFirstHeadingPlugin(),
-        blockIdPlugin(),
-        linkClickPlugin(),
-        pasteUrlDecodePlugin(),
-        // Must run before urlLinkPlugin: consuming the bracket/
-        // markdown text into an image node first means there's
-        // nothing left for the link plugin to mark as a link.
-        imageMarkdownPlugin(),
-        urlLinkPlugin(),
-        titleCandidatePlugin(handleSlugCandidate),
-        emphasisRevealPlugin(),
-        // Everything below is generic editor plumbing with no
-        // app-specific behavior, equivalent to what ProseKit's
-        // defineBaseKeymap/defineBaseCommands/defineHistory/
-        // defineGapCursor and prosemirror-flat-list/prosemirror-
-        // tables' own extensions used to wire up automatically.
-        ...createListPlugins({ schema: noteSchema }),
-        inputRules({ rules: listInputRules }),
-        keymap(baseKeymap),
-        history(),
-        keymap({ "Mod-z": undo, "Shift-Mod-z": redo, "Mod-y": redo }),
-        gapCursor(),
-        tableEditing(),
+      doc: ytext.toString(),
+      extensions: [
+        EditorView.lineWrapping,
+        yCollab(ytext, null),
+        titleCandidateExtension(handleSlugCandidate),
+        // yCollab supplies its own undo/redo keymap, backed by Yjs's
+        // UndoManager -- CM6's own history() extension is
+        // deliberately not added, to avoid two undo stacks fighting
+        // each other.
+        keymap.of([...yUndoManagerKeymap, ...defaultKeymap]),
       ],
     });
 
-    let view: EditorView;
-    view = new EditorView(el, {
-      state,
-      // ProseMirror invokes dispatchTransaction with the view bound as
-      // `this`, so use `this` here instead of the outer `view` variable:
-      // ySyncPlugin can fire a transaction synchronously from inside
-      // `new EditorView(...)` itself (e.g. an already-synced Yjs update),
-      // before the assignment to `view` below has completed, which left
-      // the outer variable still undefined.
-      dispatchTransaction(tr) {
-        this.updateState(this.state.apply(tr));
-      },
-      // Disables the browser's native spellcheck/grammar-check, which
-      // otherwise draws a colored underline (e.g. Chrome's blue
-      // grammar-suggestion squiggle) under the title heading and body
-      // text of this contenteditable region.
-      attributes: { spellcheck: "false" },
-    });
+    const view = new EditorView({ state, parent: el });
 
-    // Seed the document's first block with initialTitle for a
+    // Seed the document's first line with initialTitle for a
     // brand-new draft opened from a URL slug that matched no existing
-    // card (see CardForm.tsx). Marked synthetic (see
-    // syntheticTransaction.ts) so titleCandidatePlugin treats this
-    // exactly like the infra plugins' own self-healing edits, not
-    // like a real user edit -- otherwise this programmatic seed alone
-    // would start (and, after the debounce window, fire) the
-    // title-confirmation flow with no actual user action, silently
-    // turning every "URL slug that doesn't exist yet" visit into a
-    // real card. The header still only resolves into a real "cards"
-    // record once the user actually types, pastes, or presses Enter
-    // (see titleCandidatePlugin). No focus is set here; that's left
-    // to the autofocus block below.
+    // card (see CardForm.tsx). Tagged with syntheticAnnotation so
+    // titleCandidatePlugin doesn't treat this as a real user edit --
+    // otherwise this programmatic seed alone would start (and, after
+    // the debounce window, fire) the title-confirmation flow with no
+    // actual user action, silently turning every "URL slug that
+    // doesn't exist yet" visit into a real card. The header still
+    // only resolves into a real "cards" record once the user actually
+    // types, pastes, or presses Enter (see titleCandidatePlugin). No
+    // focus is set here; that's left to the autofocus block below.
     if (!cardId && props.initialTitle) {
-      view.dispatch(
-        markSynthetic(view.state.tr.insertText(props.initialTitle, 1)),
-      );
+      view.dispatch({
+        changes: { from: 0, insert: props.initialTitle },
+        annotations: syntheticAnnotation.of(true),
+      });
     }
 
     // Autofocus into the editor only for a brand-new draft card, so
@@ -315,25 +230,24 @@ export default function NoteEditor(props: NoteEditorProps) {
     // never runs for a card still being actively drafted. Only fires
     // once: the listener removes itself the first time it sees a
     // completed sync.
-    let fillUntitledIfEmpty: ((isSynced: boolean) => void) | undefined;
+    let fillUntitledIfEmpty: (() => void) | undefined;
     if (provider && cardId && cardsById[cardId]?.title === "Untitled") {
-      fillUntitledIfEmpty = (isSynced) => {
-        if (!isSynced) return;
+      fillUntitledIfEmpty = () => {
         provider?.off("sync", fillUntitledIfEmpty!);
-        const heading = view.state.doc.firstChild;
-        if (heading && heading.textContent.trim() === "") {
+        if (view.state.doc.line(1).text.trim() === "") {
           // Synthetic for the same reason as the initialTitle seed
           // above: this is a programmatic fill, not a user edit.
-          view.dispatch(
-            markSynthetic(view.state.tr.insertText("Untitled", 1)),
-          );
+          view.dispatch({
+            changes: { from: 0, insert: "Untitled" },
+            annotations: syntheticAnnotation.of(true),
+          });
         }
       };
       provider.on("sync", fillUntitledIfEmpty);
     }
 
     onCleanup(() => {
-      if (fillUntitledIfEmpty) provider?.off("sync", fillUntitledIfEmpty!);
+      if (fillUntitledIfEmpty) provider?.off("sync", fillUntitledIfEmpty);
       provider?.destroy();
       idbProvider?.destroy();
       ydoc.destroy();
@@ -353,16 +267,7 @@ export default function NoteEditor(props: NoteEditorProps) {
             synced -- try editing the header again once you're back online.
           </p>
         </Show>
-        {/* No flex-1/overflow-y-auto here: this div's parent isn't a
-            flex container, so flex-1 had no effect, and
-            overflow-y-auto could open a second, nested scrollbar on
-            top of the page's own scroll (see MainLayout's <main>).
-            The page-level container already owns scrolling, so this
-            element just grows with its content instead. */}
-        <div
-          ref={mountEditor}
-          class="ProseMirror text-text outline-none"
-        />
+        <div ref={mountEditor} class="text-text outline-none" />
       </div>
     </>
   );
