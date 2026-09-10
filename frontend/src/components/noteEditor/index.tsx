@@ -23,6 +23,7 @@ import {
   listInputRules,
   listKeymap,
 } from "prosemirror-flat-list";
+import { emphasisRevealPlugin } from "./emphasisRevealPlugin";
 import { forceFirstHeadingPlugin } from "./forceFirstHeadingPlugin";
 import { linkClickPlugin } from "./linkClickPlugin";
 import { blockIdPlugin } from "./blockIdPlugin";
@@ -238,6 +239,7 @@ export default function NoteEditor(props: NoteEditorProps) {
         imageMarkdownPlugin(),
         urlLinkPlugin(),
         titleCandidatePlugin(handleSlugCandidate),
+        emphasisRevealPlugin(),
         // Everything below is generic editor plumbing with no
         // app-specific behavior, equivalent to what ProseKit's
         // defineBaseKeymap/defineBaseCommands/defineHistory/
