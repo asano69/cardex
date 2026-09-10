@@ -32,20 +32,24 @@ export default function AppRouter() {
           CardForm below instead of flickering on every transition. */}
       <Route path="/:slug" component={PotLayout}>
         <Route path="/" component={CardList} />
-        {/* "new" is a reserved slug: this route always opens the
-            draft-creation flow (see CardForm.tsx), so a real card can
-            never resolve to the slug "new" and be reachable here --
-            the backend renames any card that would derive that slug
-            (see internal/serve/slug.go's reservedSlug handling).
-            Declared before the :cardSlug route below so the static
-            segment wins the match. */}
-        <Route path="/new" component={CardForm} />
-        {/* Edit route shares CardForm with the create route above; the
-            presence of :cardSlug is what switches it into edit mode.
-            The card's actual PocketBase id is resolved by matching
-            this (decoded) slug within the pot identified by :slug --
-            see CardForm.tsx and lib/cardSlug.ts. */}
-        <Route path="/:cardSlug" component={CardForm} />
+        {/* "/new" (draft creation) and "/:cardSlug" (edit) share ONE
+            Route -- not two separate <Route> elements -- so navigating
+            between them never remounts CardForm/NoteEditor.
+            CardForm's own URL-sync effect replaces "/new" with
+            "/:cardSlug" the instant a draft's title resolves (right
+            after createCard() returns); with two separate routes,
+            Solid Router treated that as a match against a different
+            Route and tore down the still-connecting WebsocketProvider
+            and its in-memory Y.Doc before the just-typed header ever
+            reached the server. The freshly mounted NoteEditor then
+            synced against the (still empty) server room, so line0
+            came back blank -- intermittently, only when the WebSocket
+            handshake lost the race against that reactive navigate.
+            "new" is a reserved slug (see internal/serve/slug.go's
+            reservedSlug handling), so a real card can never resolve to
+            it and collide with this literal path; it's listed first
+            so the static segment still wins the match. */}
+        <Route path={["/new", "/:cardSlug"]} component={CardForm} />
       </Route>
     </Router>
   );
