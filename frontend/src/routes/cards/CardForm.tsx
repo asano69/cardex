@@ -152,6 +152,13 @@ export default function CardForm() {
   // history.replaceState directly instead of navigate() so this never
   // adds a back-button entry or remounts the component -- important
   // now that a draft can silently become a real card mid-edit.
+  // Use Solid Router's own navigate() instead of calling
+  // history.replaceState directly: a raw replaceState call overwrites
+  // the router's own per-entry history.state with null, which corrupts
+  // its internal bookkeeping and breaks the browser back button (it
+  // can no longer tell which entry it's on). navigate(..., {replace:
+  // true}) updates the URL the same way (no new history entry) while
+  // keeping the router's state intact.
   let urlSegment = params.cardSlug ?? "";
   createEffect(() => {
     const id = cardId();
@@ -161,7 +168,7 @@ export default function CardForm() {
     const segment = titleToSegment(title);
     if (segment === urlSegment) return;
     urlSegment = segment;
-    history.replaceState(null, "", `/${params.slug}/${segment}`);
+    navigate(`/${params.slug}/${segment}`, { replace: true });
   });
 
   // Merge-alert target: the slug this card's header text duplicates,
