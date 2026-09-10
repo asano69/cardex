@@ -29,6 +29,7 @@ import { blockIdPlugin } from "./blockIdPlugin";
 import { pasteUrlDecodePlugin } from "./pasteUrlDecodePlugin";
 import { imageMarkdownPlugin } from "./imageMarkdownPlugin";
 import { titleCandidatePlugin } from "./titleCandidatePlugin";
+import { markSynthetic } from "./syntheticTransaction";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
@@ -268,14 +269,21 @@ export default function NoteEditor(props: NoteEditorProps) {
 
     // Seed the document's first block with initialTitle for a
     // brand-new draft opened from a URL slug that matched no existing
-    // card (see CardForm.tsx). This is a plain text insertion, so it
-    // flows through titleCandidatePlugin exactly like typing -- the
-    // header still doesn't resolve into a real "cards" record (no
-    // websocket connection yet) until it's confirmed via Enter or the
-    // debounce window, same as any other draft. No focus is set here;
-    // that's left to the autofocus block below.
+    // card (see CardForm.tsx). Marked synthetic (see
+    // syntheticTransaction.ts) so titleCandidatePlugin treats this
+    // exactly like the infra plugins' own self-healing edits, not
+    // like a real user edit -- otherwise this programmatic seed alone
+    // would start (and, after the debounce window, fire) the
+    // title-confirmation flow with no actual user action, silently
+    // turning every "URL slug that doesn't exist yet" visit into a
+    // real card. The header still only resolves into a real "cards"
+    // record once the user actually types, pastes, or presses Enter
+    // (see titleCandidatePlugin). No focus is set here; that's left
+    // to the autofocus block below.
     if (!cardId && props.initialTitle) {
-      view.dispatch(view.state.tr.insertText(props.initialTitle, 1));
+      view.dispatch(
+        markSynthetic(view.state.tr.insertText(props.initialTitle, 1)),
+      );
     }
 
     // Autofocus into the editor only for a brand-new draft card, so
@@ -307,7 +315,11 @@ export default function NoteEditor(props: NoteEditorProps) {
         provider?.off("sync", fillUntitledIfEmpty!);
         const heading = view.state.doc.firstChild;
         if (heading && heading.textContent.trim() === "") {
-          view.dispatch(view.state.tr.insertText("Untitled", 1));
+          // Synthetic for the same reason as the initialTitle seed
+          // above: this is a programmatic fill, not a user edit.
+          view.dispatch(
+            markSynthetic(view.state.tr.insertText("Untitled", 1)),
+          );
         }
       };
       provider.on("sync", fillUntitledIfEmpty);
