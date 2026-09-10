@@ -14,6 +14,21 @@
     font-feature-settings: "liga" 0;
   }
 
+  /* Chromium browsers draw a soft blue "glow" focus ring around a
+   * contenteditable element (distinct from a plain 1px outline),
+   * which the Tailwind `outline-none` utility on the element alone
+   * doesn't reliably suppress. ProseMirror's own selection/gap-cursor
+   * styling already shows focus, so the browser's own ring is pure
+   * visual noise here. Covering both :focus and :focus-visible (and
+   * ProseMirror's own focused-state class, for browsers that key off
+   * it) removes it regardless of which one the browser actually uses. */
+  .ProseMirror:focus,
+  .ProseMirror:focus-visible,
+  .ProseMirror-focused {
+    outline: none;
+    box-shadow: none;
+  }
+
   .ProseMirror pre {
     white-space: pre-wrap;
   }
@@ -250,6 +265,16 @@
   .ProseMirror h1 {
     font-size: 1.5rem;
     color: var(--color-note-title);
+
+    /* Re-declared here (not just inherited from .ProseMirror): a
+     * calc() line-height mixing em and rem computes to a fixed
+     * length on the element where it's declared, and that fixed
+     * length -- not a re-evaluated one -- is what inherits down to
+     * children. Without this, h1 inherited the 1em+1rem value
+     * computed against .ProseMirror's own (much smaller) font-size,
+     * leaving too little room for descenders (g, j, p, q, y) once
+     * combined with overflow: hidden below, which cut them off. */
+    line-height: calc(1em + 1rem);
 
     margin-bottom: 1.5rem;
     overflow: hidden;

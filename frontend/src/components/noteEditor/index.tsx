@@ -265,6 +265,11 @@ export default function NoteEditor(props: NoteEditorProps) {
       dispatchTransaction(tr) {
         this.updateState(this.state.apply(tr));
       },
+      // Disables the browser's native spellcheck/grammar-check, which
+      // otherwise draws a colored underline (e.g. Chrome's blue
+      // grammar-suggestion squiggle) under the title heading and body
+      // text of this contenteditable region.
+      attributes: { spellcheck: "false" },
     });
 
     // Seed the document's first block with initialTitle for a
@@ -346,9 +351,15 @@ export default function NoteEditor(props: NoteEditorProps) {
             synced -- try editing the header again once you're back online.
           </p>
         </Show>
+        {/* No flex-1/overflow-y-auto here: this div's parent isn't a
+            flex container, so flex-1 had no effect, and
+            overflow-y-auto could open a second, nested scrollbar on
+            top of the page's own scroll (see MainLayout's <main>).
+            The page-level container already owns scrolling, so this
+            element just grows with its content instead. */}
         <div
           ref={mountEditor}
-          class="ProseMirror flex-1 overflow-y-auto text-text outline-none"
+          class="ProseMirror text-text outline-none"
         />
       </div>
     </>
