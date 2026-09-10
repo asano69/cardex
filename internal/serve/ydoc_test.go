@@ -3,39 +3,37 @@ package serve
 
 import "testing"
 
-func TestBuildPreview_JoinsParagraphsExcludingHeading(t *testing.T) {
-	// The document's title heading is a <heading>, not a <paragraph>,
-	// so it's excluded from the description automatically.
-	xml := `<doc><heading level="1">Title</heading><paragraph>first line</paragraph><paragraph>second line</paragraph></doc>`
-	got := buildPreview(xml)
+func TestBuildPreview_JoinsLinesExcludingFirst(t *testing.T) {
+	// The first line is the title, so it's excluded from the
+	// description automatically.
+	text := "Title\nfirst line\nsecond line"
+	got := buildPreview(text)
 	want := "first line\nsecond line"
 	if got != want {
 		t.Errorf("buildPreview(...) = %q, want %q", got, want)
 	}
 }
 
-func TestBuildPreview_SkipsBlankParagraphs(t *testing.T) {
-	xml := `<doc><paragraph>   </paragraph><paragraph>real text</paragraph></doc>`
-	got := buildPreview(xml)
+func TestBuildPreview_SkipsBlankLines(t *testing.T) {
+	text := "Title\n   \nreal text"
+	got := buildPreview(text)
 	want := "real text"
 	if got != want {
 		t.Errorf("buildPreview(...) = %q, want %q", got, want)
 	}
 }
 
-func TestBuildPreview_UnescapesXMLEntities(t *testing.T) {
-	xml := `<doc><paragraph>a &amp; b &lt;c&gt;</paragraph></doc>`
-	got := buildPreview(xml)
-	want := `a & b <c>`
-	if got != want {
-		t.Errorf("buildPreview(...) = %q, want %q", got, want)
+func TestBuildPreview_NoBodyLines_EmptyString(t *testing.T) {
+	text := "Title only"
+	got := buildPreview(text)
+	if got != "" {
+		t.Errorf("buildPreview(...) = %q, want empty", got)
 	}
 }
 
-func TestBuildPreview_NoParagraphs_EmptyString(t *testing.T) {
-	xml := `<doc><heading level="1">Title only</heading></doc>`
-	got := buildPreview(xml)
+func TestBuildPreview_EmptyText_EmptyString(t *testing.T) {
+	got := buildPreview("")
 	if got != "" {
-		t.Errorf("buildPreview(...) = %q, want empty", got)
+		t.Errorf(`buildPreview("") = %q, want empty`, got)
 	}
 }

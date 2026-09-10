@@ -10,6 +10,14 @@
 // other blocks. Only textblocks get their own card_lines row; a
 // blockquote wrapping a paragraph contributes just the paragraph's
 // line, not a line of its own.
+//
+// TODO(codemirror-migration): unused for now. internal/serve/ydoc.go's
+// store() no longer calls updateLines -- ProseMirror's per-node "id"
+// attribute this relied on (see blockIdPlugin.ts) doesn't exist once
+// the editor moves to CodeMirror's plain-text Y.Text. Re-wire this
+// once line identity has a new strategy (a Yjs RelativePosition
+// anchor per line, or a content-based diff between saves -- see the
+// design discussion this migration grew out of).
 package serve
 
 import (

@@ -32,7 +32,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -41,8 +40,6 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/reearth/ygo/crdt"
 	yjsws "github.com/reearth/ygo/provider/websocket"
-
-	"github.com/asano69/cardpot/internal/xmldoc"
 )
 
 // compactionThreshold is how many stored increments a room's update
@@ -206,69 +203,57 @@ func (p *ydocPersistence) store(ctx context.Context, room string, update []byte)
 		return err
 	}
 
-	// The card's "title"/"description" fields and its per-line
-	// card_lines records are both derived from the same live XML
-	// snapshot, so it's rendered once here and shared between the two
-	// instead of each re-serializing the document. ToXML is called
-	// directly, not from inside a doc.Transact callback: its leaf text
-	// nodes take the document's read lock internally, which would
-	// deadlock under Transact's write lock. Calling it here, right
-	// after our own StoreUpdate has returned, matches how
+	// The card's "description" field is derived from the same live
+	// text snapshot, so it's read once here. GetText(...).String() is
+	// called directly, not from inside a doc.Transact callback:
+	// reading text content takes the document's read lock internally,
+	// which would deadlock under Transact's write lock. Calling it
+	// here, right after our own StoreUpdate has returned, matches how
 	// compactIfNeeded already calls doc.EncodeStateAsUpdate() directly
 	// on the same live doc.
+	//
+	// TODO(codemirror-migration): card_lines (per-line "updated"
+	// tracking) is no longer populated here -- ProseMirror's per-node
+	// "id" attribute it relied on (see blockIdPlugin.ts) doesn't exist
+	// once the editor moves to CodeMirror's plain-text Y.Text. See
+	// lines.go for the deferred line-identity redesign.
 	if doc := yjsServer.GetDoc(room); doc != nil {
-		xml := doc.GetXmlFragment("prosemirror").ToXML()
-		slog.Debug("card xml", "room", room, "xml", xml)
+		text := doc.GetText("content").ToString()
+		slog.Debug("card text", "room", room, "text", text)
 
-		// Keep the card's "description" and "image" fields in sync
-		// with the room's live text, so PotDetail's card grid (see
-		// CardItem.tsx) has something human-readable -- and, if the
-		// document has one, a preview image -- to show. "title" is
-		// no longer touched here -- it's resolved explicitly from
-		// the client's candidate text via the /api/admin/cards
-		// routes (see cards.go and slug.go's resolveSlugAndTitle),
-		// so it doesn't depend on this periodic snapshot's timing
-		// anymore.
-		if err := p.updatePreview(room, xml); err != nil {
+		// "title" is resolved explicitly from the client's candidate
+		// text via the /api/admin/cards routes (see cards.go and
+		// slug.go's resolveSlugAndTitle), so it doesn't depend on
+		// this periodic snapshot.
+		if err := p.updatePreview(room, text); err != nil {
 			slog.Warn("update card preview", "room", room, "error", err)
-		}
-
-		// Mirrors every line (textblock) of the document into
-		// card_lines, so each line's own "updated" timestamp tracks
-		// when that specific line last changed (see lines.go).
-		if err := p.updateLines(room, xml); err != nil {
-			slog.Warn("update card lines", "room", room, "error", err)
 		}
 	}
 
 	return p.compactIfNeeded(room)
 }
 
-// updatePreview refreshes a card's "description" and "image" fields
-// from xml -- the room's live "prosemirror" XmlFragment, already
-// serialized once by the caller (see store). "title" and "slug" are
-// resolved elsewhere now (see slug.go's resolveSlugAndTitle), not
-// here.
-func (p *ydocPersistence) updatePreview(room, xml string) error {
+// updatePreview refreshes a card's "description" field from text --
+// the room's live "content" YText, already read once by the caller
+// (see store). "title" and "slug" are resolved elsewhere (see
+// slug.go's resolveSlugAndTitle), not here.
+//
+// TODO(codemirror-migration): the "image" field is no longer updated
+// here -- it used to be extracted from an XML <image> node (see
+// internal/xmldoc.FirstImageSrc), which no longer exists now that the
+// document is plain text. Re-add this once image markdown syntax is
+// parsed directly out of the text.
+func (p *ydocPersistence) updatePreview(room, text string) error {
 	record, err := p.app.FindRecordById("cards", room)
 	if err != nil {
 		return nil // card may have been deleted concurrently -- skip
 	}
 
-	description := buildPreview(xml)
-	image := xmldoc.FirstImageSrc(xml)
-
-	descriptionChanged := record.GetString("description") != description
-	imageChanged := record.GetString("image") != image
-	if !descriptionChanged && !imageChanged {
+	description := buildPreview(text)
+	if record.GetString("description") == description {
 		return nil // unchanged -- avoid a no-op write and its "updated" bump
 	}
-	if descriptionChanged {
-		record.Set("description", description)
-	}
-	if imageChanged {
-		record.Set("image", image)
-	}
+	record.Set("description", description)
 	return p.app.Save(record)
 }
 
@@ -277,31 +262,25 @@ func (p *ydocPersistence) updatePreview(room, xml string) error {
 // mid-character.
 const descriptionMaxRunes = 120
 
-// paragraphRe pulls out the inner text of every <paragraph> element in a
-// ToXML() string, wherever it's nested (directly, or inside a
-// <list><paragraph>...>). Non-paragraph blocks (code blocks, ...) are
-// skipped on purpose -- good enough for a short card-grid description
-// (see CardItem.tsx), not a full-fidelity render. The document's own
-// title heading is excluded automatically since it's a <heading>, not
-// a <paragraph>.
-var paragraphRe = regexp.MustCompile(`(?s)<paragraph[^>]*>(.*?)</paragraph>`)
+// buildPreview turns a card's full plain-text content into a short
+// description: every non-blank line after the first (the title),
+// joined by a newline and cut to descriptionMaxRunes runes. The
+// title itself is excluded here since it's resolved separately (see
+// slug.go's resolveSlugAndTitle).
+func buildPreview(text string) string {
+	lines := strings.Split(text, "\n")
+	if len(lines) > 0 {
+		lines = lines[1:] // drop the title line
+	}
 
-// buildPreview turns a card's full ToXML() output into a short
-// plain-text description: every paragraph, joined by a newline (cut to
-// descriptionMaxRunes runes, so line breaks in the editor are
-// preserved), skipping blank paragraphs. Unescaped plain text with no
-// ellipsis. The title is no longer derived here -- see slug.go's
-// resolveSlugAndTitle. Entity-unescaping is shared with xmldoc's own
-// image extraction (see xmldoc.UnescapeText).
-func buildPreview(xml string) string {
-	var paragraphs []string
-	for _, m := range paragraphRe.FindAllStringSubmatch(xml, -1) {
-		text := strings.TrimSpace(xmldoc.UnescapeText(m[1]))
-		if text != "" {
-			paragraphs = append(paragraphs, text)
+	var body []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			body = append(body, trimmed)
 		}
 	}
-	return truncateRunes(strings.Join(paragraphs, "\n"), descriptionMaxRunes)
+	return truncateRunes(strings.Join(body, "\n"), descriptionMaxRunes)
 }
 
 // truncateRunes cuts s to at most max runes (not bytes), so a card
