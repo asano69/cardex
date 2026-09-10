@@ -29,18 +29,21 @@ export async function createCard(
 // internal/serve/cards.go's updateCardTitleHandler). The card's URL
 // segment is derived from this same title on demand (see
 // lib/slugify.ts) instead of being a separate field kept in sync here.
-// Resolves a card by its URL slug within pot (see
-// internal/serve/cards.go's findCardBySlugHandler). Replaces
-// CardForm's old approach of fetching every card in the pot and
-// recomputing titleToSlug client-side.
+// Resolves a card by its URL slug within pot. "slug" is now a real,
+// indexed "cards" column (see internal/serve/cards.go, which writes
+// it alongside "title" on every save), so this is a direct
+// (pot, slug) filter through PocketBase's standard collection API --
+// same pattern as lib/pots.ts's fetchPotBySlug -- instead of a
+// dedicated backend route doing its own server-side scan.
 export async function fetchCardBySlug(
   potId: string,
   slug: string,
 ): Promise<CardRecord> {
-  return await pb.send<CardRecord>(
-    `/api/admin/pots/${potId}/cards/by-slug/${encodeURIComponent(slug)}`,
-    { method: "GET" },
-  );
+  return await pb
+    .collection("cards")
+    .getFirstListItem<CardRecord>(
+      pb.filter("pot = {:pot} && slug = {:slug}", { pot: potId, slug }),
+    );
 }
 
 export async function updateCardTitle(

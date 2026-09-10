@@ -11,8 +11,6 @@
 package serve
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -158,29 +156,6 @@ func updateCardTitleHandler(e *core.RequestEvent) error {
 		return jsonWithMergeTarget(e, e.App, pot, title, req.TitleCandidate, id, record)
 	}
 	return e.InternalServerError("failed to update title after retries", nil)
-}
-
-// findCardBySlugHandler resolves a card by its stored "slug" field
-// (see internal/slug.FromTitle, computed once at save time by
-// createCardHandler/updateCardTitleHandler -- not recomputed here),
-// via a direct (pot, slug) filter backed by that pair's own unique
-// index (see resolveUniqueTitleInPot's comment on why slug, not
-// title, is the real uniqueness boundary).
-func findCardBySlugHandler(e *core.RequestEvent) error {
-	potID := e.Request.PathValue("potId")
-	targetSlug := e.Request.PathValue("slug")
-
-	record, err := e.App.FindFirstRecordByFilter(
-		"cards", "pot = {:pot} && slug = {:slug}",
-		dbx.Params{"pot": potID, "slug": targetSlug},
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return e.NotFoundError("card not found", nil)
-	}
-	if err != nil {
-		return e.InternalServerError("find card", err)
-	}
-	return e.JSON(http.StatusOK, record)
 }
 
 // jsonWithMergeTarget writes record as JSON alongside a "mergeTarget"
