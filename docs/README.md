@@ -8,8 +8,7 @@ Cardpot is a card box for thinkers.
 
 ## Purpose
 - アイデアや言葉を保存する汎用的なカード箱
-- Backendは、GoとPocketBase v0.39+を使い、frontendは、solid.js + tailwind v4を使います。
-- このアプリは、SPA＋CSRの個人・チーム向けのアプリです。
+- 
 
 ## Uses
 - 本や動画やブログなどの興味深いアイデア・言葉を保存する。
@@ -17,6 +16,7 @@ Cardpot is a card box for thinkers.
 
 ## Features
 - Cardpotでは同一ページを複数人でリアルタイムに共同編集できます。
+
 
 ## Tech Stack
 ### backend
@@ -29,8 +29,8 @@ Cardpot is a card box for thinkers.
 - Solid.js v1.9
 - Kobalte v0.13+
 - Tailwind v4
-- clauderic/dnd-kit v0.5.0
-- ProseMirror
+- dnd-kit v0.5.0
+- CodeMirror6
 - yjs
 
 ---
