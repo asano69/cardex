@@ -43,7 +43,7 @@ from flask import Flask
 - Kobalte v0.13+
 - Tailwind v4
 - clauderic/dnd-kit v0.5.0
-- ProseKit (ProseMirror)
+- CodeMirror6
 - yjs
 
 
