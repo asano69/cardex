@@ -77,7 +77,7 @@ func main() {
 	if err := app.Bootstrap(); err != nil {
 		log.Fatalf("bootstrap app: %v", err)
 	}
-	defer app.ResetBootstrapState()
+	defer func() { _ = app.ResetBootstrapState() }()
 
 	cards, err := app.FindRecordsByFilter("cards", "", "", 0, 0, nil)
 	if err != nil {

@@ -18,7 +18,7 @@ import { cardsById, cardsLoaded, mergeCards } from "../../lib/cardsStore";
 import { computePosition } from "../../lib/position";
 import { useTitle } from "../../lib/useTitle";
 import { usePot } from "../pots/PotContext";
-
+import type { CardRecord } from "./CardForm"
 // Detail page for a single pot, reached via the folder-open button on
 // PotItem: the pot's title, an add-card button, and every card
 // belonging to it laid out as a Scrapbox/Cosense-style card grid (see

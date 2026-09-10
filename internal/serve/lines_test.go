@@ -63,7 +63,9 @@ func TestExtractLines_PositionsFollowDocumentOrder(t *testing.T) {
 }
 
 func TestHashLineContent_SameContentSameHash(t *testing.T) {
-	if hashLineContent("hello") != hashLineContent("hello") {
+	first := hashLineContent("hello")
+	second := hashLineContent("hello")
+	if first != second {
 		t.Error("expected same hash for same content")
 	}
 	if hashLineContent("hello") == hashLineContent("world") {
