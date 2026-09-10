@@ -1,4 +1,45 @@
 @layer components {
+  /* --- CodeMirror6 structural CSS: the editor actually mounted today
+   * (see components/noteEditor/index.tsx). The ProseMirror rules
+   * further below no longer apply to anything rendered -- they're
+   * kept only until prose-mirror.old/ is fully removed (see
+   * docs/code-mirror-migration-plan.md) -- but this block reproduces
+   * the same skeleton: a fixed "1rem leading" per line, and the
+   * first line (the card's title -- see titleLineHighlight.ts) sized
+   * and colored like the old .ProseMirror h1 rule below. --- */
+  /* !important is needed here: CodeMirror mounts its own base theme
+   * (font-family: monospace on .cm-scroller, a focus outline on
+   * .cm-editor.cm-focused) as a runtime-injected <style> tag, which
+   * lands after this stylesheet in the cascade and wins on equal
+   * specificity otherwise. */
+  .cm-editor.cm-focused {
+    outline: none !important;
+  }
+
+  .cm-editor .cm-scroller {
+    font-family: var(--font-sans) !important;
+  }
+
+  .cm-editor .cm-content {
+    padding: 0;
+  }
+
+  .cm-editor .cm-line {
+    line-height: calc(1em + 1rem);
+    padding: 0;
+  }
+
+  /* Sizing mirrors CardItem.tsx's ".card-grid-item .title" grid style
+   * and the old .ProseMirror h1 rule below, so a card's title looks
+   * the same whether shown in the grid or open for editing. */
+  .cm-editor .cm-line.cm-title-line {
+    font-family: var(--font-sans) !important;
+    font-size: 1.5rem;
+    color: var(--color-note-title);
+    line-height: calc(1em + 1rem);
+    margin-bottom: 1.5rem;
+  }
+
   /* --- Core ProseMirror structural CSS (ported from
    * prosemirror-view's own style/prosemirror.css, previously pulled
    * in transitively via prosekit/basic/style.css). This part is

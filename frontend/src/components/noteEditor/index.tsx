@@ -1,7 +1,7 @@
 import { onCleanup, Show, createSignal } from "solid-js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { defaultKeymap } from "@codemirror/commands";
+import { defaultKeymap, indentMore, indentLess } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
@@ -10,6 +10,7 @@ import {
   titleCandidateExtension,
   syntheticAnnotation,
 } from "./titleCandidatePlugin";
+import { titleLineHighlight } from "./titleLineHighlight";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
 import { cardsById, mergeCards } from "../../lib/cardsStore";
@@ -180,6 +181,17 @@ export default function NoteEditor(props: NoteEditorProps) {
         EditorView.lineWrapping,
         yCollab(ytext, null),
         titleCandidateExtension(handleSlugCandidate),
+        titleLineHighlight,
+        // Tab/Shift-Tab indent/outdent the current line(s) -- the
+        // plain-text equivalent of the old prosemirror-flat-list
+        // bullet indent/outdent (see prose-mirror.old/index.tsx's
+        // listTabKeymap). Bound ahead of defaultKeymap in the array
+        // below so it wins over defaultKeymap's own plain "insert a
+        // tab character" Tab binding.
+        keymap.of([
+          { key: "Tab", run: indentMore },
+          { key: "Shift-Tab", run: indentLess },
+        ]),
         // yCollab supplies its own undo/redo keymap, backed by Yjs's
         // UndoManager -- CM6's own history() extension is
         // deliberately not added, to avoid two undo stacks fighting
