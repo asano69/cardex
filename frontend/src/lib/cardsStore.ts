@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import pb from "./pb";
 import type { CardRecord } from "../routes/cards/CardForm";
@@ -18,6 +19,15 @@ export { registerCardElement };
 const [cardsById, setCardsById] = createStore<Record<string, CardRecord>>({});
 
 export { cardsById };
+
+// Whether the initial full-collection fetch (see loadAllCards below)
+// has completed. CardList gates its "Loading" spinner on this instead
+// of tracking its own per-mount fetch, since the whole "cards"
+// collection is loaded once for the app's lifetime now, not once per
+// CardList mount.
+const [cardsLoaded, setCardsLoaded] = createSignal(false);
+
+export { cardsLoaded };
 
 // Merges a freshly fetched batch of cards into the store. Existing
 // entries for the same id are overwritten, so a stale cached copy
@@ -50,6 +60,30 @@ export function mergeCards(
     apply();
   } else {
     withCardsFlip(apply);
+  }
+}
+
+// Fetches every "cards" record once and merges it into the shared
+// store. Called once from AppShell (see AppShell.tsx) instead of once
+// per CardList mount: the "cards" collection carries no document body
+// (that lives in the Yjs room -- see internal/serve/ydoc.go), so even
+// a few thousand records is a small payload, small enough that
+// loading it all upfront beats paginating it per pot per visit.
+//
+// Runs independently of startCardsSubscription below -- any realtime
+// event that arrives while this fetch is still in flight is simply
+// overwritten by this fetch's own mergeCards call once it resolves,
+// since both write through the same last-write-wins store.
+export async function loadAllCards(): Promise<void> {
+  try {
+    const records = await pb
+      .collection("cards")
+      .getFullList<CardRecord>({ sort: "-created" });
+    mergeCards(records, { skipFlip: true });
+  } catch (err) {
+    console.error("[cards] failed to load all cards:", err);
+  } finally {
+    setCardsLoaded(true);
   }
 }
 
