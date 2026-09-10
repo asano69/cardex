@@ -48,6 +48,4 @@ from flask import Flask
 
 
 ## Work in progress
-
-
-
+- カードフォームのノートエディタをProseMirrorからCodeMirror6に変更する。
