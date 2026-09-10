@@ -31,7 +31,7 @@ import { imageMarkdownPlugin } from "./imageMarkdownPlugin";
 import { titleCandidatePlugin } from "./titleCandidatePlugin";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
-import { mergeCards } from "../../lib/cardsStore";
+import { cardsById, mergeCards } from "../../lib/cardsStore";
 import type { CardRecord } from "../../routes/cards/CardForm";
 
 export interface NoteEditorProps {
@@ -113,17 +113,6 @@ export default function NoteEditor(props: NoteEditorProps) {
   if (cardId) {
     connectProvider(cardId);
   }
-
-  // True only when this editor opens an existing card right from the
-  // start (cardId already set above), not when a brand-new draft's
-  // backing record is created moments later via sendCandidate. An
-  // existing card whose title was never set still has an empty
-  // heading in its Yjs document -- cards.go's "Untitled" fallback only
-  // sets the "cards" record's title field, not the document itself.
-  // This flag is what lets mountEditor below fill that heading with
-  // real "Untitled" text once the card is opened, without ever doing
-  // so while a card is still being actively drafted.
-  const isOpeningExistingCard = !!cardId;
 
   const [slugError, setSlugError] = createSignal(false);
 
@@ -298,13 +287,21 @@ export default function NoteEditor(props: NoteEditorProps) {
       setTimeout(() => view.focus(), 0);
     }
 
-    // For an existing card opened with an empty title, replace the
-    // empty heading with real "Untitled" text once the initial Yjs
-    // sync completes -- see isOpeningExistingCard above for why this
-    // never runs for a card still being drafted. Only fires once: the
-    // listener removes itself the first time it sees a completed sync.
+    // Only fill the placeholder for a card whose server-confirmed
+    // title is already "Untitled" (see cards.go's defaultTitle
+    // fallback for an empty candidate). Gating on this synchronous,
+    // already-known value -- instead of only checking whether the Yjs
+    // doc *looks* empty once "sync" fires -- avoids a race where the
+    // doc actually has content that simply hasn't synced to this
+    // client yet: that content used to get misread as "still empty"
+    // and clobbered with literal "Untitled" text. `provider` is only
+    // set here for a card that was already an existing record when
+    // this editor mounted (see connectProvider above), so this also
+    // never runs for a card still being actively drafted. Only fires
+    // once: the listener removes itself the first time it sees a
+    // completed sync.
     let fillUntitledIfEmpty: ((isSynced: boolean) => void) | undefined;
-    if (isOpeningExistingCard && provider) {
+    if (provider && cardId && cardsById[cardId]?.title === "Untitled") {
       fillUntitledIfEmpty = (isSynced) => {
         if (!isSynced) return;
         provider?.off("sync", fillUntitledIfEmpty!);

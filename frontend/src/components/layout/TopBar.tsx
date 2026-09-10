@@ -66,9 +66,9 @@ export default function TopBar(props: TopBarProps) {
             <A
               href={`/${topBarPotLink()!.slug}/new`}
               aria-label="Add card"
-     class="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(144,30%,50%)] text-white transition-colors hover:bg-[hsl(153,10%,50%)]"
+              class="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(144,30%,50%)] text-white transition-colors hover:bg-[hsl(153,10%,50%)]"
             >
-              <Plus size={20}  strokeWidth={4} />
+              <Plus size={20} strokeWidth={4} />
             </A>
           </Show>
         </div>

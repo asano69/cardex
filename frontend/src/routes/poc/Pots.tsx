@@ -126,9 +126,7 @@ function bodyPath(
   baseY: number,
 ): string {
   const right = profile.map((p) => `${cx + p.r},${baseY - p.y}`);
-  const left = [...profile]
-    .reverse()
-    .map((p) => `${cx - p.r},${baseY - p.y}`);
+  const left = [...profile].reverse().map((p) => `${cx - p.r},${baseY - p.y}`);
   return `M ${[...right, ...left].join(" L ")} Z`;
 }
 
@@ -166,8 +164,8 @@ export default function PocPots() {
     <div class="flex flex-col items-center gap-4 py-8">
       <h1 class="font-serif text-2xl text-text">Pot Generator (PoC)</h1>
       <p class="max-w-md text-center text-sm text-text">
-        A single, randomly generated vase rendered as SVG. No animation --
-        each button click regenerates or exports it once.
+        A single, randomly generated vase rendered as SVG. No animation -- each
+        button click regenerates or exports it once.
       </p>
       <div class="flex gap-2">
         <button type="button" class="btn" onClick={regenerate}>

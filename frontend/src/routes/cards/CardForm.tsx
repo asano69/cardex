@@ -1,4 +1,10 @@
-import { createSignal, createResource, createEffect, Show } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  createResource,
+  createEffect,
+  Show,
+} from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 
 import { Alert } from "@kobalte/core/alert";
@@ -46,6 +52,36 @@ export interface CardRecord {
   updated: string;
 }
 
+// Discriminated union covering every state this page's card can be
+// in. Replaces three independently-updated signals (a "recordId"
+// string, a "notFound" boolean, and a "draftInitialTitle" string or
+// undefined) that used to make combinations like "not found, but also
+// has a draft title" representable even though they should never
+// coexist. Collapsing them into one value means only one of these
+// four shapes can ever be true at a time -- the type itself rules out
+// the invalid combinations rather than relying on every call site to
+// keep them in sync by convention.
+//
+//   - "loading": resolving an existing card's id from its URL slug
+//     (see the createResource below). Never the initial state when
+//     there is no cardSlug at all (a plain "/:slug/new" route has
+//     nothing to resolve, so it starts straight in "draft").
+//   - "existing": a real "cards" record was found (or was just
+//     created by a draft's first confirmed title -- see
+//     handleCardCreated).
+//   - "draft": no backing record exists yet. `initialTitle` seeds the
+//     editor's first line when opening a URL slug that matched no
+//     existing card (see CardForm's own comment above about
+//     /:pot/:cardSlug); omitted for the plain "/:slug/new" route.
+//   - "notFound": the lookup itself failed (network/auth error, not
+//     "no card has this title") -- distinct from "draft", which is
+//     what a missing-but-plausible slug resolves to instead.
+type CardEditorState =
+  | { kind: "loading" }
+  | { kind: "existing"; cardId: string }
+  | { kind: "draft"; initialTitle?: string }
+  | { kind: "notFound" };
+
 // Add/edit page for a single card, reached from CardList's "add card"
 // button (create, at /:slug/new) or by clicking a card (edit, at
 // /:slug/:cardSlug). A brand-new card's PocketBase record is no longer created on mount:
@@ -64,23 +100,22 @@ export default function CardForm() {
   // fetching it again here.
   const pot = usePot();
 
-  const [recordId, setRecordId] = createSignal("");
-  const [notFound, setNotFound] = createSignal(false);
-  // Set once the lookup below has run and found no matching card: the
-  // page opens in draft mode instead of "not found", pre-filling the
-  // header with this text (see slugToTitle and NoteEditor's
-  // initialTitle prop). Stays undefined while loading, or once a
-  // matching record is found.
-  //
-  // No explicit <string | undefined> generic here: a union type
-  // argument on createSignal<...>(...) is ambiguous with a JSX tag in
-  // a .tsx file, which breaks the parser into treating `createSignal`
-  // as an un-called reference (destructuring the function itself
-  // instead of its return value). Casting the initial value instead
-  // sidesteps that ambiguity.
-  const [draftInitialTitle, setDraftInitialTitle] = createSignal(
-    undefined as string | undefined,
+  // Single source of truth for this page's card (see CardEditorState
+  // above). A URL with a cardSlug has something to resolve, so it
+  // starts in "loading"; a plain "/:slug/new" route has nothing to
+  // resolve and starts straight in "draft".
+  const [state, setState] = createSignal<CardEditorState>(
+    params.cardSlug ? { kind: "loading" } : { kind: "draft" },
   );
+
+  // Derived accessor for the id of an already-existing record, used
+  // by every piece of chrome (pin/delete, tab title, URL sync) that
+  // only makes sense once a real "cards" record exists. undefined
+  // covers both "still loading" and "still a draft".
+  const cardId = createMemo(() => {
+    const s = state();
+    return s.kind === "existing" ? s.cardId : undefined;
+  });
 
   // Editing an existing card: its PocketBase id isn't in the URL, and
   // there's no stored "slug" field to filter on anymore (see
@@ -105,7 +140,7 @@ export default function CardForm() {
         // A genuine fetch failure (network, auth, ...) -- distinct
         // from "no card matches this slug" below, which opens a draft
         // instead of this "not found" page.
-        setNotFound(true);
+        setState({ kind: "notFound" });
         return;
       }
       const record = candidates.find(
@@ -113,16 +148,23 @@ export default function CardForm() {
       );
       if (record) {
         mergeCards([record]);
-        setRecordId(record.id);
+        setState({ kind: "existing", cardId: record.id });
         return;
       }
       // No card matches this slug yet -- open a draft pre-filled with
       // the slug's title instead of "not found", so visiting e.g.
       // /:pot/test creates a new card titled "test" once its header is
       // confirmed (same flow as /:pot/new -- see NoteEditor).
-      setDraftInitialTitle(slugToTitle(targetSlug));
+      setState({ kind: "draft", initialTitle: slugToTitle(targetSlug) });
     },
   );
+
+  // Called by NoteEditor the moment a draft's backing "cards" record
+  // is created (see its onCardCreated prop) -- the point where this
+  // page's card stops being a draft and becomes a real, existing one.
+  const handleCardCreated = (id: string) => {
+    setState({ kind: "existing", cardId: id });
+  };
 
   // Keeps the address bar's slug segment in sync as the card's slug
   // changes server-side (see internal/serve/cards.go's
@@ -132,7 +174,7 @@ export default function CardForm() {
   // now that a draft can silently become a real card mid-edit.
   let urlSegment = params.cardSlug ?? "";
   createEffect(() => {
-    const id = recordId();
+    const id = cardId();
     if (!id) return;
     const title = cardsById[id]?.title ?? "";
     if (!title) return;
@@ -157,7 +199,7 @@ export default function CardForm() {
   // internal/serve/ydoc.go's forgetRoom), so this only needs to delete
   // the "cards" record itself.
   const handleDelete = async () => {
-    const id = recordId();
+    const id = cardId();
     if (!id) return;
     await pb.collection("cards").delete(id);
     navigate(`/${params.slug}`);
@@ -167,7 +209,7 @@ export default function CardForm() {
   // store (see lib/cardsStore.ts) so it stays in sync with CardList's
   // grid ordering and with other users' edits, instead of tracking a
   // separate local copy.
-  const pinned = () => cardsById[recordId()]?.pin ?? false;
+  const pinned = () => cardsById[cardId() ?? ""]?.pin ?? false;
 
   // Position that sorts right after every other pinned card in this
   // pot, so a newly pinned card lands at the bottom of the pinned
@@ -183,7 +225,7 @@ export default function CardForm() {
   };
 
   const togglePin = async () => {
-    const id = recordId();
+    const id = cardId();
     if (!id) return;
     const nowPinning = !pinned();
     // Only pinning repositions the card (to the bottom of the pinned
@@ -208,7 +250,8 @@ export default function CardForm() {
   useTitle(() => {
     const potTitle = pot()?.title;
     if (!potTitle) return undefined;
-    const card = cardsById[recordId()];
+    const id = cardId();
+    const card = id ? cardsById[id] : undefined;
     return card ? `${deriveCardGridTitle(card)} - ${potTitle}` : potTitle;
   });
 
@@ -221,7 +264,7 @@ export default function CardForm() {
   // draft has nothing to pin or delete -- so the Show guards the
   // whole thing, same as before this moved out of the page body.
   useTopBarActions(() => (
-    <Show when={recordId()}>
+    <Show when={cardId()}>
       <button
         type="button"
         aria-label={pinned() ? "Unpin card" : "Pin card"}
@@ -245,7 +288,7 @@ export default function CardForm() {
 
   return (
     <Show
-      when={!notFound()}
+      when={state().kind !== "notFound"}
       fallback={
         <div class="flex flex-col items-center gap-2 py-12 text-text">
           <p>Card not found.</p>
@@ -255,19 +298,11 @@ export default function CardForm() {
         </div>
       }
     >
-      {/* Editing an existing card waits for its record to resolve
-          (Loading fallback). A draft (/:slug/new) has nothing to wait
-          for: the editor starts immediately on a local-only Y.Doc, and
-          recordId only appears once the user has typed something (see
-          createDraftRecord). */}
-      <Show
-        when={
-          params.cardSlug
-            ? recordId() !== "" || draftInitialTitle() !== undefined
-            : true
-        }
-        fallback={<Loading />}
-      >
+      {/* "loading" is the only state that still needs to wait: both
+          "existing" and "draft" already have everything NoteEditor
+          needs (a real cardId, or an initialTitle/nothing to seed a
+          fresh Y.Doc with). */}
+      <Show when={state().kind !== "loading"} fallback={<Loading />}>
         {/* Layout for a card-editing screen: pin/delete icons above the
             editor. NoteEditor itself stays layout-agnostic so it can be
             reused without this app's card-specific chrome. */}
@@ -278,10 +313,15 @@ export default function CardForm() {
             </Alert>
           </Show>
           <NoteEditor
-            cardId={() => recordId() || undefined}
+            cardId={cardId}
             potId={() => pot()?.id}
-            initialTitle={draftInitialTitle()}
-            onCardCreated={setRecordId}
+            initialTitle={
+              state().kind === "draft"
+                ? (state() as { kind: "draft"; initialTitle?: string })
+                    .initialTitle
+                : undefined
+            }
+            onCardCreated={handleCardCreated}
             onMergeTarget={setMergeTarget}
           />
         </div>

@@ -106,9 +106,7 @@ export default function SidebarPotList() {
         const updated = await pb
           .collection("pots")
           .update<PotRecord>(moved.id, { position });
-        setPots((prev) =>
-          prev.map((p) => (p.id === updated.id ? updated : p)),
-        );
+        setPots((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       } catch (err) {
         console.error("[sidebar] failed to reorder pot:", err);
         setPots((prev) =>
