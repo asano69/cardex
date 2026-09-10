@@ -76,6 +76,18 @@ func StripBracketLinks(candidate string) string {
 // A result that would collide with a reserved route segment (e.g.
 // "new") gets a trailing underscore appended, deterministically, so
 // FromTitle never needs a database round-trip to avoid that collision.
+// NOTE: a SQL expression index mirroring this function's no-bracket
+// branch also exists on the "cards" collection
+// (idx_cards_pot_normtitle, added via the PocketBase admin UI) as a
+// defense-in-depth guard against the persisted "slug" column ever
+// drifting out of sync with "title". That SQL expression assumes
+// title never contains brackets (guaranteed by resolveTitle -- see
+// this function's own comment above) and therefore only mirrors the
+// "else" branch below (space -> underscore, plus the "new" reserved
+// word case). If this function's no-bracket branch's behavior ever
+// changes, that SQL expression must be updated to match, or the DB
+// constraint will silently stop reflecting what this function
+// actually computes.
 func FromTitle(title string) string {
 	var joined string
 	if strings.ContainsAny(title, "[]") {
