@@ -1,5 +1,4 @@
 import { Plugin } from "prosemirror-state";
-import { markSynthetic } from "./syntheticTransaction";
 
 // Ensures the document's first block is always a level-1 heading, so
 // it can be styled with plain heading CSS instead of the previous
@@ -18,9 +17,13 @@ export function forceFirstHeadingPlugin() {
         return null;
       }
 
-      // Marked synthetic: this is a self-heal, not a user edit -- see
-      // syntheticTransaction.ts for why that distinction matters.
-      return markSynthetic(newState.tr.setNodeMarkup(0, heading, { level: 1 }));
+      // No need to mark this as synthetic ourselves: ProseMirror
+      // already tags any transaction returned from appendTransaction
+      // with an "appendedTransaction" meta (pointing at the root
+      // transaction it was derived from) -- see titleCandidatePlugin,
+      // which relies on that built-in meta to tell this self-heal
+      // apart from an actual user edit.
+      return newState.tr.setNodeMarkup(0, heading, { level: 1 });
     },
   });
 }

@@ -104,6 +104,22 @@ export function titleCandidatePlugin(
         (tr) =>
           tr.docChanged &&
           !tr.getMeta(ySyncPluginKey)?.isChangeOrigin &&
+          // "appendedTransaction" is a meta ProseMirror itself sets
+          // (see EditorState.applyTransaction) on every transaction
+          // produced by a plugin's own appendTransaction hook --
+          // forceFirstHeadingPlugin, blockIdPlugin,
+          // imageMarkdownPlugin, urlLinkPlugin, and any future
+          // appendTransaction-based plugin, with no extra code needed
+          // on their end. Checking this built-in meta instead of a
+          // hand-rolled marker means a new appendTransaction plugin
+          // is automatically excluded here without anyone having to
+          // remember to opt it in.
+          !tr.getMeta("appendedTransaction") &&
+          // isSynthetic covers the other kind of non-user tr: a
+          // programmatic view.dispatch() call that is NOT going
+          // through appendTransaction (e.g. NoteEditor seeding a
+          // draft's initialTitle, or filling a blank "Untitled"
+          // heading) -- see syntheticTransaction.ts.
           !isSynthetic(tr),
       );
       if (userTransactions.length === 0) return null;

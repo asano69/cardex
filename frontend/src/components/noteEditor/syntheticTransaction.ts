@@ -1,16 +1,19 @@
 import type { Transaction } from "prosemirror-state";
 
-// Shared marker for transactions that "infra" plugins (self-healing
-// plugins that run on every doc change, e.g. forceFirstHeadingPlugin,
-// blockIdPlugin, imageMarkdownPlugin, urlLinkPlugin) append on their
-// own -- as opposed to a transaction that reflects an actual user
-// edit (typing, pasting, ...). titleCandidatePlugin needs to tell the
-// two apart: without this, e.g. blockIdPlugin assigning a UUID to the
-// very first paragraph ySyncPlugin creates while seeding a brand-new
-// empty Y.Doc looks exactly like "the user typed something", which
-// used to start (and eventually fire) the title-confirmation debounce
-// on a draft nobody had touched yet -- silently creating an
-// "Untitled" card the moment /:pot/new was opened.
+// Shared marker for a transaction that NoteEditor dispatches itself,
+// programmatically, outside of any real user action -- e.g. seeding a
+// brand-new draft's first line with a title candidate (see index.tsx)
+// or filling a blank "Untitled" heading. titleCandidatePlugin needs
+// to tell these apart from an actual user edit (typing, pasting), or
+// a programmatic seed alone starts (and eventually fires) the
+// title-confirmation debounce with no real user action behind it.
+//
+// This is deliberately NOT used for appendTransaction-based
+// self-healing plugins (forceFirstHeadingPlugin, blockIdPlugin,
+// imageMarkdownPlugin, urlLinkPlugin): ProseMirror already tags any
+// transaction returned from a plugin's own appendTransaction with a
+// built-in "appendedTransaction" meta (see titleCandidatePlugin),
+// so those need no marking here at all.
 const SYNTHETIC_META = "cardpot-synthetic-tr";
 
 export function markSynthetic(tr: Transaction): Transaction {
