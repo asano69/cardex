@@ -959,6 +959,21 @@ func init() {
 					},
 					{
 						"autogeneratePattern": "",
+						"help": "Because title → slug is deterministic, enforcing uniqueness on slug implicitly enforces uniqueness on title. As a result, the (pot, title) uniqueness constraint is redundant.",
+						"hidden": false,
+						"id": "text2560465762",
+						"max": 0,
+						"min": 0,
+						"name": "slug",
+						"pattern": "",
+						"presentable": false,
+						"primaryKey": false,
+						"required": false,
+						"system": false,
+						"type": "text"
+					},
+					{
+						"autogeneratePattern": "",
 						"help": "",
 						"hidden": false,
 						"id": "text3112513328",
@@ -1046,7 +1061,7 @@ func init() {
 				],
 				"id": "pbc_2527524235",
 				"indexes": [
-					"CREATE UNIQUE INDEX ` + "`" + `idx_r30t04lu5q` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `pot` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
+					"CREATE INDEX ` + "`" + `idx_r30t04lu5q` + "`" + ` ON ` + "`" + `cards` + "`" + ` (\n  ` + "`" + `pot` + "`" + `,\n  ` + "`" + `title` + "`" + `\n)"
 				],
 				"listRule": null,
 				"name": "cards",

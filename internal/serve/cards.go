@@ -11,6 +11,8 @@
 package serve
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -91,6 +93,12 @@ func createCardHandler(e *core.RequestEvent) error {
 		record := core.NewRecord(collection)
 		record.Set("pot", req.Pot)
 		record.Set("title", string(title))
+		// Derived straight from title (see internal/slug.FromTitle) and
+		// stored so the (pot, slug) unique index -- not (pot, title) --
+		// is what actually enforces one card per URL segment (see
+		// resolveUniqueTitleInPot's own comment on why title alone
+		// can't guard against this).
+		record.Set("slug", slug.FromTitle(string(title)))
 		record.Set("position", position)
 		if err := e.App.Save(record); err != nil {
 			if attempt < maxTitleRetries-1 {
@@ -137,6 +145,9 @@ func updateCardTitleHandler(e *core.RequestEvent) error {
 		}
 
 		record.Set("title", string(title))
+		// See createCardHandler's own comment: slug is the actual
+		// uniqueness boundary the DB index enforces.
+		record.Set("slug", slug.FromTitle(string(title)))
 		if err := e.App.Save(record); err != nil {
 			if attempt < maxTitleRetries-1 {
 				candidate = TitleCandidate(fmt.Sprintf("%s_%d", req.TitleCandidate, attempt+2))
@@ -149,32 +160,27 @@ func updateCardTitleHandler(e *core.RequestEvent) error {
 	return e.InternalServerError("failed to update title after retries", nil)
 }
 
-// findCardBySlugHandler resolves a card by its (derived) URL slug
-// within a pot, without the client having to fetch every card's full
-// record and recompute the slug itself (see CardForm.tsx). This is
-// still an O(n) scan over the pot's cards -- just moved server-side,
-// so it reads a few columns from SQLite instead of shipping every
-// card's full JSON over the network. Interim measure: a real
-// (pot, slug) index would make this O(1), but isn't worth the extra
-// complexity until a pot's card count actually makes this scan slow.
+// findCardBySlugHandler resolves a card by its stored "slug" field
+// (see internal/slug.FromTitle, computed once at save time by
+// createCardHandler/updateCardTitleHandler -- not recomputed here),
+// via a direct (pot, slug) filter backed by that pair's own unique
+// index (see resolveUniqueTitleInPot's comment on why slug, not
+// title, is the real uniqueness boundary).
 func findCardBySlugHandler(e *core.RequestEvent) error {
 	potID := e.Request.PathValue("potId")
 	targetSlug := e.Request.PathValue("slug")
 
-	records, err := e.App.FindRecordsByFilter(
-		"cards", "pot = {:pot}", "", 0, 0,
-		dbx.Params{"pot": potID},
+	record, err := e.App.FindFirstRecordByFilter(
+		"cards", "pot = {:pot} && slug = {:slug}",
+		dbx.Params{"pot": potID, "slug": targetSlug},
 	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return e.NotFoundError("card not found", nil)
+	}
 	if err != nil {
-		return e.InternalServerError("list cards", err)
+		return e.InternalServerError("find card", err)
 	}
-
-	for _, record := range records {
-		if slug.FromTitle(record.GetString("title")) == targetSlug {
-			return e.JSON(http.StatusOK, record)
-		}
-	}
-	return e.NotFoundError("card not found", nil)
+	return e.JSON(http.StatusOK, record)
 }
 
 // jsonWithMergeTarget writes record as JSON alongside a "mergeTarget"

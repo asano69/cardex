@@ -19,7 +19,13 @@
 //   - An empty candidate resolves to "Untitled".
 package serve
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/asano69/cardpot/internal/slug"
+)
 
 func TestResolveTitle_PreservesCandidateWhitespaceVariants(t *testing.T) {
 	app := newSlugTestApp(t)
@@ -125,5 +131,86 @@ func TestResolveTitle_StripsBracketLinkSyntax(t *testing.T) {
 		if string(got) != c.want {
 			t.Errorf("resolveTitle(%q) = %q, want %q", c.candidate, got, c.want)
 		}
+	}
+}
+
+// saveResolvedCard resolves a title from candidate and persists both
+// "title" and "slug" (mirroring cards.go's createCardHandler /
+// updateCardTitleHandler), returning the saved record. Needed because
+// resolveTitle alone never touches the DB, but these scenario tests
+// care about what actually ends up persisted across repeated saves.
+func saveResolvedCard(t *testing.T, app core.App, pot string, candidate TitleCandidate, existing *core.Record) *core.Record {
+	t.Helper()
+	excludeID := ""
+	if existing != nil {
+		excludeID = existing.Id
+	}
+	title, err := resolveTitle(app, pot, candidate, excludeID)
+	if err != nil {
+		t.Fatalf("resolveTitle(%q): %v", candidate, err)
+	}
+
+	record := existing
+	if record == nil {
+		collection, err := app.FindCollectionByNameOrId("cards")
+		if err != nil {
+			t.Fatalf("find cards collection: %v", err)
+		}
+		record = core.NewRecord(collection)
+		record.Set("pot", pot)
+	}
+	record.Set("title", string(title))
+	record.Set("slug", slug.FromTitle(string(title)))
+	if err := app.Save(record); err != nil {
+		t.Fatalf("save card: %v", err)
+	}
+	return record
+}
+
+// TestScenario_SpaceVsUnderscoreNeverCollideOnSlug is a regression
+// test for the slug-collision bug: "a b" and "a_b" are different
+// titles but normalize to the same slug "a_b" (see
+// internal/slug.FromTitle). Confirming the second one must never
+// silently share the first one's slug -- it has to get bumped to a
+// numbered suffix instead, or the two cards become indistinguishable
+// by URL.
+func TestScenario_SpaceVsUnderscoreNeverCollideOnSlug(t *testing.T) {
+	app := newSlugTestApp(t)
+
+	first := saveResolvedCard(t, app, "pot1", "a b", nil)
+	if first.GetString("title") != "a b" || first.GetString("slug") != "a_b" {
+		t.Fatalf("first card = title %q slug %q, want title %q slug %q",
+			first.GetString("title"), first.GetString("slug"), "a b", "a_b")
+	}
+
+	second := saveResolvedCard(t, app, "pot1", "a_b", nil)
+	if second.GetString("title") != "a_b_2" || second.GetString("slug") != "a_b_2" {
+		t.Fatalf("second card = title %q slug %q, want title %q slug %q",
+			second.GetString("title"), second.GetString("slug"), "a_b_2", "a_b_2")
+	}
+}
+
+// TestScenario_RepeatedCandidateChainBumpsThroughSlugCollisions
+// extends the same idea across three successive saves ("a b", then
+// "a b" again, then "a_b"), each of which must resolve to a distinct
+// slug even though only two distinct raw candidates are ever typed.
+func TestScenario_RepeatedCandidateChainBumpsThroughSlugCollisions(t *testing.T) {
+	app := newSlugTestApp(t)
+
+	first := saveResolvedCard(t, app, "pot1", "a b", nil)
+	if first.GetString("slug") != "a_b" {
+		t.Fatalf("first slug = %q, want %q", first.GetString("slug"), "a_b")
+	}
+
+	second := saveResolvedCard(t, app, "pot1", "a b", nil)
+	if second.GetString("title") != "a b_2" || second.GetString("slug") != "a_b_2" {
+		t.Fatalf("second card = title %q slug %q, want title %q slug %q",
+			second.GetString("title"), second.GetString("slug"), "a b_2", "a_b_2")
+	}
+
+	third := saveResolvedCard(t, app, "pot1", "a_b", nil)
+	if third.GetString("title") != "a_b_3" || third.GetString("slug") != "a_b_3" {
+		t.Fatalf("third card = title %q slug %q, want title %q slug %q",
+			third.GetString("title"), third.GetString("slug"), "a_b_3", "a_b_3")
 	}
 }

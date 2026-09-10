@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/asano69/cardpot/internal/slug"
 )
 
 // --- Pure-function tests: no DB needed ---
@@ -74,6 +76,10 @@ func newSlugTestApp(t *testing.T) core.App {
 	cards.Fields.Add(
 		&core.TextField{Name: "pot"},
 		&core.TextField{Name: "title"},
+		// Added alongside title so resolveUniqueTitleInPot's slug-based
+		// collision check (see slug.go) has a real column to query
+		// against in these tests, mirroring the production schema.
+		&core.TextField{Name: "slug"},
 	)
 	if err := app.Save(cards); err != nil {
 		t.Fatalf("create cards collection: %v", err)
@@ -102,6 +108,9 @@ func createCard(t *testing.T, app core.App, pot, title string) *core.Record {
 	record := core.NewRecord(collection)
 	record.Set("pot", pot)
 	record.Set("title", title)
+	// Mirrors production: slug is always derived from title (see
+	// internal/slug.FromTitle), never entered independently.
+	record.Set("slug", slug.FromTitle(title))
 	if err := app.Save(record); err != nil {
 		t.Fatalf("save card: %v", err)
 	}

@@ -34,17 +34,25 @@ import (
 const defaultTitle = "Untitled"
 
 // resolveUniqueTitleInPot returns a value derived from base that is
-// unique among "cards" records in pot. excludeID lets a record keep
-// resolving against its own current title without colliding with
-// itself (pass "" for a brand-new record). Collisions are
-// disambiguated with a numeric suffix ("_2", "_3", ...).
+// unique among "cards" records in pot -- unique on its DERIVED SLUG,
+// not on the raw title string. This matters because slug.FromTitle is
+// not injective: "a b" and "a_b" both normalize to the slug "a_b", so
+// checking title equality alone would let two different titles land
+// on the same slug and become indistinguishable by URL (see
+// internal/slug/slug.go's own doc comment on this exact ambiguity).
+// excludeID lets a record keep resolving against its own current
+// title without colliding with itself (pass "" for a brand-new
+// record). Collisions are disambiguated with a numeric suffix ("_2",
+// "_3", ...) appended to the title; the corresponding slug is
+// recomputed from the bumped title, not appended separately.
 func resolveUniqueTitleInPot(app core.App, pot, base, excludeID string) (string, error) {
 	value := base
 	for suffix := 2; ; suffix++ {
+		candidateSlug := slug.FromTitle(value)
 		_, err := app.FindFirstRecordByFilter(
 			"cards",
-			"pot = {:pot} && title = {:value} && id != {:id}",
-			dbx.Params{"pot": pot, "value": value, "id": excludeID},
+			"pot = {:pot} && slug = {:slug} && id != {:id}",
+			dbx.Params{"pot": pot, "slug": candidateSlug, "id": excludeID},
 		)
 		if errors.Is(err, sql.ErrNoRows) {
 			return value, nil
