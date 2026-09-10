@@ -1,4 +1,4 @@
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { useParams } from "@solidjs/router";
 import { DragDropProvider } from "@dnd-kit/solid";
 import { isSortable } from "@dnd-kit/solid/sortable";
@@ -66,6 +66,30 @@ export default function CardList() {
         return b.position - a.position || a.id.localeCompare(b.id);
       }),
   );
+
+  // How many of `cards()` are actually mounted into the DOM. A pot
+  // with thousands of cards would otherwise mount that many CardItems
+  // (each with its own useSortable registration) at once, which was
+  // enough to freeze the tab entirely -- see loadMoreOnScroll below.
+  const PAGE_SIZE = 100;
+  const [visibleCount, setVisibleCount] = createSignal(PAGE_SIZE);
+  const visibleCards = createMemo(() => cards().slice(0, visibleCount()));
+
+  // Reveals another PAGE_SIZE cards whenever the sentinel at the end
+  // of the grid scrolls into view. This intentionally does nothing
+  // about dnd-kit's own per-card registration cost once thousands of
+  // cards have scrolled past and accumulated in the DOM -- that's a
+  // separate problem, left for later.
+  let sentinelRef: HTMLLIElement | undefined;
+  onMount(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount((count) => count + PAGE_SIZE);
+      }
+    });
+    if (sentinelRef) observer.observe(sentinelRef);
+    onCleanup(() => observer.disconnect());
+  });
 
   // Persists a drag-to-reorder drop: only the moved card's own
   // position changes (see lib/position.ts), computed from whichever
@@ -162,11 +186,15 @@ export default function CardList() {
     <Show when={cardsLoaded()} fallback={<Loading />}>
       <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
         <ul class="card-grid">
-          <For each={cards()}>
+          <For each={visibleCards()}>
             {(card, index) => (
               <CardItem card={card} index={index()} potSlug={params.slug} />
             )}
           </For>
+          {/* Invisible row-spanning marker: growing visibleCount when
+              this scrolls into view is what drives the infinite
+              scroll above. */}
+          <li ref={sentinelRef} aria-hidden="true" class="col-span-full h-px" />
         </ul>
       </DragDropProvider>
     </Show>
