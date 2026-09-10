@@ -1,4 +1,5 @@
 import { Plugin } from "prosemirror-state";
+import { markSynthetic } from "./syntheticTransaction";
 
 // Ensures the document's first block is always a level-1 heading, so
 // it can be styled with plain heading CSS instead of the previous
@@ -17,7 +18,9 @@ export function forceFirstHeadingPlugin() {
         return null;
       }
 
-      return newState.tr.setNodeMarkup(0, heading, { level: 1 });
+      // Marked synthetic: this is a self-heal, not a user edit -- see
+      // syntheticTransaction.ts for why that distinction matters.
+      return markSynthetic(newState.tr.setNodeMarkup(0, heading, { level: 1 }));
     },
   });
 }

@@ -5,6 +5,7 @@ import {
   type TitleCandidate,
   makeTitleCandidate,
 } from "../../lib/titleCandidate";
+import { isSynthetic } from "./syntheticTransaction";
 
 // How long to wait, after the last edit to the header (or the body's
 // first line when the header is empty), before treating it as
@@ -82,21 +83,37 @@ export function titleCandidatePlugin(
 
   return new Plugin({
     appendTransaction(transactions, oldState, newState) {
-      // Ignore transactions y-prosemirror generates on its own (e.g.
-      // seeding an empty Y.XmlFragment with the schema's minimum
-      // content on mount) -- only a transaction the user actually
-      // caused should start the debounce.
-      const userChanged = transactions.some(
-        (tr) => tr.docChanged && !tr.getMeta(ySyncPluginKey)?.isChangeOrigin,
+      // Only a transaction that reflects an actual user edit should
+      // ever start (or immediately fire) the confirmation debounce
+      // below. Two other sources of docChanged transactions in this
+      // same array must be excluded:
+      //   - y-prosemirror's own sync transactions (tagged via
+      //     ySyncPluginKey's isChangeOrigin), e.g. seeding a
+      //     brand-new empty Y.Doc with the schema's minimum content.
+      //   - "infra" plugins that self-heal the document on every
+      //     change (forceFirstHeadingPlugin, blockIdPlugin,
+      //     imageMarkdownPlugin, urlLinkPlugin -- see
+      //     syntheticTransaction.ts). Without excluding these too,
+      //     e.g. blockIdPlugin assigning a UUID to the very first
+      //     paragraph ySyncPlugin just created looked exactly like
+      //     "the user typed something", silently starting (and
+      //     eventually firing) the debounce on a draft nobody had
+      //     touched yet -- creating an "Untitled" card the moment a
+      //     new draft was opened.
+      const userTransactions = transactions.filter(
+        (tr) =>
+          tr.docChanged &&
+          !tr.getMeta(ySyncPluginKey)?.isChangeOrigin &&
+          !isSynthetic(tr),
       );
-      if (!userChanged) return null;
+      if (userTransactions.length === 0) return null;
 
       const candidate = extractCandidate(newState.doc);
       clearTimeout(debounceTimer);
 
       if (
         headerJustCommitted(
-          transactions,
+          userTransactions,
           oldState.doc.childCount,
           newState.doc.childCount,
         )
@@ -106,6 +123,20 @@ export function titleCandidatePlugin(
         debounceTimer = setTimeout(() => fire(candidate), DEBOUNCE_MS);
       }
       return null;
+    },
+
+    // Cancels any pending debounce timer when the EditorView is
+    // destroyed (see NoteEditor's onCleanup). Without this, leaving a
+    // brand-new draft within the debounce window still let the
+    // pending fire() callback run afterwards, resolving a card the
+    // user never confirmed -- exactly what draft mode is meant to
+    // prevent.
+    view() {
+      return {
+        destroy() {
+          clearTimeout(debounceTimer);
+        },
+      };
     },
   });
 }

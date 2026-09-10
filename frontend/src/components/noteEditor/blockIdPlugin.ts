@@ -2,6 +2,7 @@ import { Plugin } from "prosemirror-state";
 import type { Transaction } from "prosemirror-state";
 
 import { v7 as uuidv7 } from "uuid";
+import { markSynthetic } from "./syntheticTransaction";
 // Assigns a UUIDv7 block id to any paragraph/heading/blockquote/codeBlock
 // node that doesn't already have one (see defineBlockIdAttr in
 // basicExtension.ts for which node types carry the "id" attr). Runs as
@@ -30,7 +31,9 @@ export function blockIdPlugin() {
           tr = (tr ?? newState.tr).setNodeAttribute(pos, "id", uuidv7());
         }
       });
-      return tr;
+      // Marked synthetic: this is a self-heal, not a user edit -- see
+      // syntheticTransaction.ts for why that distinction matters.
+      return tr ? markSynthetic(tr) : null;
     },
   });
 }

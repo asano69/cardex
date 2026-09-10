@@ -1,6 +1,7 @@
 import { Plugin } from "prosemirror-state";
 import type { Transaction } from "prosemirror-state";
 import type { Node as PMNode } from "prosemirror-model";
+import { markSynthetic } from "./syntheticTransaction";
 
 // Markdown image syntax: ![alt](http(s)://...). The "![" prefix
 // already makes this unambiguous, so unlike the bracket pattern below
@@ -83,7 +84,9 @@ export function imageMarkdownPlugin() {
           image.create({ src: match.src, alt: match.alt || null }),
         );
       }
-      return tr;
+      // Marked synthetic: this is a self-heal, not a user edit -- see
+      // syntheticTransaction.ts for why that distinction matters.
+      return tr ? markSynthetic(tr) : null;
     },
   });
 }

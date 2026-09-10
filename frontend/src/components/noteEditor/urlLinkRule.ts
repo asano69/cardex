@@ -1,5 +1,6 @@
 import { Plugin } from "prosemirror-state";
 import type { Node as PMNode } from "prosemirror-model";
+import { markSynthetic } from "./syntheticTransaction";
 
 // Only treats text as a link when it starts with an explicit http(s)
 // scheme. This is stricter than typical autolink detection (which
@@ -66,7 +67,9 @@ export function urlLinkPlugin() {
       for (const match of findUrlMatches(newState.doc)) {
         tr.addMark(match.from, match.to, link.create({ href: match.href }));
       }
-      return tr.docChanged ? tr : null;
+      // Marked synthetic: this is a self-heal, not a user edit -- see
+      // syntheticTransaction.ts for why that distinction matters.
+      return tr.docChanged ? markSynthetic(tr) : null;
     },
   });
 }
