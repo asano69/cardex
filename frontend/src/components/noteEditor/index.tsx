@@ -1,6 +1,7 @@
 import { onCleanup, Show, createSignal } from "solid-js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, drawSelection } from "@codemirror/view";
+import { hangingIndent, hangingIndentAtomicRanges } from "./hangingIndent";
 import { defaultKeymap, indentMore, indentLess } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
@@ -203,6 +204,13 @@ export default function NoteEditor(props: NoteEditorProps) {
         titleCandidateExtension(handleSlugCandidate),
         titleLineHighlight,
         editorTheme,
+        // Hanging indent for wrapped lines -- see hangingIndent.ts for
+        // why this per-line CSS decoration is CodeMirror's own
+        // documented approach, not a stopgap.
+        hangingIndent,
+        // Prevents the cursor from stepping through the hidden
+        // leading tab characters one at a time -- see hangingIndent.ts.
+        hangingIndentAtomicRanges,
         // Shows a bullet marker after any line's leading tabs,
         // purely visual -- see bulletLineDecoration.ts.
         // ////////////////////////
