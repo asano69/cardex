@@ -34,16 +34,41 @@ const LEADING_TABS_RE = /^\t+/;
 // and the likely cause of the "looks like a line break" symptom this
 // file replaces.
 //
-// Instead, the real leading tabs are hidden outright (zero-width, via
-// Decoration.replace) so they contribute no width of their own.
-// `padding-left` is then the ONLY source of the shift, applied
-// uniformly to every row -- first and wrapped alike -- so there is
-// nothing left to double-count. The tab characters still exist in
-// the document (they're what indentMore/indentLess insert and
-// remove, and what determines a line's indent depth here); this
-// decoration only changes how they're rendered.
-function buildDecorations(view: EditorView): DecorationSet {
+// Instead, the real leading tabs are hidden via a mark decoration
+// (font-size: 0, see editorTheme.ts's ".cm-hidden-tab") so they
+// contribute no visible width of their own. `padding-left` is then
+// the ONLY source of the shift, applied uniformly to every row --
+// first and wrapped alike -- so there is nothing left to
+// double-count. The tab characters still exist in the document
+// (they're what indentMore/indentLess insert and remove, and what
+// determines a line's indent depth here); this decoration only
+// changes how they're rendered.
+//
+// A mark decoration is used here instead of Decoration.replace:
+// replace decorations make CodeMirror insert invisible
+// "cm-widgetBuffer" <img> placeholder nodes around the hidden range
+// (needed so DOM selection can still address it), and each of those
+// placeholders is its own atomic inline-level box -- which, per the
+// CSS Text spec, carries an implicit soft-wrap opportunity at its
+// boundary. With a very long line right after the indent (no spaces
+// to wrap on otherwise), the browser would latch onto that
+// opportunity and wrap immediately after the indent, producing a
+// meaningless line break at the very start of the line. A mark
+// decoration is just a plain (non-atomic) inline span, so it doesn't
+// introduce that boundary.
+//
+// Even so, there's still an element boundary between the hidden tabs
+// and the line's first real character, which is itself a soft-wrap
+// opportunity by default. `cm-indent-glue` (covering the hidden tabs
+// plus that one following character) forbids breaking inside itself
+// via `white-space: nowrap`, so wrapping only ever kicks in once the
+// line has actually run out of room -- never right at the start.
+function buildDecorations(view: EditorView): {
+  decorations: DecorationSet;
+  atomic: DecorationSet;
+} {
   const decorations = [];
+  const atomic = [];
   for (const { from, to } of view.visibleRanges) {
     let pos = from;
     while (pos <= to) {
@@ -57,27 +82,52 @@ function buildDecorations(view: EditorView): DecorationSet {
             attributes: { style: `padding-left: ${width};` },
           }).range(line.from),
         );
-        decorations.push(
-          Decoration.replace({}).range(line.from, line.from + depth),
+
+        const hiddenTab = Decoration.mark({ class: "cm-hidden-tab" }).range(
+          line.from,
+          line.from + depth,
         );
+        decorations.push(hiddenTab);
+        // Only the hidden-tab range should be atomic (see
+        // hangingIndentAtomicRanges below) -- cm-indent-glue further
+        // down also spans the first real character, and that
+        // character must stay individually reachable by the cursor.
+        atomic.push(hiddenTab);
+
+        if (line.to > line.from + depth) {
+          decorations.push(
+            Decoration.mark({ class: "cm-indent-glue" }).range(
+              line.from,
+              line.from + depth + 1,
+            ),
+          );
+        }
       }
       pos = line.to + 1;
     }
   }
-  return Decoration.set(decorations, true);
+  return {
+    decorations: Decoration.set(decorations, true),
+    atomic: Decoration.set(atomic, true),
+  };
 }
 
 export const hangingIndent = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
+    atomic: DecorationSet;
 
     constructor(view: EditorView) {
-      this.decorations = buildDecorations(view);
+      const built = buildDecorations(view);
+      this.decorations = built.decorations;
+      this.atomic = built.atomic;
     }
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged) {
-        this.decorations = buildDecorations(update.view);
+        const built = buildDecorations(update.view);
+        this.decorations = built.decorations;
+        this.atomic = built.atomic;
       }
     }
   },
@@ -89,10 +139,9 @@ export const hangingIndent = ViewPlugin.fromClass(
 // Keeps the cursor from stepping through the hidden leading-tab
 // characters one at a time -- without this, pressing the arrow keys
 // can move the cursor with no visible on-screen change, which feels
-// like it's stuck. Reuses hangingIndent's own decoration set (mirrors
-// bulletAtomicRanges in bulletLineDecoration.ts); the zero-width line
-// decorations mixed into that set are simply ignored here since they
-// have no [from, to) span to be atomic over.
+// like it's stuck. Only the hidden-tab ranges (not cm-indent-glue)
+// are used here, so the first real character right after the indent
+// stays individually reachable.
 export const hangingIndentAtomicRanges = EditorView.atomicRanges.of(
-  (view) => view.plugin(hangingIndent)?.decorations ?? Decoration.none,
+  (view) => view.plugin(hangingIndent)?.atomic ?? Decoration.none,
 );

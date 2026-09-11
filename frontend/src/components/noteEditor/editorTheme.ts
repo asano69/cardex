@@ -37,6 +37,21 @@ export const editorTheme = EditorView.theme({
     lineHeight: "42px",
     paddingBottom: "21px",
   },
+  // Collapses a hanging-indent line's leading tab characters to zero
+  // visible width (see hangingIndent.ts). font-size: 0 keeps this an
+  // ordinary inline span rather than an atomic replaced box, so it
+  // doesn't introduce its own soft-wrap opportunity.
+  ".cm-hidden-tab": {
+    fontSize: "0",
+  },
+  // Forbids wrapping between a hanging-indent line's hidden tabs and
+  // its first real character (see hangingIndent.ts) -- without this,
+  // the element boundary there is itself a soft-wrap opportunity, so
+  // a long, space-less line would wrap right after the indent instead
+  // of once it actually runs out of room.
+  ".cm-indent-glue": {
+    whiteSpace: "nowrap",
+  },
   // Visual-only indent marker replacing each leading tab character
   // (see bulletLineDecoration.ts's IndentMarkWidget). The indentation
   // itself still comes from the real tab characters in the document
