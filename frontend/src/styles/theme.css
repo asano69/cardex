@@ -15,8 +15,8 @@
   --color-bg: light-dark(#e8e9eb, #1e1f20);
   --color-text: light-dark(#4a4a4a, #e0e0e0);
 
-  --color-note-title: light-dark(#000000, #e0e0e0);
-  --color-note-text: light-dark(#4a4a4a, #c4c4c4);
+  --color-line-title: light-dark(#000000, #e0e0e0);
+  --color-line-text: light-dark(#4a4a4a, #c4c4c4);
 
   --color-panel: light-dark(#f8f8f8, #252525);
   --color-surface: light-dark(#fcfcfc, #1e1e1e);
