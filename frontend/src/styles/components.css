@@ -28,16 +28,13 @@
     line-height: 1.7;
   }
 
-  .cm-editor .cm-line.cm-title-line {
-    font-family: var(--font-sans) !important;
-    font-size: 1.73rem;
-    color: var(--color-line-title);
-    /* A fixed unitless number, not "normal" -- see .cm-line's own
-     * comment above on why "normal" causes the empty-vs-text-line
-     * caret height mismatch. */
-    line-height: 42px;
-    padding-bottom: 21px;
-  }
+  /* .cm-title-line styling moved to EditorView.theme() in
+   * titleLineHighlight.ts -- a plain CSS rule here loses to
+   * CodeMirror's own unlayered runtime theme regardless of
+   * specificity (@layer components always loses to unlayered rules),
+   * whereas EditorView.theme() is CodeMirror's own supported way to
+   * override its base theme. */
+
   /* Visual-only indent marker replacing each leading tab character
    * (see bulletLineDecoration.ts's IndentMarkWidget). The indentation
    * itself still comes from the real tab characters in the document

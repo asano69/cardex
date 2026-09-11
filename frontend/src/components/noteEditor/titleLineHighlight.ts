@@ -20,6 +20,24 @@ function buildDecoration(view: EditorView): DecorationSet {
   ]);
 }
 
+// Styling for .cm-title-line via EditorView.theme(), not a plain CSS
+// rule in components.css: CodeMirror injects its own .cm-line padding
+// as an unlayered "base theme" at runtime, and per the CSS Cascade
+// Layers spec, unlayered rules always beat rules inside Tailwind's
+// `@layer components` regardless of selector specificity -- that's
+// also why font-family needed !important there. EditorView.theme()
+// is CodeMirror's own supported mechanism for overriding its base
+// theme, so this wins without needing !important.
+export const titleLineTheme = EditorView.theme({
+  ".cm-line.cm-title-line": {
+    fontFamily: "var(--font-sans)",
+    fontSize: "1.73rem",
+    color: "var(--color-line-title)",
+    lineHeight: "42px",
+    paddingBottom: "21px",
+  },
+});
+
 export const titleLineHighlight = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
