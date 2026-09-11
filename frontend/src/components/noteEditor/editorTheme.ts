@@ -68,14 +68,23 @@ export const editorTheme = EditorView.theme({
   ".indent-mark": {
     position: "relative",
     display: "inline-block",
+    // Explicit 1em height, matching the text's own font box rather
+    // than the taller line-height box (1.7, see .cm-line above).
+    // The dot's top:50% centering below is measured against this
+    // height -- without it, the mark's auto height follows the
+    // line-height instead, pushing the dot below the glyphs' actual
+    // vertical center.
+    height: "1em",
+    lineHeight: "1",
+    verticalAlign: "middle",
   },
   ".indent-mark .dot": {
     display: "block",
     position: "absolute",
     "--dot-size": "6px",
     left: "calc(-1 * var(--dot-size) - 9px)",
-    // Centered on the line's vertical midpoint via top:50% + a
-    // negative margin of exactly half the dot's own height.
+    // Centered on the indent-mark's own 1em box (see above), which
+    // now lines up with the text's actual vertical center.
     top: "50%",
     marginTop: "calc(-1 * var(--dot-size) / 2)",
     width: "var(--dot-size)",
