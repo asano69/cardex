@@ -25,10 +25,10 @@
   }
 
   .cm-editor .cm-line {
-    line-height: calc(1em + 1rem);
-    padding: 0;
+    line-height: 1.7;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
   }
-
   /* Sizing mirrors CardItem.tsx's ".card-grid-item .title" grid style
    * and the old .ProseMirror h1 rule below, so a card's title looks
    * the same whether shown in the grid or open for editing.
@@ -44,12 +44,12 @@
     font-family: var(--font-sans) !important;
     font-size: 1.5rem;
     color: var(--color-note-title);
-    /* normal, not calc(1em + 1rem) -- see .cm-line's own comment
-     * above on why extra spacing belongs in padding, not line-height. */
-    line-height: normal;
+    /* A fixed unitless number, not "normal" -- see .cm-line's own
+     * comment above on why "normal" causes the empty-vs-text-line
+     * caret height mismatch. */
+    line-height: 1.4;
     padding-bottom: 1.5rem;
   }
-
   /* Visual-only indent marker replacing each leading tab character
    * (see bulletLineDecoration.ts's IndentMarkWidget). The indentation
    * itself still comes from the real tab characters in the document
