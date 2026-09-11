@@ -12,7 +12,9 @@ import {
 } from "./titleCandidatePlugin";
 import { titleLineHighlight } from "./titleLineHighlight";
 import { editorTheme } from "./editorTheme";
-import { bulletLineDecoration, bulletAtomicRanges } from "./bulletLineDecoration";
+// Temporarily disabled while debugging hanging-indent (wrapped line)
+// behavior in isolation -- see docs/code-mirror-migration.md.
+// import { bulletLineDecoration, bulletAtomicRanges } from "./bulletLineDecoration";
 import {
   syntaxHighlighting,
   defaultHighlightStyle,
@@ -203,14 +205,23 @@ export default function NoteEditor(props: NoteEditorProps) {
         editorTheme,
         // Shows a bullet marker after any line's leading tabs,
         // purely visual -- see bulletLineDecoration.ts.
-        bulletLineDecoration,
+        // ////////////////////////
+        //bulletLineDecoration, 
         // Prevents the cursor from ever landing inside a bullet
         // widget's own boundary -- see bulletLineDecoration.ts.
-        bulletAtomicRanges,
+        // /////////////////////////
+        //bulletAtomicRanges,
         // Cardpot's own inline syntax (wiki links, brackets, tags --
         // see cardpotSyntax.ts). Needs syntaxHighlighting() alongside
         // it: the parser only tags nodes, this is what actually turns
         // those tags into colored text.
+        // Shows a bullet marker after any line's leading tabs,
+        // purely visual -- see bulletLineDecoration.ts.
+        // Temporarily disabled: see the import comment above.
+        // bulletLineDecoration,
+        // Prevents the cursor from ever landing inside a bullet
+        // widget's own boundary -- see bulletLineDecoration.ts.
+        // bulletAtomicRanges,
         cardpotSyntax(),
         syntaxHighlighting(defaultHighlightStyle),
         // A single real tab character per indent level, not spaces --
