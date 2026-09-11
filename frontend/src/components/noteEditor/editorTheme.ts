@@ -82,7 +82,7 @@ export const editorTheme = EditorView.theme({
     display: "block",
     position: "absolute",
     "--dot-size": "6px",
-    left: "calc(-1 * var(--dot-size) - 9px)",
+    left: "calc(-1 * var(--dot-size) - 14px)",
     // Centered on the indent-mark's own 1em box (see above), which
     // now lines up with the text's actual vertical center.
     top: "50%",
