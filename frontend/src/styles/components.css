@@ -44,7 +44,9 @@
     font-family: var(--font-sans) !important;
     font-size: 1.5rem;
     color: var(--color-note-title);
-    line-height: calc(1em + 1rem);
+    /* normal, not calc(1em + 1rem) -- see .cm-line's own comment
+     * above on why extra spacing belongs in padding, not line-height. */
+    line-height: normal;
     padding-bottom: 1.5rem;
   }
 
