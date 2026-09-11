@@ -11,7 +11,12 @@ import {
   syntheticAnnotation,
 } from "./titleCandidatePlugin";
 import { titleLineHighlight } from "./titleLineHighlight";
-import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
+import { bulletLineDecoration } from "./bulletLineDecoration";
+import {
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  indentUnit,
+} from "@codemirror/language";
 import { cardpotSyntax } from "./cardpotSyntax";
 import { createCard, updateCardTitle } from "../../lib/cardApi";
 import type { TitleCandidate } from "../../lib/titleCandidate";
@@ -184,12 +189,20 @@ export default function NoteEditor(props: NoteEditorProps) {
         yCollab(ytext, null),
         titleCandidateExtension(handleSlugCandidate),
         titleLineHighlight,
+        // Shows a bullet marker after any line's leading tabs,
+        // purely visual -- see bulletLineDecoration.ts.
+        bulletLineDecoration,
         // Cardpot's own inline syntax (wiki links, brackets, tags --
         // see cardpotSyntax.ts). Needs syntaxHighlighting() alongside
         // it: the parser only tags nodes, this is what actually turns
         // those tags into colored text.
         cardpotSyntax(),
         syntaxHighlighting(defaultHighlightStyle),
+        // A single real tab character per indent level, not spaces --
+        // indentMore/indentLess (bound below) both insert/remove
+        // whatever this unit is. Matches bulletLineDecoration.ts's own
+        // LEADING_TABS_RE, which only recognizes literal tabs.
+        indentUnit.of("\t"),
         // Tab/Shift-Tab indent/outdent the current line(s) -- the
         // plain-text equivalent of the old prosemirror-flat-list
         // bullet indent/outdent (see prose-mirror.old/index.tsx's
