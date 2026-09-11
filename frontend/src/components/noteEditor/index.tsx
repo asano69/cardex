@@ -1,6 +1,6 @@
 import { onCleanup, Show, createSignal } from "solid-js";
 import { EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, drawSelection } from "@codemirror/view";
 import { defaultKeymap, indentMore, indentLess } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
@@ -11,7 +11,7 @@ import {
   syntheticAnnotation,
 } from "./titleCandidatePlugin";
 import { titleLineHighlight } from "./titleLineHighlight";
-import { bulletLineDecoration } from "./bulletLineDecoration";
+import { bulletLineDecoration, bulletAtomicRanges } from "./bulletLineDecoration";
 import {
   syntaxHighlighting,
   defaultHighlightStyle,
@@ -186,12 +186,25 @@ export default function NoteEditor(props: NoteEditorProps) {
       doc: ytext.toString(),
       extensions: [
         EditorView.lineWrapping,
+        // Draws the cursor/selection itself (via coordsAtPos) instead
+        // of relying on the browser's native contenteditable caret.
+        // Needed because IndentMarkWidget replaces a tab character
+        // with a widget (see bulletLineDecoration.ts): right after
+        // Tab inserts a new widget, the native caret can render at a
+        // stale layout position until the next reflow (e.g. another
+        // keystroke or Shift-Tab) forces the browser to recompute it.
+        // CodeMirror's own caret is computed fresh from the current
+        // position mapping every time, so it never shows that lag.
+        drawSelection(),
         yCollab(ytext, null),
         titleCandidateExtension(handleSlugCandidate),
         titleLineHighlight,
         // Shows a bullet marker after any line's leading tabs,
         // purely visual -- see bulletLineDecoration.ts.
         bulletLineDecoration,
+        // Prevents the cursor from ever landing inside a bullet
+        // widget's own boundary -- see bulletLineDecoration.ts.
+        bulletAtomicRanges,
         // Cardpot's own inline syntax (wiki links, brackets, tags --
         // see cardpotSyntax.ts). Needs syntaxHighlighting() alongside
         // it: the parser only tags nodes, this is what actually turns

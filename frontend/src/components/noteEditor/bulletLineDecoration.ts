@@ -36,6 +36,14 @@ class IndentMarkWidget extends WidgetType {
   toDOM() {
     const mark = document.createElement("span");
     mark.className = "indent-mark";
+    // Without this, the browser treats this widget's DOM as normal
+    // editable content: it can place a native caret inside the pad's
+    // own text node (causing the cursor-position glitch right after
+    // Tab creates a new widget) and lets the mouse click into the
+    // padding as if it were real, selectable text. Marking the root
+    // non-editable makes the browser skip straight past it and fall
+    // back to CodeMirror's own position mapping instead.
+    mark.contentEditable = "false";
 
     const charIndex = document.createElement("span");
     charIndex.className = `char-index c-${this.index}`;
@@ -104,4 +112,16 @@ export const bulletLineDecoration = ViewPlugin.fromClass(
   {
     decorations: (plugin) => plugin.decorations,
   },
+);
+
+// Marks each IndentMarkWidget as a single atomic unit for cursor
+// placement and motion. Without this, CodeMirror has no way to know
+// the widget stands in for exactly one character, so the cursor can
+// land inside the widget's own boundary -- the left-of-bullet drift
+// right after Tab, and the "trapped" clickable space on either side
+// of the dot, are both this same class of bug. Reuses the widget
+// plugin's own decoration set, so there's only one source of truth
+// for where the replacements are.
+export const bulletAtomicRanges = EditorView.atomicRanges.of(
+  (view) => view.plugin(bulletLineDecoration)?.decorations ?? Decoration.none,
 );
