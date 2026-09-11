@@ -10,7 +10,8 @@ import {
   titleCandidateExtension,
   syntheticAnnotation,
 } from "./titleCandidatePlugin";
-import { titleLineHighlight, titleLineTheme } from "./titleLineHighlight";
+import { titleLineHighlight } from "./titleLineHighlight";
+import { editorTheme } from "./editorTheme";
 import { bulletLineDecoration, bulletAtomicRanges } from "./bulletLineDecoration";
 import {
   syntaxHighlighting,
@@ -199,7 +200,7 @@ export default function NoteEditor(props: NoteEditorProps) {
         yCollab(ytext, null),
         titleCandidateExtension(handleSlugCandidate),
         titleLineHighlight,
-        titleLineTheme,
+        editorTheme,
         // Shows a bullet marker after any line's leading tabs,
         // purely visual -- see bulletLineDecoration.ts.
         bulletLineDecoration,

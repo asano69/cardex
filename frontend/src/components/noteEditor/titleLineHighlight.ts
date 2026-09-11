@@ -11,8 +11,8 @@ import {
 // forced its first block into an <h1> (see forceFirstHeadingPlugin.ts
 // under prose-mirror.old/). CodeMirror has no per-line "node type" to
 // hang a CSS rule off of, so this tags line 1 with a plain class
-// instead -- see styles/components.css's .cm-title-line rule for the
-// actual title styling (font size, color, margin).
+// instead -- see editorTheme.ts's ".cm-line.cm-title-line" rule for
+// the actual title styling (font size, color, margin).
 function buildDecoration(view: EditorView): DecorationSet {
   const line = view.state.doc.line(1);
   return Decoration.set([
@@ -20,15 +20,25 @@ function buildDecoration(view: EditorView): DecorationSet {
   ]);
 }
 
-// Styling for .cm-title-line via EditorView.theme(), not a plain CSS
-// rule in components.css: CodeMirror injects its own .cm-line padding
-// as an unlayered "base theme" at runtime, and per the CSS Cascade
-// Layers spec, unlayered rules always beat rules inside Tailwind's
-// `@layer components` regardless of selector specificity -- that's
-// also why font-family needed !important there. EditorView.theme()
-// is CodeMirror's own supported mechanism for overriding its base
-// theme, so this wins without needing !important.
-export const titleLineTheme = EditorView.theme({
+// Editor-wide style overrides via EditorView.theme(), not plain CSS in
+// components.css: CodeMirror injects its own base theme as unlayered
+// runtime <style>, and per the CSS Cascade Layers spec, unlayered
+// rules always beat rules inside Tailwind's `@layer components`
+// regardless of selector specificity -- that's why these previously
+// needed !important there. EditorView.theme() is CodeMirror's own
+// supported mechanism for overriding its base theme, so it wins
+// without !important. Only rules that actually conflicted with
+// CodeMirror's base theme (outline, font-family, the title line) live
+// here -- .cm-content's padding and .cm-line's line-height are left
+// as plain CSS in components.css since they aren't contested by any
+// base theme rule and don't need this.
+export const editorTheme = EditorView.theme({
+  "&.cm-focused": {
+    outline: "none",
+  },
+  ".cm-scroller": {
+    fontFamily: "var(--font-sans)",
+  },
   ".cm-line.cm-title-line": {
     fontFamily: "var(--font-sans)",
     fontSize: "1.73rem",
