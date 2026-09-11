@@ -26,20 +26,8 @@
 
   .cm-editor .cm-line {
     line-height: 1.7;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
   }
-  /* Sizing mirrors CardItem.tsx's ".card-grid-item .title" grid style
-   * and the old .ProseMirror h1 rule below, so a card's title looks
-   * the same whether shown in the grid or open for editing.
-   *
-   * IMPORTANT: padding-bottom, not margin-bottom. CodeMirror's docs
-   * explicitly warn against margins on .cm-line: its internal height
-   * map is built from measured element geometry and doesn't account
-   * for margins, so a margin here silently desyncs the mouse-click ->
-   * document-position mapping (posAtCoords), making clicks land on
-   * the wrong line. Padding is part of the measured box, so it stays
-   * in sync. */
+
   .cm-editor .cm-line.cm-title-line {
     font-family: var(--font-sans) !important;
     font-size: 1.5rem;
