@@ -2,6 +2,7 @@ import {
   EditorView,
   ViewPlugin,
   Decoration,
+  WidgetType,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
@@ -14,6 +15,50 @@ import {
 export const INDENT_WIDTH_CH = 4;
 
 const LEADING_TABS_RE = /^\t+/;
+
+// Renders one Scrapbox/Cosense-style bullet dot per indented line, as
+// a real <span> (not a ::before/::after pseudo-element). Stateless --
+// every dot looks identical regardless of depth, since its horizontal
+// position is entirely a function of the line's own padding-left
+// (see buildDecorations below) plus CSS, not anything carried by the
+// widget itself.
+//
+// IMPORTANT: this widget is built inside buildDecorations below, in
+// the SAME Decoration.set() call that also produces the
+// "cm-indent-glue" nowrap mark, rather than in its own separate
+// ViewPlugin. Combining decorations from two different plugins (as an
+// earlier version of this did) doesn't guarantee the widget ends up
+// nested inside the glue mark's wrapping <span> in the final rendered
+// DOM -- decoration precedence between separate sources can place a
+// point decoration like this widget outside of another source's mark
+// span even when their document ranges overlap. Building both from
+// one decoration set removes that ambiguity: the widget's position
+// falls strictly inside the glue mark's own range from the same pass,
+// so it is guaranteed to render nested inside it, keeping it under
+// the same "white-space: nowrap" protection that stops the
+// widget's own cm-widgetBuffer (see the Decoration.widget() docs --
+// widgetBuffer applies to widget decorations exactly like replace()
+// ones) from reopening a wrap point right after the indent.
+class BulletDotWidget extends WidgetType {
+  eq(_other: BulletDotWidget) {
+    return true;
+  }
+
+  toDOM() {
+    const mark = document.createElement("span");
+    mark.className = "indent-mark";
+    // Without this, the browser treats the widget as ordinary
+    // editable content and can place a native caret or click target
+    // inside it.
+    mark.contentEditable = "false";
+
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    mark.appendChild(dot);
+
+    return mark;
+  }
+}
 
 // CodeMirror has no built-in feature for hanging indent on wrapped
 // lines -- confirmed by Marijn Haverbeke himself on the CodeMirror
@@ -93,6 +138,20 @@ function buildDecorations(view: EditorView): {
         // down also spans the first real character, and that
         // character must stay individually reachable by the cursor.
         atomic.push(hiddenTab);
+
+        // Anchored to the position right after the hidden tabs (side:
+        // -1 biases it toward the character just before, i.e. the
+        // last hidden tab), so it sits between real text on both
+        // sides rather than at the line's own start/end -- and,
+        // critically, strictly inside the cm-indent-glue range pushed
+        // right below, from this same decoration set (see
+        // BulletDotWidget's own comment above for why that matters).
+        decorations.push(
+          Decoration.widget({
+            widget: new BulletDotWidget(),
+            side: -1,
+          }).range(line.from + depth),
+        );
 
         if (line.to > line.from + depth) {
           decorations.push(

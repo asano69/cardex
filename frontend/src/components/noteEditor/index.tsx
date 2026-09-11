@@ -13,9 +13,6 @@ import {
 } from "./titleCandidatePlugin";
 import { titleLineHighlight } from "./titleLineHighlight";
 import { editorTheme } from "./editorTheme";
-// Temporarily disabled while debugging hanging-indent (wrapped line)
-// behavior in isolation -- see docs/code-mirror-migration.md.
-// import { bulletLineDecoration, bulletAtomicRanges } from "./bulletLineDecoration";
 import {
   syntaxHighlighting,
   defaultHighlightStyle,
@@ -204,32 +201,20 @@ export default function NoteEditor(props: NoteEditorProps) {
         titleCandidateExtension(handleSlugCandidate),
         titleLineHighlight,
         editorTheme,
-        // Hanging indent for wrapped lines -- see hangingIndent.ts for
-        // why this per-line CSS decoration is CodeMirror's own
-        // documented approach, not a stopgap.
+        // Hanging indent for wrapped lines, and the Scrapbox/Cosense-
+        // style bullet dot on each indented line's leading tabs (see
+        // hangingIndent.ts) -- both are built from the same
+        // decoration set so the dot widget stays nested inside the
+        // same nowrap "glue" span that protects against an unwanted
+        // mid-word wrap right after the indent.
         hangingIndent,
         // Prevents the cursor from stepping through the hidden
         // leading tab characters one at a time -- see hangingIndent.ts.
         hangingIndentAtomicRanges,
-        // Shows a bullet marker after any line's leading tabs,
-        // purely visual -- see bulletLineDecoration.ts.
-        // ////////////////////////
-        //bulletLineDecoration, 
-        // Prevents the cursor from ever landing inside a bullet
-        // widget's own boundary -- see bulletLineDecoration.ts.
-        // /////////////////////////
-        //bulletAtomicRanges,
         // Cardpot's own inline syntax (wiki links, brackets, tags --
         // see cardpotSyntax.ts). Needs syntaxHighlighting() alongside
         // it: the parser only tags nodes, this is what actually turns
         // those tags into colored text.
-        // Shows a bullet marker after any line's leading tabs,
-        // purely visual -- see bulletLineDecoration.ts.
-        // Temporarily disabled: see the import comment above.
-        // bulletLineDecoration,
-        // Prevents the cursor from ever landing inside a bullet
-        // widget's own boundary -- see bulletLineDecoration.ts.
-        // bulletAtomicRanges,
         cardpotSyntax(),
         syntaxHighlighting(defaultHighlightStyle),
         // A single real tab character per indent level, not spaces --

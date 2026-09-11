@@ -52,36 +52,34 @@ export const editorTheme = EditorView.theme({
   ".cm-indent-glue": {
     whiteSpace: "nowrap",
   },
-  // Visual-only indent marker replacing each leading tab character
-  // (see bulletLineDecoration.ts's IndentMarkWidget). The indentation
-  // itself still comes from the real tab characters in the document
-  // -- ".pad" hides that character inside a fixed-width box, and
-  // ".dot" is drawn as an absolutely-positioned circle rather than a
-  // text glyph, so its size/placement never depends on font metrics.
+  // Bullet dot for each indented line's leading tabs (see
+  // bulletDotWidget.ts's BulletDotWidget), inserted as a real element
+  // via Decoration.widget() rather than Decoration.replace() -- so it
+  // never needs an atomic cm-widgetBuffer placeholder around it,
+  // which is what caused unwanted mid-word wraps in the earlier
+  // implementation (see hangingIndent.ts's own comment on the same
+  // issue). No separate ".pad" spacer element is needed anymore: the
+  // real tab characters are already hidden by this file's own
+  // ".cm-hidden-tab" rule, and the horizontal gutter they'd otherwise
+  // occupy is already reserved by that same rule's line-level
+  // padding-left -- ".indent-mark" just anchors the dot at the point
+  // where the hidden tabs end, and ".dot" pulls it back left into
+  // that gutter via calc() off its own --dot-size.
   ".indent-mark": {
     position: "relative",
     display: "inline-block",
   },
-  ".indent-mark .pad": {
-    display: "inline-block",
-    width: "1.5em",
-    height: "1em",
-    overflow: "hidden",
-    textOverflow: "hidden",
-  },
   ".indent-mark .dot": {
     display: "block",
     position: "absolute",
-    right: "9px",
+    "--dot-size": "6px",
+    left: "calc(-1 * var(--dot-size) - 9px)",
     // Centered on the line's vertical midpoint via top:50% + a
-    // negative margin of exactly half the dot's own height --
-    // ties margin-top to the height value below, instead of an
-    // independently hardcoded px number that would silently drift
-    // out of sync if the dot's size ever changed.
+    // negative margin of exactly half the dot's own height.
     top: "50%",
-    marginTop: "calc(-1 * 6px / 2)",
-    width: "6px",
-    height: "6px",
+    marginTop: "calc(-1 * var(--dot-size) / 2)",
+    width: "var(--dot-size)",
+    height: "var(--dot-size)",
     borderRadius: "50%",
     backgroundColor: "var(--color-line-text)",
   },
