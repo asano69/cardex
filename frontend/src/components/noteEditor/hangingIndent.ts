@@ -77,10 +77,6 @@ class PadWidget extends WidgetType {
 //     approach, this doesn't depend on a native tab character's
 //     browser-dependent tab-stop width, since each pad is a plain,
 //     fixed-width element under our own control.
-//   - a "cm-indent-glue" nowrap span covering the whole leading run
-//     plus the first following character, so the browser never picks
-//     a wrap point between two pads, or between the last pad and the
-//     line's real text.
 function buildDecorations(view: EditorView): DecorationSet {
   const decorations = [];
   for (const { from, to } of view.visibleRanges) {
@@ -107,14 +103,6 @@ function buildDecorations(view: EditorView): DecorationSet {
           );
         }
 
-        if (line.to > line.from + depth) {
-          decorations.push(
-            Decoration.mark({ class: "cm-indent-glue" }).range(
-              line.from,
-              line.from + depth + 1,
-            ),
-          );
-        }
       }
       pos = line.to + 1;
     }

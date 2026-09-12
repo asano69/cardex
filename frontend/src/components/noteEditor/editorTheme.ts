@@ -38,14 +38,6 @@ export const editorTheme = EditorView.theme({
     lineHeight: "42px",
     paddingBottom: "21px",
   },
-  // Forbids wrapping between a hanging-indent line's pad elements (or
-  // between the last pad and its first real character) -- see
-  // hangingIndent.ts's buildDecorations. Without this, the element
-  // boundaries there are themselves soft-wrap opportunities, so a
-  // long, space-less line could wrap in the middle of its own indent.
-  ".cm-indent-glue": {
-    whiteSpace: "nowrap",
-  },
   // One indent level's pad box (see hangingIndent.ts's PadWidget),
   // replacing the underlying whitespace character 1:1. Fixed-width
   // and non-editable so it renders and behaves like a single
