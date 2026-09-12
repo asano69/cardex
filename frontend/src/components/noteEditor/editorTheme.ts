@@ -1,5 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { PAD_WIDTH_PX, DOT_SIZE_PX } from "./hangingIndent";
+import { INDENT_WIDTH_PX, DOT_SIZE_PX } from "./hangingIndent";
 
 // All CodeMirror-specific styling lives here via EditorView.theme(),
 // not as plain CSS in styles/components.css. CodeMirror injects its
@@ -24,7 +24,6 @@ export const editorTheme = EditorView.theme({
   },
   ".cm-content": {
     padding: "0",
-    paddingLeft: "2px",
   },
   ".cm-line": {
     lineHeight: "1.7",
@@ -39,14 +38,26 @@ export const editorTheme = EditorView.theme({
     lineHeight: "42px",
     paddingBottom: "21px",
   },
-  // One indent level's pad box (see hangingIndent.ts's PadWidget),
-  // replacing the underlying whitespace character 1:1. Fixed-width
-  // and non-editable so it renders and behaves like a single
-  // character rather than like ordinary text content.
-  ".pad": {
+  // A line carrying a leading indent run (see hangingIndent.ts's
+  // buildDecorations): the total indent width is passed in as the
+  // --indent-width CSS variable via an inline style on the line
+  // itself. margin-left reserves that width for every visual row of
+  // the line (including wrapped continuation rows); the matching
+  // negative text-indent then cancels margin-left back out for just
+  // the first visual row, since that row's own width is already
+  // reserved by the indent-mark elements below.
+  ".cm-line.indent": {
+    marginLeft: "var(--indent-width, 0px)",
+    textIndent: "calc(-1 * var(--indent-width, 0px))",
+  },
+  // One indent level's mark box (see hangingIndent.ts's
+  // IndentMarkWidget), replacing the underlying whitespace character
+  // 1:1. Fixed-width and non-editable so it renders and behaves like
+  // a single character rather than like ordinary text content.
+  ".indent-mark": {
     position: "relative",
     display: "inline-block",
-    width: `${PAD_WIDTH_PX}px`,
+    width: `${INDENT_WIDTH_PX}px`,
     // Explicit 1em height, matching the text's own font box rather
     // than the taller line-height box (1.7, see .cm-line above), so
     // the dot's top:50% centering below lines up with the glyphs'
@@ -55,9 +66,9 @@ export const editorTheme = EditorView.theme({
     lineHeight: "1",
     verticalAlign: "middle",
   },
-  // Bullet dot drawn inside a line's last pad only (see PadWidget's
-  // `hasDot`), centered within that pad's box.
-  ".pad .dot": {
+  // Bullet dot drawn inside a line's last indent-mark only (see
+  // IndentMarkWidget's `hasDot`), centered within that mark's box.
+  ".indent-mark .dot": {
     position: "absolute",
     display: "block",
     top: "50%",
