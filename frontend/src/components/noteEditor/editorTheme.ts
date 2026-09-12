@@ -24,6 +24,7 @@ export const editorTheme = EditorView.theme({
   },
   ".cm-content": {
     padding: "0",
+    paddingLeft: "2px",
   },
   ".cm-line": {
     lineHeight: "1.7",
