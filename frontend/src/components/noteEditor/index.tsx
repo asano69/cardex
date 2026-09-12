@@ -1,7 +1,7 @@
 import { onCleanup, Show, createSignal } from "solid-js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, drawSelection } from "@codemirror/view";
-import { hangingIndent, hangingIndentAtomicRanges } from "./hangingIndent";
+import { hangingIndent } from "./hangingIndent";
 import { insertNewlineKeepingBullet } from "./bulletEnter";
 import { defaultKeymap, indentMore, indentLess } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
@@ -203,15 +203,12 @@ export default function NoteEditor(props: NoteEditorProps) {
         titleLineHighlight,
         editorTheme,
         // Hanging indent for wrapped lines, and the Scrapbox/Cosense-
-        // style bullet dot on each indented line's leading tabs (see
-        // hangingIndent.ts) -- both are built from the same
-        // decoration set so the dot widget stays nested inside the
-        // same nowrap "glue" span that protects against an unwanted
-        // mid-word wrap right after the indent.
+        // style bullet dot on a line's leading indent (see
+        // hangingIndent.ts) -- each leading tab/space character is
+        // replaced 1:1 with a fixed-width "pad" element, so deleting
+        // one behaves like deleting any other single character (no
+        // separate atomic-range handling needed for that anymore).
         hangingIndent,
-        // Prevents the cursor from stepping through the hidden
-        // leading tab characters one at a time -- see hangingIndent.ts.
-        hangingIndentAtomicRanges,
         // Cardpot's own inline syntax (wiki links, brackets, tags --
         // see cardpotSyntax.ts). Needs syntaxHighlighting() alongside
         // it: the parser only tags nodes, this is what actually turns

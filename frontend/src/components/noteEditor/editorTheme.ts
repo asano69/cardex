@@ -1,4 +1,5 @@
 import { EditorView } from "@codemirror/view";
+import { PAD_WIDTH_PX, DOT_SIZE_PX } from "./hangingIndent";
 
 // All CodeMirror-specific styling lives here via EditorView.theme(),
 // not as plain CSS in styles/components.css. CodeMirror injects its
@@ -37,58 +38,40 @@ export const editorTheme = EditorView.theme({
     lineHeight: "42px",
     paddingBottom: "21px",
   },
-  // Collapses a hanging-indent line's leading tab characters to zero
-  // visible width (see hangingIndent.ts). font-size: 0 keeps this an
-  // ordinary inline span rather than an atomic replaced box, so it
-  // doesn't introduce its own soft-wrap opportunity.
-  ".cm-hidden-tab": {
-    fontSize: "0",
-  },
-  // Forbids wrapping between a hanging-indent line's hidden tabs and
-  // its first real character (see hangingIndent.ts) -- without this,
-  // the element boundary there is itself a soft-wrap opportunity, so
-  // a long, space-less line would wrap right after the indent instead
-  // of once it actually runs out of room.
+  // Forbids wrapping between a hanging-indent line's pad elements (or
+  // between the last pad and its first real character) -- see
+  // hangingIndent.ts's buildDecorations. Without this, the element
+  // boundaries there are themselves soft-wrap opportunities, so a
+  // long, space-less line could wrap in the middle of its own indent.
   ".cm-indent-glue": {
     whiteSpace: "nowrap",
   },
-  // Bullet dot for each indented line's leading tabs (see
-  // bulletDotWidget.ts's BulletDotWidget), inserted as a real element
-  // via Decoration.widget() rather than Decoration.replace() -- so it
-  // never needs an atomic cm-widgetBuffer placeholder around it,
-  // which is what caused unwanted mid-word wraps in the earlier
-  // implementation (see hangingIndent.ts's own comment on the same
-  // issue). No separate ".pad" spacer element is needed anymore: the
-  // real tab characters are already hidden by this file's own
-  // ".cm-hidden-tab" rule, and the horizontal gutter they'd otherwise
-  // occupy is already reserved by that same rule's line-level
-  // padding-left -- ".indent-mark" just anchors the dot at the point
-  // where the hidden tabs end, and ".dot" pulls it back left into
-  // that gutter via calc() off its own --dot-size.
-  ".indent-mark": {
+  // One indent level's pad box (see hangingIndent.ts's PadWidget),
+  // replacing the underlying whitespace character 1:1. Fixed-width
+  // and non-editable so it renders and behaves like a single
+  // character rather than like ordinary text content.
+  ".pad": {
     position: "relative",
     display: "inline-block",
+    width: `${PAD_WIDTH_PX}px`,
     // Explicit 1em height, matching the text's own font box rather
-    // than the taller line-height box (1.7, see .cm-line above).
-    // The dot's top:50% centering below is measured against this
-    // height -- without it, the mark's auto height follows the
-    // line-height instead, pushing the dot below the glyphs' actual
-    // vertical center.
+    // than the taller line-height box (1.7, see .cm-line above), so
+    // the dot's top:50% centering below lines up with the glyphs'
+    // actual vertical center.
     height: "1em",
     lineHeight: "1",
     verticalAlign: "middle",
   },
-  ".indent-mark .dot": {
-    display: "block",
+  // Bullet dot drawn inside a line's last pad only (see PadWidget's
+  // `hasDot`), centered within that pad's box.
+  ".pad .dot": {
     position: "absolute",
-    "--dot-size": "6px",
-    left: "calc(-1 * var(--dot-size) - 14px)",
-    // Centered on the indent-mark's own 1em box (see above), which
-    // now lines up with the text's actual vertical center.
+    display: "block",
     top: "50%",
-    marginTop: "calc(-1 * var(--dot-size) / 2)",
-    width: "var(--dot-size)",
-    height: "var(--dot-size)",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: `${DOT_SIZE_PX}px`,
+    height: `${DOT_SIZE_PX}px`,
     borderRadius: "50%",
     backgroundColor: "var(--color-line-text)",
   },

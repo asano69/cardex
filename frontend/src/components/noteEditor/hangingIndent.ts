@@ -7,151 +7,105 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
-// How many CSS "ch" units (the width of the "0" character) one
-// indent level's hanging indent occupies. Purely a rendering choice
-// -- since the leading tab characters themselves are hidden (see
-// buildDecorations below), this number has no relationship to the
-// browser's own tab-size rendering; it only has to look reasonable.
-export const INDENT_WIDTH_CH = 4;
+// Width of one indent level's pad element, in pixels (see PadWidget
+// below). Also used by editorTheme.ts to size the ".pad" element
+// itself, so the two stay in sync.
+export const PAD_WIDTH_PX = 22.5;
 
-const LEADING_TABS_RE = /^\t+/;
+// Diameter of the bullet dot drawn inside the last pad of a line's
+// leading indent (see PadWidget below and editorTheme.ts's
+// ".pad .dot" rule).
+export const DOT_SIZE_PX = 6;
 
-// Renders one Scrapbox/Cosense-style bullet dot per indented line, as
-// a real <span> (not a ::before/::after pseudo-element). Stateless --
-// every dot looks identical regardless of depth, since its horizontal
-// position is entirely a function of the line's own padding-left
-// (see buildDecorations below) plus CSS, not anything carried by the
-// widget itself.
+// A single leading indent character: a tab (what Tab/Shift-Tab
+// insert -- see index.tsx's indentUnit), or a half-width/full-width
+// space (which can end up at a line's start via paste or IME input).
+// Only matched at the very start of a line (see buildDecorations
+// below), never mid-line.
+const LEADING_INDENT_RUN_RE = /^[\t \u3000]+/;
+
+// Renders one indent level as a fixed-width "pad" box, replacing the
+// underlying whitespace character 1:1 via Decoration.replace() (see
+// buildDecorations). Because each pad stands in for exactly one
+// document character, deleting it (e.g. Backspace right after it)
+// behaves exactly like deleting any other single character -- no
+// separate outdent command or atomic-range plumbing is needed for
+// that anymore.
 //
-// IMPORTANT: this widget is built inside buildDecorations below, in
-// the SAME Decoration.set() call that also produces the
-// "cm-indent-glue" nowrap mark, rather than in its own separate
-// ViewPlugin. Combining decorations from two different plugins (as an
-// earlier version of this did) doesn't guarantee the widget ends up
-// nested inside the glue mark's wrapping <span> in the final rendered
-// DOM -- decoration precedence between separate sources can place a
-// point decoration like this widget outside of another source's mark
-// span even when their document ranges overlap. Building both from
-// one decoration set removes that ambiguity: the widget's position
-// falls strictly inside the glue mark's own range from the same pass,
-// so it is guaranteed to render nested inside it, keeping it under
-// the same "white-space: nowrap" protection that stops the
-// widget's own cm-widgetBuffer (see the Decoration.widget() docs --
-// widgetBuffer applies to widget decorations exactly like replace()
-// ones) from reopening a wrap point right after the indent.
-class BulletDotWidget extends WidgetType {
-  eq(_other: BulletDotWidget) {
-    return true;
+// Only the last pad in a line's leading run draws the bullet dot;
+// every other pad is empty and only reserves horizontal space.
+class PadWidget extends WidgetType {
+  constructor(private readonly hasDot: boolean) {
+    super();
+  }
+
+  eq(other: PadWidget) {
+    return other.hasDot === this.hasDot;
   }
 
   toDOM() {
-    const mark = document.createElement("span");
-    mark.className = "indent-mark";
+    const pad = document.createElement("span");
+    pad.className = "pad";
     // Without this, the browser treats the widget as ordinary
     // editable content and can place a native caret or click target
     // inside it.
-    mark.contentEditable = "false";
+    pad.contentEditable = "false";
 
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    mark.appendChild(dot);
+    if (this.hasDot) {
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      pad.appendChild(dot);
+    }
 
-    return mark;
+    return pad;
   }
 }
 
-// CodeMirror has no built-in feature for hanging indent on wrapped
-// lines -- confirmed by Marijn Haverbeke himself on the CodeMirror
-// forum (see docs/code-mirror-migration.md). The standard technique
-// (also shown in CodeMirror's own "Line Wrapping" example) is a
-// per-line `padding-left`, so every wrapped row of a paragraph is
-// pushed right by the same amount.
-//
-// The one wrinkle: `padding-left` on a line's block box applies to
-// EVERY visual row of that line, including the first one -- which
-// already contains the real leading tab characters, rendered at
-// their own native width via the browser's tab-stop logic. Left
-// alone, that means the first row gets shifted twice: once by its
-// own tab characters, and again by padding-left. The classic fix is
-// a matching negative `text-indent` to cancel padding-left back out
-// on just the first row, but that relies on the browser's tab-stop
-// math interacting correctly with a negative text-indent -- fragile,
-// and the likely cause of the "looks like a line break" symptom this
-// file replaces.
-//
-// Instead, the real leading tabs are hidden via a mark decoration
-// (font-size: 0, see editorTheme.ts's ".cm-hidden-tab") so they
-// contribute no visible width of their own. `padding-left` is then
-// the ONLY source of the shift, applied uniformly to every row --
-// first and wrapped alike -- so there is nothing left to
-// double-count. The tab characters still exist in the document
-// (they're what indentMore/indentLess insert and remove, and what
-// determines a line's indent depth here); this decoration only
-// changes how they're rendered.
-//
-// A mark decoration is used here instead of Decoration.replace:
-// replace decorations make CodeMirror insert invisible
-// "cm-widgetBuffer" <img> placeholder nodes around the hidden range
-// (needed so DOM selection can still address it), and each of those
-// placeholders is its own atomic inline-level box -- which, per the
-// CSS Text spec, carries an implicit soft-wrap opportunity at its
-// boundary. With a very long line right after the indent (no spaces
-// to wrap on otherwise), the browser would latch onto that
-// opportunity and wrap immediately after the indent, producing a
-// meaningless line break at the very start of the line. A mark
-// decoration is just a plain (non-atomic) inline span, so it doesn't
-// introduce that boundary.
-//
-// Even so, there's still an element boundary between the hidden tabs
-// and the line's first real character, which is itself a soft-wrap
-// opportunity by default. `cm-indent-glue` (covering the hidden tabs
-// plus that one following character) forbids breaking inside itself
-// via `white-space: nowrap`, so wrapping only ever kicks in once the
-// line has actually run out of room -- never right at the start.
-function buildDecorations(view: EditorView): {
-  decorations: DecorationSet;
-  atomic: DecorationSet;
-} {
+// Builds, for each visible line with a leading indent run:
+//   - one Decoration.replace() range per indent character, each
+//     rendered as a "pad" box (see PadWidget) -- this is what makes
+//     the indent visible and lets a single Backspace remove one
+//     level.
+//   - a line-level padding-left/text-indent pair matching the total
+//     indent width, so a wrapped continuation row of the same line
+//     lines up under the first row's real text. padding-left alone
+//     would double-indent the first row, since the pad elements
+//     already occupy that width themselves there; the matching
+//     negative text-indent cancels padding-left back out for exactly
+//     the first row, leaving continuation rows indented by
+//     padding-left alone. Unlike the previous font-size:0 + padding
+//     approach, this doesn't depend on a native tab character's
+//     browser-dependent tab-stop width, since each pad is a plain,
+//     fixed-width element under our own control.
+//   - a "cm-indent-glue" nowrap span covering the whole leading run
+//     plus the first following character, so the browser never picks
+//     a wrap point between two pads, or between the last pad and the
+//     line's real text.
+function buildDecorations(view: EditorView): DecorationSet {
   const decorations = [];
-  const atomic = [];
   for (const { from, to } of view.visibleRanges) {
     let pos = from;
     while (pos <= to) {
       const line = view.state.doc.lineAt(pos);
-      const match = LEADING_TABS_RE.exec(line.text);
+      const match = LEADING_INDENT_RUN_RE.exec(line.text);
       if (match) {
         const depth = match[0].length;
-        const width = `${depth * INDENT_WIDTH_CH}ch`;
+        const width = depth * PAD_WIDTH_PX;
         decorations.push(
           Decoration.line({
-            attributes: { style: `padding-left: ${width};` },
+            attributes: {
+              style: `padding-left: ${width}px; text-indent: -${width}px;`,
+            },
           }).range(line.from),
         );
 
-        const hiddenTab = Decoration.mark({ class: "cm-hidden-tab" }).range(
-          line.from,
-          line.from + depth,
-        );
-        decorations.push(hiddenTab);
-        // Only the hidden-tab range should be atomic (see
-        // hangingIndentAtomicRanges below) -- cm-indent-glue further
-        // down also spans the first real character, and that
-        // character must stay individually reachable by the cursor.
-        atomic.push(hiddenTab);
-
-        // Anchored to the position right after the hidden tabs (side:
-        // -1 biases it toward the character just before, i.e. the
-        // last hidden tab), so it sits between real text on both
-        // sides rather than at the line's own start/end -- and,
-        // critically, strictly inside the cm-indent-glue range pushed
-        // right below, from this same decoration set (see
-        // BulletDotWidget's own comment above for why that matters).
-        decorations.push(
-          Decoration.widget({
-            widget: new BulletDotWidget(),
-            side: -1,
-          }).range(line.from + depth),
-        );
+        for (let i = 0; i < depth; i++) {
+          decorations.push(
+            Decoration.replace({
+              widget: new PadWidget(i === depth - 1),
+            }).range(line.from + i, line.from + i + 1),
+          );
+        }
 
         if (line.to > line.from + depth) {
           decorations.push(
@@ -165,42 +119,24 @@ function buildDecorations(view: EditorView): {
       pos = line.to + 1;
     }
   }
-  return {
-    decorations: Decoration.set(decorations, true),
-    atomic: Decoration.set(atomic, true),
-  };
+  return Decoration.set(decorations, true);
 }
 
 export const hangingIndent = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
-    atomic: DecorationSet;
 
     constructor(view: EditorView) {
-      const built = buildDecorations(view);
-      this.decorations = built.decorations;
-      this.atomic = built.atomic;
+      this.decorations = buildDecorations(view);
     }
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged) {
-        const built = buildDecorations(update.view);
-        this.decorations = built.decorations;
-        this.atomic = built.atomic;
+        this.decorations = buildDecorations(update.view);
       }
     }
   },
   {
     decorations: (plugin) => plugin.decorations,
   },
-);
-
-// Keeps the cursor from stepping through the hidden leading-tab
-// characters one at a time -- without this, pressing the arrow keys
-// can move the cursor with no visible on-screen change, which feels
-// like it's stuck. Only the hidden-tab ranges (not cm-indent-glue)
-// are used here, so the first real character right after the indent
-// stays individually reachable.
-export const hangingIndentAtomicRanges = EditorView.atomicRanges.of(
-  (view) => view.plugin(hangingIndent)?.atomic ?? Decoration.none,
 );
