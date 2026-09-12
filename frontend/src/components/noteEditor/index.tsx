@@ -2,6 +2,7 @@ import { onCleanup, Show, createSignal } from "solid-js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, drawSelection } from "@codemirror/view";
 import { hangingIndent, hangingIndentAtomicRanges } from "./hangingIndent";
+import { insertNewlineKeepingBullet } from "./bulletEnter";
 import { defaultKeymap, indentMore, indentLess } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
@@ -231,6 +232,7 @@ export default function NoteEditor(props: NoteEditorProps) {
         keymap.of([
           { key: "Tab", run: indentMore },
           { key: "Shift-Tab", run: indentLess },
+          { key: "Enter", run: insertNewlineKeepingBullet },
         ]),
         // yCollab supplies its own undo/redo keymap, backed by Yjs's
         // UndoManager -- CM6's own history() extension is
