@@ -2,6 +2,7 @@ import { onCleanup, Show, createSignal } from "solid-js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, drawSelection } from "@codemirror/view";
 import { hangingIndent } from "./hangingIndent";
+import { noWrapAfterIndent } from "./noWrapAfterIndent";
 import { insertNewlineKeepingBullet } from "./bulletEnter";
 import { defaultKeymap, indentMore, indentLess } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
@@ -209,6 +210,12 @@ export default function NoteEditor(props: NoteEditorProps) {
         // one behaves like deleting any other single character (no
         // separate atomic-range handling needed for that anymore).
         hangingIndent,
+        // Prevents a soft-wrap break right at the indent/text
+        // boundary (see noWrapAfterIndent.ts) -- without this, a
+        // wrapped continuation line could start right after the
+        // indent widgets instead of pushing the first real word down
+        // with them.
+        noWrapAfterIndent,
         // Cardpot's own inline syntax (wiki links, brackets, tags --
         // see cardpotSyntax.ts). Needs syntaxHighlighting() alongside
         // it: the parser only tags nodes, this is what actually turns
