@@ -45,7 +45,7 @@ export const editorTheme = EditorView.theme({
   // the line (including wrapped continuation rows); the matching
   // negative text-indent then cancels margin-left back out for just
   // the first visual row, since that row's own width is already
-  // reserved by the indent-mark elements below.
+  // reserved by the pad elements below.
   ".cm-line.indent": {
     marginLeft: "var(--indent-width, 0px)",
     textIndent: "calc(-1 * var(--indent-width, 0px))",
@@ -54,7 +54,7 @@ export const editorTheme = EditorView.theme({
   // IndentMarkWidget), replacing the underlying whitespace character
   // 1:1. Fixed-width and non-editable so it renders and behaves like
   // a single character rather than like ordinary text content.
-  ".indent-mark": {
+  ".pad": {
     position: "relative",
     display: "inline-block",
     width: `${INDENT_WIDTH_PX}px`,
@@ -66,9 +66,9 @@ export const editorTheme = EditorView.theme({
     lineHeight: "1",
     verticalAlign: "middle",
   },
-  // Bullet dot drawn inside a line's last indent-mark only (see
+  // Bullet dot drawn inside a line's last pad only (see
   // IndentMarkWidget's `hasDot`), centered within that mark's box.
-  ".indent-mark .dot": {
+  ".pad .dot": {
     position: "absolute",
     display: "block",
     top: "50%",

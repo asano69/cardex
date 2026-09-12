@@ -9,12 +9,12 @@ import {
 
 // Width of one indent level's mark element, in pixels (see
 // IndentMarkWidget below). Also used by editorTheme.ts to size the
-// ".indent-mark" element itself, so the two stay in sync.
+// ".pad" element itself, so the two stay in sync.
 export const INDENT_WIDTH_PX = 22.5;
 
 // Diameter of the bullet dot drawn inside the last mark of a line's
 // leading indent (see IndentMarkWidget below and editorTheme.ts's
-// ".indent-mark .dot" rule).
+// ".pad .dot" rule).
 export const DOT_SIZE_PX = 6;
 
 // A single leading indent character: a tab (what Tab/Shift-Tab
@@ -24,7 +24,7 @@ export const DOT_SIZE_PX = 6;
 // below), never mid-line.
 const LEADING_INDENT_RUN_RE = /^[\t \u3000]+/;
 
-// Renders one indent level as a fixed-width "indent-mark" box,
+// Renders one indent level as a fixed-width "pad" box,
 // replacing the underlying whitespace character 1:1 via
 // Decoration.replace() (see buildDecorations). Because each mark
 // stands in for exactly one document character, deleting it (e.g.
@@ -49,7 +49,7 @@ class IndentMarkWidget extends WidgetType {
 
   toDOM() {
     const mark = document.createElement("span");
-    mark.className = "indent-mark";
+    mark.className = "pad";
     // Without this, the browser treats the widget as ordinary
     // editable content and can place a native caret or click target
     // inside it.
@@ -67,7 +67,7 @@ class IndentMarkWidget extends WidgetType {
 
 // Builds, for each visible line with a leading indent run:
 //   - one Decoration.replace() range per indent character, each
-//     rendered as an "indent-mark" box (see IndentMarkWidget) -- this
+//     rendered as an "pad" box (see IndentMarkWidget) -- this
 //     is what makes the indent visible and lets a single Backspace
 //     remove one level.
 //   - a line-level ".indent" class carrying the total indent width as
@@ -75,13 +75,13 @@ class IndentMarkWidget extends WidgetType {
 //     which turns this into margin-left/text-indent), so a wrapped
 //     continuation row of the same line lines up under the first
 //     row's real text. margin-left alone would double-indent the
-//     first row, since the indent-mark elements already occupy that
+//     first row, since the pad elements already occupy that
 //     width themselves there; the matching negative text-indent
 //     cancels margin-left back out for exactly the first row, leaving
 //     continuation rows indented by margin-left alone. Unlike the
 //     previous font-size:0 + padding approach, this doesn't depend on
 //     a native tab character's browser-dependent tab-stop width,
-//     since each indent-mark is a plain, fixed-width element under
+//     since each pad is a plain, fixed-width element under
 //     our own control.
 function buildDecorations(view: EditorView): DecorationSet {
   const decorations = [];
